@@ -10,6 +10,12 @@ Until the separate contract-freeze decision:
 - generated output may change between commits;
 - mutable Action refs and broad version ranges are unsupported.
 
+The CLI, provider, generated workflows, and Action runtime must use one compatible release set.
+Providers declare an exact core dependency, and generated workflows pin the Action runtime by
+commit. During an unreleased source installation, update the workspace checkout and
+`provider.configuration.runtime.action` together; mixing compiler generations intentionally fails
+artifact provenance validation.
+
 The stable release will assign explicit graph and result versions, document supported reading
 windows, and define migrations before publication. Existing version numbers will not be
 silently reinterpreted after that freeze.
