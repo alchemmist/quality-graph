@@ -35,7 +35,7 @@ jobs:
     - name: Collect Go vet result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: vet
@@ -43,7 +43,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: acce954c2edc200087eecc4e4ea9dee267a20e8607e50c631268ee5268e67fdd
+        graph-digest: fe2619d38bb0467eb5cef4c9cbe0d008b38a86ee608b3ca5dd8494ffa1aaa241
     - name: Upload Go vet result
       if: always()
       uses: actions/upload-artifact@v7
@@ -78,7 +78,7 @@ jobs:
     - name: Collect Go test result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: test
@@ -86,7 +86,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: acce954c2edc200087eecc4e4ea9dee267a20e8607e50c631268ee5268e67fdd
+        graph-digest: fe2619d38bb0467eb5cef4c9cbe0d008b38a86ee608b3ca5dd8494ffa1aaa241
     - name: Upload Go test result
       if: always()
       uses: actions/upload-artifact@v7

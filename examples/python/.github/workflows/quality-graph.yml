@@ -33,7 +33,7 @@ jobs:
     - name: Collect Ruff result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: lint
@@ -41,7 +41,7 @@ jobs:
         adapter: sarif
         report-path: reports/ruff.sarif
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: d8a3258e7b0205b8353a831ba6b93ce051af8dd23b7c17f3b09a5b901901bc32
+        graph-digest: 388e09bf8fc03cb9fcf3ab52cc22fc299cf5c9053340dc8999f8b2a19e980b16
     - name: Upload Ruff result
       if: always()
       uses: actions/upload-artifact@v7
@@ -74,7 +74,7 @@ jobs:
     - name: Collect Pytest result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: test
@@ -82,7 +82,7 @@ jobs:
         adapter: junit
         report-path: reports/pytest.xml
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: d8a3258e7b0205b8353a831ba6b93ce051af8dd23b7c17f3b09a5b901901bc32
+        graph-digest: 388e09bf8fc03cb9fcf3ab52cc22fc299cf5c9053340dc8999f8b2a19e980b16
     - name: Upload Pytest result
       if: always()
       uses: actions/upload-artifact@v7
