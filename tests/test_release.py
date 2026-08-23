@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 PROJECT_NAMES = {
     "quality-graph-core",
     "quality-graph-github",
@@ -47,6 +47,10 @@ def test_release_workflow_is_tag_bound_and_least_privilege() -> None:
         assert jobs[name]["environment"]["name"] == environment
         assert jobs[name]["permissions"] == {"id-token": "write"}
     assert jobs["release"]["permissions"] == {"contents": "write"}
+    assert {step.get("run") for step in jobs["release"]["steps"]} >= {
+        'gh release create "$GITHUB_REF_NAME" dist/* --generate-notes '
+        '--verify-tag --repo "$GITHUB_REPOSITORY"'
+    }
 
 
 def test_release_workflow_pins_every_external_action() -> None:

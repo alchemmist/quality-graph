@@ -4,8 +4,8 @@ Install the CLI and GitHub provider from the same exact release. Pin the generat
 Action to the commit attached to that release, never to a mutable branch or major-version tag.
 
 ```bash
-export QG_SHA=<40-character-commit-shown-on-the-v0.1.1-release>
-uv tool install quality-graph-cli==0.1.1 --with quality-graph-github==0.1.1
+export QG_SHA=<40-character-commit-shown-on-the-v0.1.2-release>
+uv tool install quality-graph-cli==0.1.2 --with quality-graph-github==0.1.2
 qg init --root ../project \
   --runtime-action "alchemmist/quality-graph@$QG_SHA"
 ```

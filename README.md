@@ -37,7 +37,7 @@ nodes:
 ```
 
 ```bash
-uv tool install quality-graph-cli==0.1.1 --with quality-graph-github==0.1.1
+uv tool install quality-graph-cli==0.1.2 --with quality-graph-github==0.1.2
 qg init --runtime-action 'alchemmist/quality-graph@<release-commit-sha>'
 qg generate
 git add quality-graph.yml .github/workflows .quality-graph/manifest.json
