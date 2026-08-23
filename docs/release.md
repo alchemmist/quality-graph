@@ -17,6 +17,9 @@ The repository uses a protected `pypi` GitHub environment and one PyPI pending T
 for each workspace distribution. Every publisher is bound to `alchemmist/quality-graph`,
 `.github/workflows/release.yml`, and the `pypi` environment.
 
+Run `make release-setup` once to configure that environment and the four pending publishers
+through the GitHub and PyPI interfaces. The setup uses no API token or repository secret.
+
 The release workflow builds and verifies distributions in an unprivileged job. Four isolated
 publication jobs receive only `id-token: write`, and PyPI creates attestations through Trusted
 Publishing. A final job creates the GitHub Release from the exact uploaded files. No long-lived
