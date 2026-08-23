@@ -24,6 +24,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
+        fetch-depth: '0'
     - uses: astral-sh/setup-uv@v7
       with:
         enable-cache: 'true'
@@ -45,7 +46,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+        graph-digest: 596dfb29586a4b62f2f4d34fad269b466e9302c33849483e8588bdc725cdac1c
     - name: Upload Format check result
       if: always()
       uses: actions/upload-artifact@v7
@@ -69,6 +70,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
+        fetch-depth: '0'
     - uses: astral-sh/setup-uv@v7
       with:
         enable-cache: 'true'
@@ -90,7 +92,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+        graph-digest: 596dfb29586a4b62f2f4d34fad269b466e9302c33849483e8588bdc725cdac1c
     - name: Upload Lint result
       if: always()
       uses: actions/upload-artifact@v7
@@ -116,6 +118,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
+        fetch-depth: '0'
     - uses: astral-sh/setup-uv@v7
       with:
         enable-cache: 'true'
@@ -137,7 +140,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+        graph-digest: 596dfb29586a4b62f2f4d34fad269b466e9302c33849483e8588bdc725cdac1c
     - name: Upload Type check result
       if: always()
       uses: actions/upload-artifact@v7
@@ -163,6 +166,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
+        fetch-depth: '0'
     - uses: astral-sh/setup-uv@v7
       with:
         enable-cache: 'true'
@@ -184,7 +188,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+        graph-digest: 596dfb29586a4b62f2f4d34fad269b466e9302c33849483e8588bdc725cdac1c
     - name: Upload Static analysis result
       if: always()
       uses: actions/upload-artifact@v7
@@ -210,6 +214,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
+        fetch-depth: '0'
     - uses: astral-sh/setup-uv@v7
       with:
         enable-cache: 'true'
@@ -231,7 +236,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+        graph-digest: 596dfb29586a4b62f2f4d34fad269b466e9302c33849483e8588bdc725cdac1c
     - name: Upload Tests and coverage result
       if: always()
       uses: actions/upload-artifact@v7
@@ -248,6 +253,54 @@ jobs:
       run: exit "${EXIT_CODE:-2}"
     needs:
     - analyze
+  mutation:
+    name: Changed decision mutation gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups
+    - run: make mutation-diff
+      name: Run Changed decision mutation gate
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Changed decision mutation gate result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      with:
+        operation: collect
+        node-id: mutation
+        title: Changed decision mutation gate
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: 596dfb29586a4b62f2f4d34fad269b466e9302c33849483e8588bdc725cdac1c
+    - name: Upload Changed decision mutation gate result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-mutation-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/mutation.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Changed decision mutation gate result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - test
   audit:
     name: Dependency and secret audit
     runs-on: ubuntu-latest
@@ -257,6 +310,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
+        fetch-depth: '0'
     - uses: astral-sh/setup-uv@v7
       with:
         enable-cache: 'true'
@@ -278,7 +332,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+        graph-digest: 596dfb29586a4b62f2f4d34fad269b466e9302c33849483e8588bdc725cdac1c
     - name: Upload Dependency and secret audit result
       if: always()
       uses: actions/upload-artifact@v7
@@ -294,7 +348,7 @@ jobs:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
     needs:
-    - test
+    - mutation
   package:
     name: Package
     runs-on: ubuntu-latest
@@ -304,6 +358,7 @@ jobs:
     - uses: actions/checkout@v7
       with:
         persist-credentials: 'false'
+        fetch-depth: '0'
     - uses: astral-sh/setup-uv@v7
       with:
         enable-cache: 'true'
@@ -325,7 +380,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+        graph-digest: 596dfb29586a4b62f2f4d34fad269b466e9302c33849483e8588bdc725cdac1c
     - name: Upload Package result
       if: always()
       uses: actions/upload-artifact@v7

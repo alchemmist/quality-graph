@@ -313,6 +313,7 @@ class Graph:
         return _parse_graph(_object(value, "quality-graph.yml"))
 
 
+# pragma: no mutate start
 def _parse_graph(data: dict[str, JsonValue]) -> Graph:
     _reject_unknown(
         data,
@@ -487,6 +488,7 @@ def _parse_administration(data: dict[str, JsonValue]) -> tuple[str, ...]:
     )
 
 
+# pragma: no mutate end
 def _visit_profiles(profiles: Mapping[str, Profile]) -> None:
     visited: set[str] = set()
     active: set[str] = set()

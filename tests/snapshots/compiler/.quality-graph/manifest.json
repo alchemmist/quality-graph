@@ -1,0 +1,127 @@
+{
+  "administration": {
+    "roles": [
+      "admin",
+      "maintain"
+    ]
+  },
+  "graphDigest": "a77af7a02406437efff0ac8c4975923b6260d223c9df360d3e19a0d6db079458",
+  "graphVersion": 0,
+  "labels": {
+    "enabled": true,
+    "failing": {
+      "color": "b60205",
+      "create": false,
+      "description": "Quality Graph failure",
+      "name": "quality:failed"
+    }
+  },
+  "manifestVersion": 0,
+  "nodes": [
+    {
+      "env": {
+        "UV_NO_SYNC": "1"
+      },
+      "id": "format",
+      "needs": [],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make fmt-check"
+      },
+      "title": "Formatting"
+    },
+    {
+      "env": {
+        "UV_NO_SYNC": "1"
+      },
+      "failingLabel": {
+        "color": "ff0000",
+        "create": true,
+        "description": "Quality Graph failure",
+        "name": "quality:lint"
+      },
+      "id": "lint",
+      "needs": [
+        "format"
+      ],
+      "policy": {
+        "approvals": {
+          "files": true,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error",
+          "warning"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "sarif",
+        "path": "reports/lint.sarif"
+      },
+      "step": {
+        "run": "make lint"
+      },
+      "title": "Lint"
+    }
+  ],
+  "profiles": {
+    "default": {
+      "env": {},
+      "permissions": {
+        "contents": "read"
+      },
+      "runner": "ubuntu-latest",
+      "services": {},
+      "setup": [
+        {
+          "uses": "actions/checkout@v7",
+          "with": {
+            "persist-credentials": "false"
+          }
+        }
+      ]
+    },
+    "python": {
+      "env": {
+        "UV_NO_SYNC": "1"
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "runner": "ubuntu-latest",
+      "services": {},
+      "setup": [
+        {
+          "uses": "actions/checkout@v7",
+          "with": {
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "astral-sh/setup-uv@v7"
+        }
+      ]
+    }
+  },
+  "resultSchemaVersion": 0,
+  "runtime": {
+    "action": "alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

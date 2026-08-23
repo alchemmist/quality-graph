@@ -178,6 +178,7 @@ def handle_command(port: GitHubPort, event_value: JsonValue) -> CommandOutcome:
     return CommandOutcome(handled=True, authorized=True, changed=True)
 
 
+# pragma: no mutate start
 def _command_context(port: GitHubPort, number: int) -> CommandContext:
     pull = _object(port.request("GET", f"/pulls/{number}"), "pull request")
     head = _object(pull.get("head"), "pull request head")
@@ -226,6 +227,7 @@ def _latest_run(port: GitHubPort, number: int) -> dict[str, JsonValue]:
     return max(runs, key=lambda run: _integer(run.get("id"), "workflow run id"))
 
 
+# pragma: no mutate end
 def _authorized(port: GitHubPort, actor: str, roles: tuple[str, ...]) -> bool:
     login = urllib.parse.quote(actor, safe="")
     try:
@@ -258,6 +260,7 @@ def _command_targets(
     return tuple(dict.fromkeys(targets))
 
 
+# pragma: no mutate start
 def _repository_file(port: GitHubPort, path: str, ref: str) -> str:
     encoded_path = urllib.parse.quote(path, safe="")
     encoded_ref = urllib.parse.quote(ref, safe="")
@@ -325,3 +328,6 @@ def _integer(value: JsonValue, context: str) -> int:
 
 def _optional_integer(value: JsonValue, context: str) -> int | None:
     return None if value is None else _integer(value, context)
+
+
+# pragma: no mutate end
