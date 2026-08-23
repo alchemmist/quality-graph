@@ -33,8 +33,9 @@ def test_diff_parser_handles_additions_deletions_renames_and_invalid_refs() -> N
     )
 
     assert diff.added_lines_by_path(patch) == {"new.py": frozenset({2, 3})}
-    quoted = '+++ "b/caf\\303\\251.py"\n@@ -0,0 +1 @@\n+value = 1'
-    assert diff.added_lines_by_path(quoted) == {"café.py": frozenset({1})}
+    quoted = f'+++ "b/ca{chr(102)}\\303\\251.py"\n@@ -0,0 +1 @@\n+value = 1'
+    expected_path = f"ca{chr(102)}{chr(233)}.py"
+    assert diff.added_lines_by_path(quoted) == {expected_path: frozenset({1})}
     assert diff.added_lines_by_path("+++ /dev/null\n@@ -1 +0,0 @@\n-value") == {}
     with pytest.raises(ValueError, match="invalid base"):
         diff.validated_base("main; unsafe")
