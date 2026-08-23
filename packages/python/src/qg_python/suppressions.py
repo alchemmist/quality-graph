@@ -1,6 +1,4 @@
-"""
-Reject newly introduced lint, typing, security, and coverage suppressions.
-"""
+"""Reject newly introduced lint, typing, security, and coverage suppressions."""
 
 from __future__ import annotations
 
@@ -23,9 +21,7 @@ SUFFIXES = (".py", ".toml", ".yaml", ".yml", ".json")
 
 
 def scan_source(path: str, source: str, added: frozenset[int]) -> tuple[Finding, ...]:
-    """
-    Find suppression directives on added lines.
-    """
+    """Find suppression directives on added lines."""
     pattern = SOURCE_RE if path.endswith(".py") else CONFIG_RE
     findings = []
     for line_number, line in enumerate(source.splitlines(), 1):
@@ -46,9 +42,7 @@ def scan_source(path: str, source: str, added: frozenset[int]) -> tuple[Finding,
 
 
 def main(arguments: list[str] | None = None) -> int:
-    """
-    Check changed files for newly introduced suppressions.
-    """
+    """Check changed files for newly introduced suppressions."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="origin/main")
     args = parser.parse_args(arguments)

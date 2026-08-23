@@ -1,6 +1,4 @@
-"""
-Reject Python comments outside narrowly allowed tool directives.
-"""
+"""Reject Python comments outside narrowly allowed tool directives."""
 
 from __future__ import annotations
 
@@ -18,9 +16,7 @@ ALLOWED_COMMENT = re.compile(
 
 
 def python_files(roots: tuple[Path, ...]) -> tuple[Path, ...]:
-    """
-    Return sorted Python files below selected roots.
-    """
+    """Return sorted Python files below selected roots."""
     return tuple(
         sorted(
             path
@@ -32,9 +28,7 @@ def python_files(roots: tuple[Path, ...]) -> tuple[Path, ...]:
 
 
 def scan_file(path: Path) -> tuple[Finding, ...]:
-    """
-    Return disallowed comment tokens in one Python file.
-    """
+    """Return disallowed comment tokens in one Python file."""
     findings = []
     with tokenize.open(path) as source:
         for token in tokenize.generate_tokens(source.readline):
@@ -55,9 +49,7 @@ def scan_file(path: Path) -> tuple[Finding, ...]:
 
 
 def main(arguments: list[str] | None = None) -> int:
-    """
-    Scan configured roots and return a process exit code.
-    """
+    """Scan configured roots and return a process exit code."""
     parser = argparse.ArgumentParser()
     parser.add_argument("roots", type=Path, nargs="+")
     args = parser.parse_args(arguments)

@@ -1,6 +1,4 @@
-"""
-Reject overly broad object annotations on changed Python lines.
-"""
+"""Reject overly broad object annotations on changed Python lines."""
 
 from __future__ import annotations
 
@@ -12,9 +10,7 @@ from qg_python.report import Finding, report
 
 
 def annotation_nodes(tree: ast.AST) -> tuple[ast.expr, ...]:
-    """
-    Collect annotations that can contain object references.
-    """
+    """Collect annotations that can contain object references."""
     nodes: list[ast.expr] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
@@ -31,9 +27,7 @@ def annotation_nodes(tree: ast.AST) -> tuple[ast.expr, ...]:
 
 
 def object_location(annotation: ast.expr) -> tuple[int, int] | None:
-    """
-    Return the first direct, qualified, or forward object annotation.
-    """
+    """Return the first direct, qualified, or forward object annotation."""
     for node in ast.walk(annotation):
         if isinstance(node, ast.Name) and node.id == "object":
             return node.lineno, node.col_offset
@@ -50,9 +44,7 @@ def object_location(annotation: ast.expr) -> tuple[int, int] | None:
 
 
 def scan_source(path: str, source: str, changed: frozenset[int]) -> tuple[Finding, ...]:
-    """
-    Find changed annotations using object in one Python source.
-    """
+    """Find changed annotations using object in one Python source."""
     try:
         tree = ast.parse(source, filename=path)
     except SyntaxError as error:
@@ -76,9 +68,7 @@ def scan_source(path: str, source: str, changed: frozenset[int]) -> tuple[Findin
 
 
 def main(arguments: list[str] | None = None) -> int:
-    """
-    Check changed Python annotations against a Git base.
-    """
+    """Check changed Python annotations against a Git base."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="origin/main")
     args = parser.parse_args(arguments)

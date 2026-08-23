@@ -1,6 +1,4 @@
-"""
-Read changed repository lines without depending on a hosting provider.
-"""
+"""Read changed repository lines without depending on a hosting provider."""
 
 from __future__ import annotations
 
@@ -18,9 +16,7 @@ GIT = shutil.which("git")
 
 @dataclass(frozen=True)
 class ChangedFile:
-    """
-    Carry current source and added destination lines for one changed file.
-    """
+    """Carry current source and added destination lines for one changed file."""
 
     path: str
     source: str
@@ -28,9 +24,7 @@ class ChangedFile:
 
 
 def validated_base(value: str) -> str:
-    """
-    Return a ref safe to pass as one argv item to Git.
-    """
+    """Return a ref safe to pass as one argv item to Git."""
     if BASE_RE.fullmatch(value) is None:
         message = f"invalid base ref: {value}"
         raise ValueError(message)
@@ -38,9 +32,7 @@ def validated_base(value: str) -> str:
 
 
 def patch_for_base(base: str) -> str:
-    """
-    Return a zero-context patch from the merge base to HEAD.
-    """
+    """Return a zero-context patch from the merge base to HEAD."""
     if GIT is None:
         message = "git executable is required"
         raise RuntimeError(message)
@@ -60,9 +52,7 @@ def patch_for_base(base: str) -> str:
 
 
 def added_lines_by_path(patch: str) -> dict[str, frozenset[int]]:
-    """
-    Parse added destination line numbers from a unified Git patch.
-    """
+    """Parse added destination line numbers from a unified Git patch."""
     path: str | None = None
     line_number: int | None = None
     result: dict[str, set[int]] = {}
@@ -90,9 +80,7 @@ def added_lines_by_path(patch: str) -> dict[str, frozenset[int]]:
 
 
 def changed_files(base: str, suffixes: tuple[str, ...]) -> tuple[ChangedFile, ...]:
-    """
-    Load changed existing files matching the selected suffixes.
-    """
+    """Load changed existing files matching the selected suffixes."""
     result = []
     for path, lines in added_lines_by_path(patch_for_base(base)).items():
         source_path = Path(path)

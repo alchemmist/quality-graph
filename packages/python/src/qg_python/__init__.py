@@ -1,3 +1,1 @@
-"""
-Reusable Python quality gates for Quality Graph.
-"""
+"""Reusable Python quality gates for Quality Graph."""
