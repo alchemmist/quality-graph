@@ -43,7 +43,7 @@ class Project:
             message = f"Quality Graph declaration does not exist: {configuration}"
             raise FileNotFoundError(message)
         graph = Graph.from_yaml(configuration.read_text())
-        return cls(root, graph, load_provider(graph.provider))
+        return cls(root, graph, load_provider(graph.provider.name))
 
     def render(self) -> GeneratedProject:
         """Compile the project without mutating its repository."""
@@ -92,9 +92,11 @@ class Project:
 def _starter_configuration(runtime_action: str, preset: Literal["oss", "internal"]) -> str:
     runner = "ubuntu-latest" if preset == "oss" else "self-hosted"
     return f"""version: 0
-provider: github
-runtime:
-  action: {runtime_action}
+provider:
+  name: github
+  configuration:
+    runtime:
+      action: {runtime_action}
 
 profiles:
   default:

@@ -221,7 +221,7 @@ def graph_schema_value() -> dict[str, JsonValue]:
             "env": string_mapping,
             "permissions": {
                 "type": "object",
-                "additionalProperties": {"enum": ["none", "read"]},
+                "additionalProperties": {"type": "string"},
             },
             "timeout-minutes": {"type": "integer", "minimum": 1, "maximum": 360},
             "container": _string_schema(minimum=1),
@@ -306,15 +306,19 @@ def graph_schema_value() -> dict[str, JsonValue]:
     schema = _object_schema(
         {
             "version": {"const": 0},
-            "provider": identifier,
-            "runtime": _object_schema(
-                {
-                    "action": _string_schema(
-                        pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$"
-                    )
-                },
-                ("action",),
-            ),
+            "provider": {
+                "oneOf": [
+                    identifier,
+                    _object_schema(
+                        {
+                            "name": identifier,
+                            "configuration": {"type": "object"},
+                        },
+                        ("name",),
+                    ),
+                ]
+            },
+            "runtime": {"type": "object"},
             "profiles": {
                 "type": "object",
                 "propertyNames": identifier,
@@ -338,7 +342,7 @@ def graph_schema_value() -> dict[str, JsonValue]:
                 (),
             ),
         },
-        ("version", "runtime", "profiles", "nodes"),
+        ("version", "profiles", "nodes"),
     )
     schema.update(
         {

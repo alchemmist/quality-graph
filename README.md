@@ -12,9 +12,11 @@ dashboards, labels, reruns, and authenticated approvals.
 
 ```yaml
 version: 0
-provider: github
-runtime:
-  action: alchemmist/quality-graph@<exact-commit-sha>
+provider:
+  name: github
+  configuration:
+    runtime:
+      action: alchemmist/quality-graph@<exact-commit-sha>
 profiles:
   default:
     runner: ubuntu-latest
@@ -38,9 +40,9 @@ nodes:
 git clone https://github.com/alchemmist/quality-graph.git
 cd quality-graph
 git checkout <sha>
-uv run --all-packages qg init --root ../project \
+uv run --locked --all-packages qg init --root ../project \
   --runtime-action 'alchemmist/quality-graph@<sha>'
-uv run --all-packages qg generate --root ../project
+uv run --locked --all-packages qg generate --root ../project
 (cd ../project && git add quality-graph.yml .github/workflows .quality-graph/manifest.json)
 ```
 

@@ -15,23 +15,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
 NODE_ID_RE = re.compile(r"^[a-z][a-z0-9-]{0,62}$")
-ACTION_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?@[A-Za-z0-9_.:/-]+$")
-RUNTIME_ACTION_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$")
-PERMISSION_NAMES = {
-    "actions",
-    "checks",
-    "contents",
-    "deployments",
-    "discussions",
-    "id-token",
-    "issues",
-    "packages",
-    "pages",
-    "pull-requests",
-    "repository-projects",
-    "security-events",
-    "statuses",
-}
 ADMIN_ROLES = {"admin", "maintain", "write"}
 MAX_TIMEOUT_MINUTES = 360
 MAX_LABEL_NAME_LENGTH = 50
@@ -67,12 +50,6 @@ class Step:
         if self.run is not None and not self.run.strip():
             message = "a run step must not be empty"
             raise ValueError(message)
-        if self.uses is not None and ACTION_RE.fullmatch(self.uses) is None:
-            message = f"action must include an explicit ref: {self.uses}"
-            raise ValueError(message)
-        if self.uses is not None and (self.working_directory is not None or self.shell is not None):
-            message = "uses steps cannot define working-directory or shell"
-            raise ValueError(message)
 
 
 @dataclass(frozen=True)
@@ -103,13 +80,6 @@ class Profile:
         ):
             message = "profile timeout must be between 1 and 360 minutes"
             raise ValueError(message)
-        for permission, access in self.permissions.items():
-            if permission not in PERMISSION_NAMES:
-                message = f"unknown GitHub permission: {permission}"
-                raise ValueError(message)
-            if access not in {"none", "read"}:
-                message = f"execution permission must be none or read: {permission}={access}"
-                raise ValueError(message)
 
 
 @dataclass(frozen=True)
@@ -224,36 +194,33 @@ class Node:
 
 
 @dataclass(frozen=True)
-class RuntimeReference:
-    """Pin the pre-release runtime Action used by generated workflows."""
+class ProviderConfiguration:
+    """Carry one provider name and its opaque validated-by-provider configuration."""
 
-    action: str
+    name: str
+    values: Mapping[str, JsonValue] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Require an immutable Git commit ref."""
-        if RUNTIME_ACTION_RE.fullmatch(self.action) is None:
-            message = "runtime.action must use owner/repository@40-character-commit"
-            raise ValueError(message)
+        """Validate only the platform-independent provider identity."""
+        _identifier(self.name, "provider")
 
 
 @dataclass(frozen=True)
 class Graph:
     """Represent a validated provisional Quality Graph declaration."""
 
-    runtime: RuntimeReference
+    provider: ProviderConfiguration
     profiles: tuple[Profile, ...]
     nodes: tuple[Node, ...]
     labels: LabelPolicy = LabelPolicy()
     administrator_roles: tuple[str, ...] = ("admin",)
     version: int = 0
-    provider: str = "github"
 
     def __post_init__(self) -> None:
         """Validate cross-reference, graph, and governance invariants."""
         if self.version != 0:
             message = f"unsupported graph version: {self.version}"
             raise ValueError(message)
-        _identifier(self.provider, "provider")
         profiles = _unique_profiles(self.profiles)
         nodes = _unique_nodes(self.nodes)
         _validate_profile_references(self.profiles, profiles)
@@ -325,7 +292,7 @@ def _parse_graph(data: dict[str, JsonValue]) -> Graph:
     profiles = _mapping(data.get("profiles"), "profiles")
     nodes = _mapping(data.get("nodes"), "nodes")
     return Graph(
-        _parse_runtime(_object(data.get("runtime"), "runtime")),
+        _parse_provider(data.get("provider", "github"), data.get("runtime")),
         tuple(
             _parse_profile(name, _object(value, f"profile {name}"))
             for name, value in profiles.items()
@@ -334,13 +301,22 @@ def _parse_graph(data: dict[str, JsonValue]) -> Graph:
         _parse_labels(_object(data.get("labels", {}), "labels")),
         _parse_administration(_object(data.get("administration", {}), "administration")),
         _integer(data.get("version"), "graph version"),
-        _string(data.get("provider", "github"), "provider"),
     )
 
 
-def _parse_runtime(data: dict[str, JsonValue]) -> RuntimeReference:
-    _reject_unknown(data, {"action"}, "runtime")
-    return RuntimeReference(_string(data.get("action"), "runtime action"))
+def _parse_provider(value: JsonValue, legacy_runtime: JsonValue) -> ProviderConfiguration:
+    if isinstance(value, str):
+        configuration = {} if legacy_runtime is None else {"runtime": legacy_runtime}
+        return ProviderConfiguration(_string(value, "provider"), configuration)
+    data = _object(value, "provider")
+    _reject_unknown(data, {"name", "configuration"}, "provider")
+    if legacy_runtime is not None:
+        message = "provider configuration cannot be combined with legacy runtime"
+        raise ValueError(message)
+    return ProviderConfiguration(
+        _string(data.get("name"), "provider name"),
+        _mapping(data.get("configuration", {}), "provider configuration"),
+    )
 
 
 def _parse_profile(name: str, data: dict[str, JsonValue]) -> Profile:

@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 
 from qg_github.compiler import (
@@ -10,7 +11,7 @@ from qg_github.compiler import (
     compile_graph,
 )
 from quality_graph_core.graph import Graph
-from tests.test_graph import GRAPH, MAXIMAL_GRAPH
+from tests.test_graph import GRAPH, MAXIMAL_GRAPH, RUNTIME
 
 
 def generated() -> dict[str, str]:
@@ -120,3 +121,59 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
     assert execution["jobs"]["format"]["steps"][0]["env"] == {"SETUP_MODE": "safe"}
     assert execution["jobs"]["format"]["container"] == "python:3.12"
     assert execution["jobs"]["format"]["services"]["redis"]["image"] == "redis:7"
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        (GRAPH.replace("actions/checkout@v7", "local-action", 1), "explicit ref"),
+        (
+            GRAPH.replace(
+                "runner: ubuntu-latest",
+                "runner: ubuntu-latest\n    permissions:\n      issues: write",
+            ),
+            "none or read",
+        ),
+        (
+            GRAPH.replace(
+                "runner: ubuntu-latest",
+                "runner: ubuntu-latest\n    permissions:\n      unknown: read",
+            ),
+            "unknown GitHub permission",
+        ),
+        (GRAPH.replace(RUNTIME, "alchemmist/quality-graph@main"), "40-character-commit"),
+        (GRAPH.replace("name: github", "name: gitlab"), "cannot compile provider"),
+        (
+            GRAPH.replace("    runtime:\n", "    unknown: true\n    runtime:\n"),
+            "unknown configuration",
+        ),
+        (
+            GRAPH.replace(
+                f"  configuration:\n    runtime:\n      action: {RUNTIME}\n",
+                "  configuration: {}\n",
+            ),
+            "requires a runtime object",
+        ),
+        (
+            GRAPH.replace(
+                f"      action: {RUNTIME}",
+                f"      action: {RUNTIME}\n      unknown: true",
+            ),
+            "runtime contains unknown fields",
+        ),
+        (
+            GRAPH.replace(
+                "uses: actions/checkout@v7",
+                "uses: actions/checkout@v7\n        working-directory: src",
+                1,
+            ),
+            "cannot define",
+        ),
+    ],
+)
+def test_github_provider_rejects_platform_specific_invalid_configuration(
+    source: str,
+    message: str,
+) -> None:
+    with pytest.raises((TypeError, ValueError), match=message):
+        compile_graph(Graph.from_yaml(source))

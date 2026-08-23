@@ -17,7 +17,10 @@ def load_provider(name: str) -> Provider:
     """Load one installed provider by its stable configuration name."""
     matches = tuple(entry_points(group=PROVIDER_GROUP, name=name))
     if not matches:
-        message = f"Provider '{name}' is not installed. Install it with: uv add qg-{name}"
+        message = (
+            f"Provider '{name}' is not installed. "
+            f"Install it with: uv tool install qg --with qg-{name}"
+        )
         raise ProviderNotInstalledError(message)
     if len(matches) != 1:
         message = f"Provider '{name}' has multiple installed implementations"

@@ -1,9 +1,10 @@
 ---
 version: 0
-provider: github
-
-runtime:
-  action: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
+provider:
+  name: github
+  configuration:
+    runtime:
+      action: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
 
 profiles:
   default:

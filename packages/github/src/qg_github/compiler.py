@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, cast, override
 
@@ -22,6 +23,23 @@ EXECUTION_WORKFLOW = PurePosixPath(".github/workflows/quality-graph.yml")
 PUBLICATION_WORKFLOW = PurePosixPath(".github/workflows/quality-graph-publish.yml")
 GRAPH_MANIFEST = PurePosixPath(".quality-graph/manifest.json")
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@v7"
+ACTION_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?@[A-Za-z0-9_.:/-]+$")
+RUNTIME_ACTION_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$")
+PERMISSION_NAMES = {
+    "actions",
+    "checks",
+    "contents",
+    "deployments",
+    "discussions",
+    "id-token",
+    "issues",
+    "packages",
+    "pages",
+    "pull-requests",
+    "repository-projects",
+    "security-events",
+    "statuses",
+}
 
 
 class WorkflowDumper(yaml.SafeDumper):
@@ -33,27 +51,81 @@ class WorkflowDumper(yaml.SafeDumper):
         return True
 
 
+def _validate_github_graph(graph: Graph) -> str:
+    if graph.provider.name != "github":
+        message = f"GitHub provider cannot compile provider '{graph.provider.name}'"
+        raise ValueError(message)
+    unknown = graph.provider.values.keys() - {"runtime"}
+    if unknown:
+        message = f"GitHub provider contains unknown configuration: {', '.join(sorted(unknown))}"
+        raise ValueError(message)
+    runtime = graph.provider.values.get("runtime")
+    if not isinstance(runtime, dict):
+        message = "GitHub provider requires a runtime object"
+        raise TypeError(message)
+    if runtime.keys() - {"action"}:
+        message = "GitHub runtime contains unknown fields"
+        raise ValueError(message)
+    action = runtime.get("action")
+    if not isinstance(action, str) or RUNTIME_ACTION_RE.fullmatch(action) is None:
+        message = "GitHub runtime action must use owner/repository@40-character-commit"
+        raise ValueError(message)
+    for profile in graph.profiles:
+        _validate_permissions(profile)
+        for step in profile.setup:
+            _validate_step(step)
+    for node in graph.nodes:
+        _validate_step(node.step)
+    return action
+
+
+def _validate_permissions(profile: Profile) -> None:
+    for permission, access in profile.permissions.items():
+        if permission not in PERMISSION_NAMES:
+            message = f"unknown GitHub permission: {permission}"
+            raise ValueError(message)
+        if access not in {"none", "read"}:
+            message = f"GitHub execution permission must be none or read: {permission}={access}"
+            raise ValueError(message)
+
+
+def _validate_step(step: Step) -> None:
+    if step.uses is not None and ACTION_RE.fullmatch(step.uses) is None:
+        message = f"GitHub action must include an explicit ref: {step.uses}"
+        raise ValueError(message)
+    if step.uses is not None and (step.working_directory is not None or step.shell is not None):
+        message = "GitHub uses steps cannot define working-directory or shell"
+        raise ValueError(message)
+
+
 def compile_graph(graph: Graph) -> GeneratedProject:
     """Compile one graph through the public declaration seam."""
-    manifest = _manifest_value(graph)
+    runtime_action = _validate_github_graph(graph)
+    manifest = _manifest_value(graph, runtime_action)
     digest = hashlib.sha256(_canonical_json(manifest).encode()).hexdigest()
     manifest["graphDigest"] = digest
     files = (
-        GeneratedFile(EXECUTION_WORKFLOW, _yaml_file(_execution_workflow(graph, digest))),
-        GeneratedFile(PUBLICATION_WORKFLOW, _yaml_file(_publication_workflow(graph))),
+        GeneratedFile(
+            EXECUTION_WORKFLOW,
+            _yaml_file(_execution_workflow(graph, runtime_action, digest)),
+        ),
+        GeneratedFile(
+            PUBLICATION_WORKFLOW,
+            _yaml_file(_publication_workflow(runtime_action)),
+        ),
         GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)),
     )
     return GeneratedProject(digest, files)
 
 
-def _manifest_value(graph: Graph) -> dict[str, JsonValue]:
+def _manifest_value(graph: Graph, runtime_action: str) -> dict[str, JsonValue]:
     profiles = graph.expanded_profiles()
     return {
         "manifestVersion": 0,
         "graphVersion": graph.version,
-        "provider": graph.provider,
+        "provider": graph.provider.name,
         "resultSchemaVersion": 0,
-        "runtime": {"action": graph.runtime.action},
+        "runtime": {"action": runtime_action},
         "profiles": {name: _profile_value(profile) for name, profile in profiles.items()},
         "nodes": [_node_value(node, profiles[node.profile]) for node in graph.nodes],
         "labels": _labels_value(graph),
@@ -133,10 +205,14 @@ def _label_value(label: LabelSpec) -> dict[str, JsonValue]:
     }
 
 
-def _execution_workflow(graph: Graph, digest: str) -> dict[str, JsonValue]:
+def _execution_workflow(
+    graph: Graph,
+    runtime_action: str,
+    digest: str,
+) -> dict[str, JsonValue]:
     profiles = graph.expanded_profiles()
     jobs: dict[str, JsonValue] = {
-        node.id: _execution_job(node, profiles[node.profile], graph.runtime.action, digest)
+        node.id: _execution_job(node, profiles[node.profile], runtime_action, digest)
         for node in graph.nodes
     }
     return {
@@ -235,7 +311,7 @@ def _workflow_step(step: Step) -> dict[str, JsonValue]:
     return _step_value(step)
 
 
-def _publication_workflow(graph: Graph) -> dict[str, JsonValue]:
+def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
     publish_permissions: dict[str, JsonValue] = {
         "actions": "read",
         "checks": "write",
@@ -254,7 +330,7 @@ def _publication_workflow(graph: Graph) -> dict[str, JsonValue]:
         "steps": [
             {
                 "name": "Publish trusted Quality Graph state",
-                "uses": graph.runtime.action,
+                "uses": runtime_action,
                 "with": {"operation": "publish"},
             }
         ],
@@ -272,7 +348,7 @@ def _publication_workflow(graph: Graph) -> dict[str, JsonValue]:
         "steps": [
             {
                 "name": "Handle trusted Quality Graph command",
-                "uses": graph.runtime.action,
+                "uses": runtime_action,
                 "with": {"operation": "command"},
             }
         ],
