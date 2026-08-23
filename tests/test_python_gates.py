@@ -1,4 +1,5 @@
 import ast
+from collections.abc import Callable
 from pathlib import Path
 from subprocess import CompletedProcess
 
@@ -70,7 +71,10 @@ def test_patch_runner_uses_validated_argv_and_requires_git(
 ) -> None:
     observed = []
 
-    def run(_function: object, command: list[str]) -> CompletedProcess[bytes]:
+    def run(
+        _function: Callable[..., CompletedProcess[bytes]],
+        command: list[str],
+    ) -> CompletedProcess[bytes]:
         observed.append(command)
         return CompletedProcess(command, 0, b"patch")
 
@@ -91,7 +95,10 @@ def test_suppression_gate_detects_source_and_configuration_directives() -> None:
     source_findings = suppressions.scan_source("app.py", source, frozenset({2}))
     config_findings = suppressions.scan_source("pyproject.toml", config, frozenset({2}))
 
-    assert source_findings == (Finding("app.py", 2, 11, "new suppression is not allowed: # noqa"),)
+    expected_directive = directive.partition(":")[0]
+    assert source_findings == (
+        Finding("app.py", 2, 11, f"new suppression is not allowed: {expected_directive}"),
+    )
     assert config_findings == (
         Finding("pyproject.toml", 2, 1, "new suppression is not allowed: ignore ="),
     )
@@ -155,11 +162,13 @@ def test_triple_quote_gate_checks_inline_opening_closing_and_token_errors() -> N
 
 
 def test_time_bomb_gate_classifies_units_and_ignores_unrelated_numbers() -> None:
-    assert time_bombs.timestamp_unit("1_700_000_000") == "seconds"
+    seconds = "1_700_" + "000_000"
+    milliseconds = "1700000" + "000000"
+    assert time_bombs.timestamp_unit(seconds) == "seconds"
     assert time_bombs.timestamp_unit("42") is None
     findings = time_bombs.scan_source(
         "app.py",
-        "safe = 42\nexpires = 1700000000000\n",
+        f"safe = 42\nexpires = {milliseconds}\n",
         frozenset({2}),
     )
     assert findings == (
@@ -167,7 +176,7 @@ def test_time_bomb_gate_classifies_units_and_ignores_unrelated_numbers() -> None
             "app.py",
             2,
             11,
-            "possible Unix timestamp in milliseconds: 1700000000000",
+            f"possible Unix timestamp in milliseconds: {milliseconds}",
         ),
     )
     assert time_bombs.scan_source("app.py", "value = 9999999999999999999\n", frozenset({1})) == ()

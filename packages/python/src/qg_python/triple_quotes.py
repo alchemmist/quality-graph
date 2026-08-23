@@ -1,4 +1,6 @@
-"""Enforce readable delimiters for changed triple-quoted Python strings."""
+"""
+Enforce readable delimiters for changed triple-quoted Python strings.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +18,9 @@ STRING_RE = re.compile(r"^(?:r|u|b|f|br|rb|fr|rf)?(?P<delimiter>'''|\"\"\")", re
 
 @dataclass(frozen=True)
 class StringSpan:
-    """Describe one tokenized triple-quoted string span."""
+    """
+    Describe one tokenized triple-quoted string span.
+    """
 
     start_line: int
     start_column: int
@@ -26,7 +30,9 @@ class StringSpan:
 
 
 def scan_source(path: str, source: str, added: frozenset[int]) -> tuple[Finding, ...]:
-    """Find changed triple-quote delimiters with inline content."""
+    """
+    Find changed triple-quote delimiters with inline content.
+    """
     lines = source.splitlines()
     findings = []
     fstrings: list[tuple[tokenize.TokenInfo, str | None]] = []
@@ -112,7 +118,9 @@ def _span_findings(
 
 
 def main(arguments: list[str] | None = None) -> int:
-    """Check changed Python triple-quoted strings."""
+    """
+    Check changed Python triple-quoted strings.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="origin/main")
     args = parser.parse_args(arguments)
