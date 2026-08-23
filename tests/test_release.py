@@ -11,7 +11,12 @@ PROJECT_FILES = (
     Path("packages/python/pyproject.toml"),
     Path("apps/qg/pyproject.toml"),
 )
-PUBLISH_JOBS = ("publish-core", "publish-python", "publish-github", "publish-cli")
+PUBLISH_ENVIRONMENTS = {
+    "publish-core": "pypi",
+    "publish-python": "pypi-python",
+    "publish-github": "pypi-github",
+    "publish-cli": "pypi-cli",
+}
 PINNED_ACTION = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 
 
@@ -30,8 +35,8 @@ def test_release_workflow_is_tag_bound_and_least_privilege() -> None:
     assert workflow["on"]["push"]["tags"] == ["v[0-9]+.[0-9]+.[0-9]+"]
     assert workflow["permissions"] == {"contents": "read"}
     assert "permissions" not in jobs["build"]
-    for name in PUBLISH_JOBS:
-        assert jobs[name]["environment"]["name"] == "pypi"
+    for name, environment in PUBLISH_ENVIRONMENTS.items():
+        assert jobs[name]["environment"]["name"] == environment
         assert jobs[name]["permissions"] == {"id-token": "write"}
     assert jobs["release"]["permissions"] == {"contents": "write"}
 

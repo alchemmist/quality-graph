@@ -13,10 +13,21 @@ set -euo pipefail
 # ──────────────────────────────────────────────────────────────────────────
 
 if [[ -t 1 ]] && command -v tput >/dev/null 2>&1 && [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]]; then
-  BOLD=$(tput bold); DIM=$(tput dim); RESET=$(tput sgr0)
-  BLUE=$(tput setaf 4); GREEN=$(tput setaf 2); YELLOW=$(tput setaf 3); RED=$(tput setaf 1)
+	BOLD=$(tput bold)
+	DIM=$(tput dim)
+	RESET=$(tput sgr0)
+	BLUE=$(tput setaf 4)
+	GREEN=$(tput setaf 2)
+	YELLOW=$(tput setaf 3)
+	RED=$(tput setaf 1)
 else
-  BOLD=""; DIM=""; RESET=""; BLUE=""; GREEN=""; YELLOW=""; RED=""
+	BOLD=""
+	DIM=""
+	RESET=""
+	BLUE=""
+	GREEN=""
+	YELLOW=""
+	RED=""
 fi
 
 # Author sets this at the top of the stages section.
@@ -31,32 +42,32 @@ SKIPPED=()        # things we couldn't do (e.g. gh missing)
 # _clear — wipe the terminal so only the current step is on screen. No-op when
 # output isn't a terminal, so piped logs stay readable.
 _clear() {
-  [[ -t 1 ]] || return 0
-  if command -v tput >/dev/null 2>&1; then tput clear; else printf '\033[2J\033[3J\033[H'; fi
+	[[ -t 1 ]] || return 0
+	if command -v tput >/dev/null 2>&1; then tput clear; else printf '\033[2J\033[3J\033[H'; fi
 }
 
 # banner "Title" — opening frame: what this wizard does.
 banner() {
-  _clear
-  printf '\n%s%s  %s%s\n' "$BOLD" "$BLUE" "$1" "$RESET"
-  printf '%s  %s stages%s\n\n' "$DIM" "$TOTAL_STAGES" "$RESET"
-  printf '%s  You drive the browser; this wizard tells you exactly what to do and\n' "$DIM"
-  printf '  captures the values you copy back. Stop any time with Ctrl-C and re-run\n'
-  printf '  later — it remembers values already saved.%s\n' "$RESET"
-  pause "Ready to start?"
+	_clear
+	printf '\n%s%s  %s%s\n' "$BOLD" "$BLUE" "$1" "$RESET"
+	printf '%s  %s stages%s\n\n' "$DIM" "$TOTAL_STAGES" "$RESET"
+	printf '%s  You drive the browser; this wizard tells you exactly what to do and\n' "$DIM"
+	printf '  captures the values you copy back. Stop any time with Ctrl-C and re-run\n'
+	printf '  later — it remembers values already saved.%s\n' "$RESET"
+	pause "Ready to start?"
 }
 
 # stage "Name" — clear the screen, then announce a stage and show progress.
 # Clearing keeps only the current step on screen.
 stage() {
-  _clear
-  _STAGE_INDEX=$((_STAGE_INDEX + 1))
-  printf '\n%s%s▸ Stage %s/%s · %s%s\n' \
-    "$BOLD" "$BLUE" "$_STAGE_INDEX" "$TOTAL_STAGES" "$1" "$RESET"
+	_clear
+	_STAGE_INDEX=$((_STAGE_INDEX + 1))
+	printf '\n%s%s▸ Stage %s/%s · %s%s\n' \
+		"$BOLD" "$BLUE" "$_STAGE_INDEX" "$TOTAL_STAGES" "$1" "$RESET"
 }
 
 # say "..." — a plain instruction line.
-say()  { printf '  %s\n' "$1"; }
+say() { printf '  %s\n' "$1"; }
 # step "..." — a numbered-feeling action the human takes in the browser.
 step() { printf '  %s•%s %s\n' "$BLUE" "$RESET" "$1"; }
 note() { printf '  %s%s%s\n' "$DIM" "$1" "$RESET"; }
@@ -64,119 +75,126 @@ warn() { printf '  %s⚠ %s%s\n' "$YELLOW" "$1" "$RESET"; }
 
 # open_url URL — open in the human's browser, cross-platform incl. WSL.
 open_url() {
-  local url="$1"
-  printf '  %s↗ opening%s %s\n' "$GREEN" "$RESET" "$url"
-  { if   command -v wslview     >/dev/null 2>&1; then wslview "$url"
-    elif command -v explorer.exe >/dev/null 2>&1; then explorer.exe "$url"
-    elif command -v xdg-open    >/dev/null 2>&1; then xdg-open "$url"
-    elif command -v open        >/dev/null 2>&1; then open "$url"
-    else warn "couldn't open a browser — visit it manually: $url"; fi
-  } >/dev/null 2>&1 || warn "couldn't open a browser — visit it manually: $url"
+	local url="$1"
+	printf '  %s↗ opening%s %s\n' "$GREEN" "$RESET" "$url"
+	{
+		if command -v wslview >/dev/null 2>&1; then
+			wslview "$url"
+		elif command -v explorer.exe >/dev/null 2>&1; then
+			explorer.exe "$url"
+		elif command -v xdg-open >/dev/null 2>&1; then
+			xdg-open "$url"
+		elif command -v open >/dev/null 2>&1; then
+			open "$url"
+		else warn "couldn't open a browser — visit it manually: $url"; fi
+	} >/dev/null 2>&1 || warn "couldn't open a browser — visit it manually: $url"
 }
 
 # pause "msg" — wait for the human to confirm they've done the manual part.
 pause() {
-  printf '  %s%s%s ' "$DIM" "${1:-Press Enter to continue}" "$RESET"
-  read -r _ || true
+	printf '  %s%s%s ' "$DIM" "${1:-Press Enter to continue}" "$RESET"
+	read -r _ || true
 }
 
 # confirm "question" — y/N gate; returns success on yes.
 confirm() {
-  local reply=""
-  printf '  %s? %s [y/N] ' "$YELLOW" "$1"
-  read -r reply || true
-  [[ "$reply" =~ ^[Yy] ]]
+	local reply=""
+	printf '  %s? %s [y/N] ' "$YELLOW" "$1"
+	read -r reply || true
+	[[ "$reply" =~ ^[Yy] ]]
 }
 
 # _existing KEY — current value of KEY in ENV_FILE, if any.
 _existing() {
-  [[ -f "$ENV_FILE" ]] || return 1
-  local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
-  printf '%s' "${line#*=}"
+	[[ -f "$ENV_FILE" ]] || return 1
+	local line
+	line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
+	printf '%s' "${line#*=}"
 }
 
 # ask KEY "Prompt" — read a value into $KEY. Offers the existing .env value as
 # a default on re-runs (Enter keeps it). Visible input (non-secret).
 ask() {
-  local key="$1" prompt="$2" current input
-  current=$(_existing "$key" || true)
-  if [[ -n "$current" ]]; then
-    printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
-  else
-    printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
-  fi
-  read -r input || true
-  [[ -z "$input" && -n "$current" ]] && input="$current"
-  printf -v "$key" '%s' "$input"
+	local key="$1" prompt="$2" current input
+	current=$(_existing "$key" || true)
+	if [[ -n "$current" ]]; then
+		printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
+	else
+		printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
+	fi
+	read -r input || true
+	[[ -z "$input" && -n "$current" ]] && input="$current"
+	printf -v "$key" '%s' "$input"
 }
 
 # ask_secret KEY "Prompt" — like ask, but input is hidden.
 ask_secret() {
-  local key="$1" prompt="$2" current input
-  current=$(_existing "$key" || true)
-  if [[ -n "$current" ]]; then
-    printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
-  else
-    printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
-  fi
-  read -rs input || true
-  printf '\n'
-  [[ -z "$input" && -n "$current" ]] && input="$current"
-  printf -v "$key" '%s' "$input"
+	local key="$1" prompt="$2" current input
+	current=$(_existing "$key" || true)
+	if [[ -n "$current" ]]; then
+		printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
+	else
+		printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
+	fi
+	read -rs input || true
+	printf '\n'
+	[[ -z "$input" && -n "$current" ]] && input="$current"
+	printf -v "$key" '%s' "$input"
 }
 
 # write_env KEY VALUE — upsert KEY=VALUE into ENV_FILE (creates it; replaces
 # any existing line). Idempotent.
 write_env() {
-  local key="$1" value="$2" tmp
-  touch "$ENV_FILE"
-  tmp=$(mktemp)
-  grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
-  printf '%s=%s\n' "$key" "$value" >> "$tmp"
-  mv "$tmp" "$ENV_FILE"
-  WRITTEN_ENV+=("$key")
-  printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
+	local key="$1" value="$2" tmp
+	touch "$ENV_FILE"
+	tmp=$(mktemp)
+	grep -vE "^${key}=" "$ENV_FILE" >"$tmp" || true
+	printf '%s=%s\n' "$key" "$value" >>"$tmp"
+	mv "$tmp" "$ENV_FILE"
+	WRITTEN_ENV+=("$key")
+	printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
 }
 
 # set_secret NAME VALUE — set a GitHub Actions repo secret via gh. Falls back
 # to a warning (and records it) if gh is unavailable or unauthenticated.
 set_secret() {
-  local name="$1" value="$2"
-  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-    if printf '%s' "$value" | gh secret set "$name" >/dev/null 2>&1; then
-      WRITTEN_SECRET+=("$name")
-      printf '  %s✓ set%s GitHub secret %s\n' "$GREEN" "$RESET" "$name"
-      return
-    fi
-  fi
-  SKIPPED+=("GitHub secret $name (set it manually: gh secret set $name)")
-  warn "skipped GitHub secret $name — gh not ready; set it later"
+	local name="$1" value="$2"
+	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+		if printf '%s' "$value" | gh secret set "$name" >/dev/null 2>&1; then
+			WRITTEN_SECRET+=("$name")
+			printf '  %s✓ set%s GitHub secret %s\n' "$GREEN" "$RESET" "$name"
+			return
+		fi
+	fi
+	SKIPPED+=("GitHub secret $name (set it manually: gh secret set $name)")
+	warn "skipped GitHub secret $name — gh not ready; set it later"
 }
 
 # set_var NAME VALUE — set a GitHub Actions repo variable (non-secret).
 set_var() {
-  local name="$1" value="$2"
-  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-    if gh variable set "$name" --body "$value" >/dev/null 2>&1; then
-      printf '  %s✓ set%s GitHub variable %s\n' "$GREEN" "$RESET" "$name"
-      return
-    fi
-  fi
-  SKIPPED+=("GitHub variable $name")
-  warn "skipped GitHub variable $name — gh not ready; set it later"
+	local name="$1" value="$2"
+	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+		if gh variable set "$name" --body "$value" >/dev/null 2>&1; then
+			printf '  %s✓ set%s GitHub variable %s\n' "$GREEN" "$RESET" "$name"
+			return
+		fi
+	fi
+	SKIPPED+=("GitHub variable $name")
+	warn "skipped GitHub variable $name — gh not ready; set it later"
 }
 
 # finish — clear, then a closing summary of everything configured.
 finish() {
-  _clear
-  printf '\n%s%s  ✓ Setup complete%s\n' "$BOLD" "$GREEN" "$RESET"
-  (( ${#WRITTEN_ENV[@]} ))    && note "wrote ${#WRITTEN_ENV[@]} value(s) to $ENV_FILE: ${WRITTEN_ENV[*]}"
-  (( ${#WRITTEN_SECRET[@]} )) && note "set ${#WRITTEN_SECRET[@]} GitHub secret(s): ${WRITTEN_SECRET[*]}"
-  if (( ${#SKIPPED[@]} )); then
-    printf '\n'; warn "still to do by hand:"
-    for s in "${SKIPPED[@]}"; do note "  - $s"; done
-  fi
-  printf '\n'
+	_clear
+	printf '\n%s%s  ✓ Setup complete%s\n' "$BOLD" "$GREEN" "$RESET"
+	((${#WRITTEN_ENV[@]})) && note "wrote ${#WRITTEN_ENV[@]} value(s) to $ENV_FILE: ${WRITTEN_ENV[*]}"
+	((${#WRITTEN_SECRET[@]})) && note "set ${#WRITTEN_SECRET[@]} GitHub secret(s): ${WRITTEN_SECRET[*]}"
+	if ((${#SKIPPED[@]})); then
+		printf '\n'
+		warn "still to do by hand:"
+		for s in "${SKIPPED[@]}"; do note "  - $s"; done
+	fi
+	printf '\n'
 }
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -188,15 +206,15 @@ TOTAL_STAGES=2
 
 banner "Quality Graph Trusted Publishing setup"
 
-stage "GitHub — protected PyPI environment"
-say "Create the environment used by every OIDC publication job."
+stage "GitHub — protected PyPI environments"
+say "Create the four environments used by the isolated OIDC publication jobs."
 open_url "https://github.com/alchemmist/quality-graph/settings/environments/new"
-step "Enter pypi as the environment name and choose Configure environment."
-step "Under Deployment branches and tags, choose Selected branches and tags."
-step "Add a deployment tag rule matching v* and do not add a branch rule."
-step "Save the protection rules. No secret or environment variable is required."
+step "Keep the existing pypi environment for quality-graph-core."
+step "Create pypi-python, pypi-github, and pypi-cli for the other packages."
+step "For each environment choose Selected branches and tags under Deployment branches and tags."
+step "Add a deployment tag rule matching v*, add no branch rule, and save."
 printf '  %sDo not add a PyPI token or GitHub Actions secret.%s\n' "$RED" "$RESET"
-confirm "Is the pypi environment restricted to v* tags?" || exit 1
+confirm "Are all four environments restricted to v* tags?" || exit 1
 
 stage "PyPI — pending Trusted Publishers"
 say "Register the four projects before their first upload."
@@ -204,7 +222,8 @@ open_url "https://pypi.org/manage/account/publishing/"
 step "For each project below, choose Add a new pending publisher."
 step "Use PyPI project names: quality-graph-core, qg-python, qg-github, and qg."
 step "For every project set Owner to alchemmist and Repository to quality-graph."
-step "Set Workflow name to release.yml and Environment name to pypi."
+step "Set Workflow name to release.yml for every project."
+step "Use environments pypi, pypi-python, pypi-github, and pypi-cli respectively."
 step "Submit all four publishers. They remain pending until the first trusted upload."
 confirm "Are all four pending Trusted Publishers listed?" || exit 1
 

@@ -13,11 +13,12 @@ A release candidate must pass:
   content inspection, clean installation, provider discovery, and provider-free CLI smoke;
 - the repository's own generated Quality Graph workflow.
 
-The repository uses a protected `pypi` GitHub environment and one PyPI pending Trusted Publisher
-for each workspace distribution. Every publisher is bound to `alchemmist/quality-graph`,
-`.github/workflows/release.yml`, and the `pypi` environment.
+The repository uses tag-restricted GitHub environments and one PyPI pending Trusted Publisher
+for each workspace distribution. Every publisher is bound to `alchemmist/quality-graph` and
+`.github/workflows/release.yml`. The environments are `pypi` for `quality-graph-core`,
+`pypi-python` for `qg-python`, `pypi-github` for `qg-github`, and `pypi-cli` for `qg`.
 
-Run `make release-setup` once to configure that environment and the four pending publishers
+Run `make release-setup` once to configure those environments and the four pending publishers
 through the GitHub and PyPI interfaces. The setup uses no API token or repository secret.
 
 The release workflow builds and verifies distributions in an unprivileged job. Four isolated

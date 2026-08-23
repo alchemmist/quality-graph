@@ -61,7 +61,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: pypi
+      name: pypi-python
       url: https://pypi.org/project/qg-python/
     permissions:
       id-token: write
@@ -76,7 +76,7 @@ jobs:
     needs: [build, publish-core]
     runs-on: ubuntu-latest
     environment:
-      name: pypi
+      name: pypi-github
       url: https://pypi.org/project/qg-github/
     permissions:
       id-token: write
@@ -91,7 +91,7 @@ jobs:
     needs: [build, publish-core]
     runs-on: ubuntu-latest
     environment:
-      name: pypi
+      name: pypi-cli
       url: https://pypi.org/project/qg/
     permissions:
       id-token: write
