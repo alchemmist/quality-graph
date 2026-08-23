@@ -3,7 +3,7 @@ version: 0
 provider: github
 
 runtime:
-  action: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+  action: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
 
 profiles:
   default:

@@ -38,7 +38,7 @@ jobs:
     - name: Collect Format check result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: format
@@ -46,7 +46,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 5761e98583719afe9d5cb0895e75ee404ba9b1682f032900fc83cad7374105dc
+        graph-digest: 6ee810b1da327e2b149851fceec0b080d177f0ed92d4c958d01c9155fa00f1ec
     - name: Upload Format check result
       if: always()
       uses: actions/upload-artifact@v7
@@ -84,7 +84,7 @@ jobs:
     - name: Collect Lint result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: lint
@@ -92,7 +92,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 5761e98583719afe9d5cb0895e75ee404ba9b1682f032900fc83cad7374105dc
+        graph-digest: 6ee810b1da327e2b149851fceec0b080d177f0ed92d4c958d01c9155fa00f1ec
     - name: Upload Lint result
       if: always()
       uses: actions/upload-artifact@v7
@@ -132,7 +132,7 @@ jobs:
     - name: Collect Type check result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: type
@@ -140,7 +140,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 5761e98583719afe9d5cb0895e75ee404ba9b1682f032900fc83cad7374105dc
+        graph-digest: 6ee810b1da327e2b149851fceec0b080d177f0ed92d4c958d01c9155fa00f1ec
     - name: Upload Type check result
       if: always()
       uses: actions/upload-artifact@v7
@@ -180,7 +180,7 @@ jobs:
     - name: Collect Static analysis result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: analyze
@@ -188,7 +188,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 5761e98583719afe9d5cb0895e75ee404ba9b1682f032900fc83cad7374105dc
+        graph-digest: 6ee810b1da327e2b149851fceec0b080d177f0ed92d4c958d01c9155fa00f1ec
     - name: Upload Static analysis result
       if: always()
       uses: actions/upload-artifact@v7
@@ -228,7 +228,7 @@ jobs:
     - name: Collect Tests and coverage result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: test
@@ -236,7 +236,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 5761e98583719afe9d5cb0895e75ee404ba9b1682f032900fc83cad7374105dc
+        graph-digest: 6ee810b1da327e2b149851fceec0b080d177f0ed92d4c958d01c9155fa00f1ec
     - name: Upload Tests and coverage result
       if: always()
       uses: actions/upload-artifact@v7
@@ -276,7 +276,7 @@ jobs:
     - name: Collect Changed decision mutation gate result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: mutation
@@ -284,7 +284,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 5761e98583719afe9d5cb0895e75ee404ba9b1682f032900fc83cad7374105dc
+        graph-digest: 6ee810b1da327e2b149851fceec0b080d177f0ed92d4c958d01c9155fa00f1ec
     - name: Upload Changed decision mutation gate result
       if: always()
       uses: actions/upload-artifact@v7
@@ -324,7 +324,7 @@ jobs:
     - name: Collect Dependency and secret audit result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: audit
@@ -332,7 +332,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 5761e98583719afe9d5cb0895e75ee404ba9b1682f032900fc83cad7374105dc
+        graph-digest: 6ee810b1da327e2b149851fceec0b080d177f0ed92d4c958d01c9155fa00f1ec
     - name: Upload Dependency and secret audit result
       if: always()
       uses: actions/upload-artifact@v7
@@ -372,7 +372,7 @@ jobs:
     - name: Collect Package result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
       with:
         operation: collect
         node-id: package
@@ -380,7 +380,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 5761e98583719afe9d5cb0895e75ee404ba9b1682f032900fc83cad7374105dc
+        graph-digest: 6ee810b1da327e2b149851fceec0b080d177f0ed92d4c958d01c9155fa00f1ec
     - name: Upload Package result
       if: always()
       uses: actions/upload-artifact@v7
