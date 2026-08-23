@@ -14,14 +14,12 @@ profiles:
 nodes:
   lint:
     title: Ruff
-    run: >-
-      mkdir -p reports
-      && uv run ruff check --output-format sarif --output-file reports/ruff.sarif .
+    run: bash scripts/lint.sh
     results:
       sarif: reports/ruff.sarif
   test:
     title: Pytest
     needs: [lint]
-    run: mkdir -p reports && uv run pytest --junitxml reports/pytest.xml
+    run: bash scripts/test.sh
     results:
       junit: reports/pytest.xml

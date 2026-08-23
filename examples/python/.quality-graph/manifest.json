@@ -4,7 +4,7 @@
       "admin"
     ]
   },
-  "graphDigest": "511723fd4a8c1940954b416f1915fa26432ec16d1a215076d99d81fa6347e7ea",
+  "graphDigest": "0eae8d8033a6908c8599ba9c7590bc426ad015c71853a2e1800c85d6b5f6d142",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -32,7 +32,7 @@
         "path": "reports/ruff.sarif"
       },
       "step": {
-        "run": "mkdir -p reports && uv run ruff check --output-format sarif --output-file reports/ruff.sarif ."
+        "run": "bash scripts/lint.sh"
       },
       "title": "Ruff"
     },
@@ -59,7 +59,7 @@
         "path": "reports/pytest.xml"
       },
       "step": {
-        "run": "mkdir -p reports && uv run pytest --junitxml reports/pytest.xml"
+        "run": "bash scripts/test.sh"
       },
       "title": "Pytest"
     }
