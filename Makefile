@@ -2,13 +2,14 @@ PYTHON_SOURCES := src tests scripts
 PYTHON ?= python3
 BASE ?= origin/main
 TOOLS_BIN := $(CURDIR)/.tools/bin
+MARKDOWN_SOURCES := README.md CONTRIBUTING.md SECURITY.md $(wildcard docs/*.md)
 
 .DEFAULT_GOAL := check
 
 .PHONY: install tools schemas schemas-check graph-generate graph-validate \
 	fmt fmt-check lint type analyze test test-unit test-integration coverage \
 	mutation mutation-diff audit package check clean fmt-staged \
-	precommit-install precommit-uninstall
+	precommit-install precommit-uninstall examples-generate examples-check
 
 install:
 	uv sync --locked --all-groups
@@ -38,13 +39,17 @@ precommit-uninstall:
 	fi
 
 schemas:
+	uv run --locked qg schema --output schemas/graph-v0.schema.json
 	uv run --locked qg result schema --output schemas/result-v0.schema.json
 
 schemas-check:
-	@schema=$$(mktemp); \
-	uv run --locked qg result schema --output "$$schema"; \
-	cmp schemas/result-v0.schema.json "$$schema"; status=$$?; \
-	rm -f "$$schema"; exit $$status
+	@graph_schema=$$(mktemp); result_schema=$$(mktemp); \
+	uv run --locked qg schema --output "$$graph_schema"; \
+	uv run --locked qg result schema --output "$$result_schema"; \
+	cmp schemas/graph-v0.schema.json "$$graph_schema"; graph_status=$$?; \
+	cmp schemas/result-v0.schema.json "$$result_schema"; result_status=$$?; \
+	rm -f "$$graph_schema" "$$result_schema"; \
+	exit $$((graph_status || result_status))
 
 graph-generate:
 	uv run --locked qg generate
@@ -52,23 +57,34 @@ graph-generate:
 graph-validate:
 	uv run --locked qg validate
 
-fmt: schemas graph-generate tools
+examples-generate:
+	@for example in examples/python examples/typescript examples/go; do \
+		uv run --locked qg generate --root "$$example"; \
+	done
+
+examples-check:
+	@for example in examples/python examples/typescript examples/go; do \
+		uv run --locked qg validate --root "$$example"; \
+	done
+
+fmt: schemas graph-generate examples-generate tools
 	uv run --locked --group format ruff check $(PYTHON_SOURCES) --fix
 	uv run --locked --group format ruff format $(PYTHON_SOURCES)
-	uv run --locked --group format mdformat README.md
+	uv run --locked --group format mdformat $(MARKDOWN_SOURCES)
 	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -w $$files
 
-fmt-check: schemas-check graph-validate tools
+fmt-check: schemas-check graph-validate examples-check tools
 	uv run --locked --group format ruff check $(PYTHON_SOURCES)
 	uv run --locked --group format ruff format --check $(PYTHON_SOURCES)
-	uv run --locked --group format mdformat --check README.md
+	uv run --locked --group format mdformat --check $(MARKDOWN_SOURCES)
 	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -d $$files
 
 lint: tools
 	uv run --locked --group lint ruff check $(PYTHON_SOURCES)
 	@files=$$(git ls-files '*.yaml' '*.yml'); \
 	uv run --locked --group lint yamllint .yamllint.yaml $$files
-	uv run --locked --group lint codespell README.md TASK.md src tests
+	uv run --locked --group lint codespell --skip='*/node_modules/*,*/.venv/*,*/reports/*' \
+		$(MARKDOWN_SOURCES) TASK.md src tests examples
 	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || uv run --locked --group lint shellcheck $$files
 	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -d $$files
 	@files=$$(git ls-files '.github/workflows/*.yaml' '.github/workflows/*.yml'); \
@@ -109,6 +125,8 @@ audit: tools
 package:
 	rm -rf build dist
 	uv build
+	uv run --locked --group package twine check dist/*
+	uv run --locked --group package check-wheel-contents dist/*.whl
 	uv run --isolated --no-project --with dist/*.whl qg --version
 
 check: fmt-check lint type analyze coverage audit package

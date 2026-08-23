@@ -1,0 +1,98 @@
+{
+  "administration": {
+    "roles": [
+      "admin"
+    ]
+  },
+  "graphDigest": "74f8632d952ba21de39541f58d995db194d8e90a63decb4b4524dcee4776e7ef",
+  "graphVersion": 0,
+  "labels": {
+    "enabled": false
+  },
+  "manifestVersion": 0,
+  "nodes": [
+    {
+      "env": {},
+      "id": "type",
+      "needs": [],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "default",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "npm run typecheck"
+      },
+      "title": "TypeScript"
+    },
+    {
+      "env": {},
+      "id": "test",
+      "needs": [
+        "type"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "default",
+      "result": {
+        "adapter": "junit",
+        "path": "reports/vitest.xml"
+      },
+      "step": {
+        "run": "mkdir -p reports && npm test -- --reporter=junit --outputFile=reports/vitest.xml"
+      },
+      "title": "Vitest"
+    }
+  ],
+  "profiles": {
+    "default": {
+      "env": {},
+      "permissions": {
+        "contents": "read"
+      },
+      "runner": "ubuntu-latest",
+      "services": {},
+      "setup": [
+        {
+          "uses": "actions/checkout@v7",
+          "with": {
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7",
+          "with": {
+            "cache": "npm",
+            "node-version": "22"
+          }
+        },
+        {
+          "run": "npm ci"
+        }
+      ]
+    }
+  },
+  "resultSchemaVersion": 0,
+  "runtime": {
+    "action": "alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2"
+  }
+}

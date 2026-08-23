@@ -9,10 +9,10 @@ repo_root=$(git rev-parse --show-toplevel)
 tools_bin="${QUALITY_GRAPH_TOOLS_BIN:-$repo_root/.tools/bin}"
 stamp="$tools_bin/versions"
 expected=$(printf 'actionlint=%s\nshfmt=%s\ngitleaks=%s\n' \
-  "$ACTIONLINT_VERSION" "$SHFMT_VERSION" "$GITLEAKS_VERSION")
+	"$ACTIONLINT_VERSION" "$SHFMT_VERSION" "$GITLEAKS_VERSION")
 
 if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$expected" ]; then
-  exit 0
+	exit 0
 fi
 
 mkdir -p "$tools_bin"

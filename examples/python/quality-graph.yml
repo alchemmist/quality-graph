@@ -1,0 +1,27 @@
+---
+version: 0
+runtime:
+  action: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+profiles:
+  default:
+    runner: ubuntu-latest
+    setup:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: "false"
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --locked
+nodes:
+  lint:
+    title: Ruff
+    run: >-
+      mkdir -p reports
+      && uv run ruff check --output-format sarif --output-file reports/ruff.sarif .
+    results:
+      sarif: reports/ruff.sarif
+  test:
+    title: Pytest
+    needs: [lint]
+    run: mkdir -p reports && uv run pytest --junitxml reports/pytest.xml
+    results:
+      junit: reports/pytest.xml

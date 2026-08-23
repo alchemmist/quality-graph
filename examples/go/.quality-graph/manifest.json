@@ -1,0 +1,94 @@
+{
+  "administration": {
+    "roles": [
+      "admin"
+    ]
+  },
+  "graphDigest": "4f765b9af5d9c61a296d1d637e96318604d34aea49a186ed5672330454f73ac0",
+  "graphVersion": 0,
+  "labels": {
+    "enabled": false
+  },
+  "manifestVersion": 0,
+  "nodes": [
+    {
+      "env": {},
+      "id": "vet",
+      "needs": [],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "default",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "go vet ./..."
+      },
+      "title": "Go vet"
+    },
+    {
+      "env": {},
+      "id": "test",
+      "needs": [
+        "vet"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "default",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "go test ./..."
+      },
+      "title": "Go test"
+    }
+  ],
+  "profiles": {
+    "default": {
+      "env": {},
+      "permissions": {
+        "contents": "read"
+      },
+      "runner": "ubuntu-latest",
+      "services": {},
+      "setup": [
+        {
+          "uses": "actions/checkout@v7",
+          "with": {
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "actions/setup-go@v6",
+          "with": {
+            "cache": "true",
+            "go-version-file": "go.mod"
+          }
+        }
+      ]
+    }
+  },
+  "resultSchemaVersion": 0,
+  "runtime": {
+    "action": "alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2"
+  }
+}

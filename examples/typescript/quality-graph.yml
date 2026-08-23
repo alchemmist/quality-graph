@@ -1,0 +1,26 @@
+---
+version: 0
+runtime:
+  action: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+profiles:
+  default:
+    runner: ubuntu-latest
+    setup:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: "false"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+nodes:
+  type:
+    title: TypeScript
+    run: npm run typecheck
+  test:
+    title: Vitest
+    needs: [type]
+    run: mkdir -p reports && npm test -- --reporter=junit --outputFile=reports/vitest.xml
+    results:
+      junit: reports/vitest.xml
