@@ -73,11 +73,8 @@ include = [
   "docs",
   "examples",
   "action.yml",
-  "CONTRIBUTING.md",
   "LICENSE",
   "README.md",
-  "SECURITY.md",
-  "TASK.md",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -165,11 +162,8 @@ also_copy = [
   "schemas",
   "docs",
   "action.yml",
-  "CONTRIBUTING.md",
   "LICENSE",
   "README.md",
-  "SECURITY.md",
-  "TASK.md",
   "quality-graph.yml",
 ]
 pytest_add_cli_args = ["-q", "-m", "not integration"]

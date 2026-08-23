@@ -58,9 +58,6 @@ change without migration tooling. Do not use a mutable Action ref.
 - [Administrator commands](docs/commands.md)
 - [Compatibility policy](docs/compatibility.md)
 - [Release preparation](docs/release.md)
-- [Contributing](CONTRIBUTING.md)
 
 Complete [Python](examples/python), [TypeScript](examples/typescript), and
 [Go](examples/go) fixtures compile through the same public interfaces.
-
-The product specification and completion criteria are in [TASK.md](TASK.md).

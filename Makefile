@@ -2,7 +2,7 @@ PYTHON_SOURCES := src tests scripts
 PYTHON ?= python3
 BASE ?= origin/main
 TOOLS_BIN := $(CURDIR)/.tools/bin
-MARKDOWN_SOURCES := README.md CONTRIBUTING.md SECURITY.md $(wildcard docs/*.md)
+MARKDOWN_SOURCES := README.md $(wildcard docs/*.md)
 
 .DEFAULT_GOAL := check
 
@@ -84,7 +84,7 @@ lint: tools
 	@files=$$(git ls-files '*.yaml' '*.yml'); \
 	uv run --locked --group lint yamllint .yamllint.yaml $$files
 	uv run --locked --group lint codespell --skip='*/node_modules/*,*/.venv/*,*/reports/*' \
-		$(MARKDOWN_SOURCES) TASK.md src tests examples
+		$(MARKDOWN_SOURCES) src tests examples
 	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || uv run --locked --group lint shellcheck $$files
 	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -d $$files
 	@files=$$(git ls-files '.github/workflows/*.yaml' '.github/workflows/*.yml'); \
