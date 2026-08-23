@@ -29,7 +29,7 @@ class StringSpan:
 def scan_source(path: str, source: str, added: frozenset[int]) -> tuple[Finding, ...]:
     """Find changed triple-quote delimiters with inline content."""
     lines = source.splitlines()
-    findings = []
+    findings: list[Finding] = []
     fstrings: list[tuple[tokenize.TokenInfo, str | None]] = []
     docstrings = _docstring_positions(source)
     try:
