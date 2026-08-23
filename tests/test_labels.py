@@ -1,14 +1,14 @@
 import pytest
 
-from quality_graph.github import MemoryGitHubPort
-from quality_graph.graph import Graph
-from quality_graph.labels import (
+from qg_github.github import MemoryGitHubPort
+from qg_github.labels import (
     configured_label_names,
     label_state_marker,
     parse_label_state,
     reconcile_labels,
 )
-from quality_graph.result import FailureKind, Provenance, Result, ResultStatus
+from quality_graph_core.graph import Graph
+from quality_graph_core.result import FailureKind, Provenance, Result, ResultStatus
 from tests.test_graph import GRAPH
 
 

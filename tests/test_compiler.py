@@ -3,13 +3,13 @@ from pathlib import Path
 
 import yaml
 
-from quality_graph.compiler import (
+from qg_github.compiler import (
     EXECUTION_WORKFLOW,
     GRAPH_MANIFEST,
     PUBLICATION_WORKFLOW,
     compile_graph,
 )
-from quality_graph.graph import Graph
+from quality_graph_core.graph import Graph
 from tests.test_graph import GRAPH, MAXIMAL_GRAPH
 
 

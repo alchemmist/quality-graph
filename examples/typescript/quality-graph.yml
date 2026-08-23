@@ -1,5 +1,6 @@
 ---
 version: 0
+provider: github
 runtime:
   action: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
 profiles:

@@ -4,7 +4,7 @@
       "admin"
     ]
   },
-  "graphDigest": "0eae8d8033a6908c8599ba9c7590bc426ad015c71853a2e1800c85d6b5f6d142",
+  "graphDigest": "d8a3258e7b0205b8353a831ba6b93ce051af8dd23b7c17f3b09a5b901901bc32",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -88,6 +88,7 @@
       ]
     }
   },
+  "provider": "github",
   "resultSchemaVersion": 0,
   "runtime": {
     "action": "alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2"

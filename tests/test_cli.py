@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from quality_graph import __version__
-from quality_graph.cli import main, parser
-from quality_graph.result import Result
-from quality_graph.schema import result_schema_value
+from qg_cli import __version__
+from qg_cli.cli import main, parser
+from quality_graph_core.result import Result
+from quality_graph_core.schema import result_schema_value
 
 PROVENANCE_ARGUMENTS = [
     "--repository",

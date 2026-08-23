@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from quality_graph.graph import (
+from quality_graph_core.graph import (
     AdapterKind,
     Graph,
     LabelPolicy,
@@ -19,6 +19,7 @@ from quality_graph.graph import (
 
 RUNTIME = "alchemmist/quality-graph@" + "a" * 40
 GRAPH = f"""version: 0
+provider: github
 runtime:
   action: {RUNTIME}
 profiles:
@@ -96,6 +97,7 @@ def test_graph_loads_profiles_nodes_policies_and_labels() -> None:
     graph = Graph.from_yaml(GRAPH)
 
     assert graph.version == 0
+    assert graph.provider == "github"
     assert graph.runtime.action == RUNTIME
     assert graph.node_order() == ("format", "lint")
     assert graph.nodes[1].result.kind is AdapterKind.SARIF
@@ -105,6 +107,12 @@ def test_graph_loads_profiles_nodes_policies_and_labels() -> None:
     assert graph.nodes[1].failing_label == LabelSpec("quality:lint", "ff0000", create=True)
     assert graph.labels.failing == LabelSpec("quality:failed")
     assert graph.administrator_roles == ("admin", "maintain")
+
+
+def test_graph_defaults_to_github_provider_for_legacy_declarations() -> None:
+    graph = Graph.from_yaml(GRAPH.replace("provider: github\n", ""))
+
+    assert graph.provider == "github"
 
 
 def test_complete_graph_model_matches_contract_snapshot() -> None:

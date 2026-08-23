@@ -1,8 +1,8 @@
-PYTHON_SOURCES := src tests scripts
+PYTHON_SOURCES := packages apps tests scripts
 PYTHON ?= python3
 BASE ?= origin/main
 TOOLS_BIN := $(CURDIR)/.tools/bin
-MARKDOWN_SOURCES := README.md $(wildcard docs/*.md)
+MARKDOWN_SOURCES := README.md $(wildcard docs/*.md packages/*/README.md apps/*/README.md)
 
 .DEFAULT_GOAL := check
 
@@ -12,13 +12,13 @@ MARKDOWN_SOURCES := README.md $(wildcard docs/*.md)
 	precommit-install precommit-uninstall examples-generate examples-check
 
 install:
-	uv sync --locked --all-groups
+	uv sync --locked --all-groups --all-packages
 
 tools:
 	QUALITY_GRAPH_TOOLS_BIN="$(TOOLS_BIN)" bash scripts/install-tools.sh
 
 fmt-staged:
-	uv run --locked python scripts/format_staged.py
+	uv run --locked --all-packages python scripts/format_staged.py
 
 precommit-install:
 	@hook=$$(git rev-parse --git-path hooks)/pre-commit; \
@@ -39,85 +39,87 @@ precommit-uninstall:
 	fi
 
 schemas:
-	uv run --locked qg schema --output schemas/graph-v0.schema.json
-	uv run --locked qg result schema --output schemas/result-v0.schema.json
+	uv run --locked --all-packages qg schema --output schemas/graph-v0.schema.json
+	uv run --locked --all-packages qg result schema --output schemas/result-v0.schema.json
 
 schemas-check:
 	@graph_schema=$$(mktemp); result_schema=$$(mktemp); \
-	uv run --locked qg schema --output "$$graph_schema"; \
-	uv run --locked qg result schema --output "$$result_schema"; \
+	uv run --locked --all-packages qg schema --output "$$graph_schema"; \
+	uv run --locked --all-packages qg result schema --output "$$result_schema"; \
 	cmp schemas/graph-v0.schema.json "$$graph_schema"; graph_status=$$?; \
 	cmp schemas/result-v0.schema.json "$$result_schema"; result_status=$$?; \
 	rm -f "$$graph_schema" "$$result_schema"; \
 	exit $$((graph_status || result_status))
 
 graph-generate:
-	uv run --locked qg generate
+	uv run --locked --all-packages qg generate
 
 graph-validate:
-	uv run --locked qg validate
+	uv run --locked --all-packages qg validate
 
 examples-generate:
 	@for example in examples/python examples/typescript examples/go; do \
-		uv run --locked qg generate --root "$$example"; \
+		uv run --locked --all-packages qg generate --root "$$example"; \
 	done
 
 examples-check:
 	@for example in examples/python examples/typescript examples/go; do \
-		uv run --locked qg validate --root "$$example"; \
+		uv run --locked --all-packages qg validate --root "$$example"; \
 	done
 
 fmt: schemas graph-generate examples-generate tools
-	uv run --locked --group format ruff check $(PYTHON_SOURCES) --fix
-	uv run --locked --group format ruff format $(PYTHON_SOURCES)
-	uv run --locked --group format mdformat $(MARKDOWN_SOURCES)
+	uv run --locked --all-packages --group format ruff check $(PYTHON_SOURCES) --fix
+	uv run --locked --all-packages --group format ruff format $(PYTHON_SOURCES)
+	uv run --locked --all-packages --group format mdformat $(MARKDOWN_SOURCES)
 	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -w $$files
 
 fmt-check: schemas-check graph-validate examples-check tools
-	uv run --locked --group format ruff check $(PYTHON_SOURCES)
-	uv run --locked --group format ruff format --check $(PYTHON_SOURCES)
-	uv run --locked --group format mdformat --check $(MARKDOWN_SOURCES)
+	uv run --locked --all-packages --group format ruff check $(PYTHON_SOURCES)
+	uv run --locked --all-packages --group format ruff format --check $(PYTHON_SOURCES)
+	uv run --locked --all-packages --group format mdformat --check $(MARKDOWN_SOURCES)
 	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -d $$files
 
 lint: tools
-	uv run --locked --group lint ruff check $(PYTHON_SOURCES)
+	uv run --locked --all-packages --group lint ruff check $(PYTHON_SOURCES)
 	@files=$$(git ls-files '*.yaml' '*.yml'); \
-	uv run --locked --group lint yamllint .yamllint.yaml $$files
-	uv run --locked --group lint codespell --skip='*/node_modules/*,*/.venv/*,*/reports/*' \
-		$(MARKDOWN_SOURCES) src tests examples
-	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || uv run --locked --group lint shellcheck $$files
+	uv run --locked --all-packages --group lint yamllint .yamllint.yaml $$files
+	uv run --locked --all-packages --group lint codespell --skip='*/node_modules/*,*/.venv/*,*/reports/*' \
+		$(MARKDOWN_SOURCES) packages apps tests examples
+	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || uv run --locked --all-packages --group lint shellcheck $$files
 	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -d $$files
 	@files=$$(git ls-files '.github/workflows/*.yaml' '.github/workflows/*.yml'); \
 	[ -z "$$files" ] || "$(TOOLS_BIN)/actionlint" -shellcheck= $$files
 
 type:
-	uv run --locked --group type mypy
+	uv run --locked --all-packages --group type mypy
 
 analyze:
-	uv run --locked --group analyze bandit -q -c pyproject.toml -r src/quality_graph
-	uv run --locked --group analyze vulture
-	uv run --locked --group analyze semgrep --error --quiet --config p/python src/quality_graph
+	uv run --locked --all-packages --group analyze bandit -q -c pyproject.toml -r packages apps
+	uv run --locked --all-packages --group analyze vulture
+	uv run --locked --all-packages --group analyze semgrep --error --quiet --config p/python packages apps
 
 test: test-unit test-integration
 
 test-unit:
-	uv run --locked --group test pytest -q -m "not integration"
+	uv run --locked --all-packages --group test pytest -q -m "not integration"
 
 test-integration:
-	uv run --locked --group test pytest -q -m integration
+	uv run --locked --all-packages --group test pytest -q -m integration
 
 coverage:
-	uv run --locked --group test pytest -q --cov=quality_graph --cov-branch --cov-report=term-missing
+	uv run --locked --all-packages --group test pytest -q --cov=quality_graph_core \
+		--cov=qg_github --cov=qg_cli --cov-branch --cov-report=term-missing
 
 mutation:
-	uv run --locked --group mutation mutmut run --max-children 1
-	uv run --locked --group mutation mutmut export-cicd-stats
-	uv run --locked python scripts/mutation_gate.py mutants/mutmut-cicd-stats.json
+	PYTHONPATH="$(CURDIR)/mutants/packages/core/src:$(CURDIR)/mutants/packages/github/src:$(CURDIR)/mutants/apps/qg/src" \
+		uv run --locked --all-packages --group mutation mutmut run --max-children 1
+	uv run --locked --all-packages --group mutation mutmut export-cicd-stats
+	uv run --locked --all-packages python scripts/mutation_gate.py mutants/mutmut-cicd-stats.json
 
 mutation-diff:
-	@if git diff --quiet "$(BASE)...HEAD" -- src/quality_graph/compiler.py \
-		src/quality_graph/commands.py src/quality_graph/graph.py \
-		src/quality_graph/policy.py src/quality_graph/result.py; then \
+	@if git diff --quiet "$(BASE)...HEAD" -- packages/github/src/qg_github/compiler.py \
+		packages/github/src/qg_github/commands.py packages/core/src/quality_graph_core/graph.py \
+		packages/core/src/quality_graph_core/policy.py packages/core/src/quality_graph_core/result.py; then \
 		echo "No changed mutation-gated decision modules"; \
 	else \
 		$(MAKE) mutation; \
@@ -125,17 +127,23 @@ mutation-diff:
 
 audit: tools
 	@requirements=$$(mktemp); \
-	uv export --locked --no-dev --no-hashes --format requirements-txt -o "$$requirements"; \
-	uv run --locked --group audit pip-audit -r "$$requirements"; status=$$?; \
+	uv export --locked --package qg-github --no-dev --no-hashes --format requirements-txt -o "$$requirements"; \
+	uv run --locked --all-packages --group audit pip-audit -r "$$requirements"; status=$$?; \
 	rm -f "$$requirements"; exit $$status
 	"$(TOOLS_BIN)/gitleaks" detect --no-banner --redact
 
 package:
 	rm -rf build dist
-	uv build
-	uv run --locked --group package twine check dist/*
-	uv run --locked --group package check-wheel-contents dist/*.whl
-	uv run --isolated --no-project --with dist/*.whl qg --version
+	uv build --all-packages --out-dir dist
+	uv run --locked --all-packages --group package twine check dist/*
+	uv run --locked --all-packages --group package check-wheel-contents dist/*.whl
+	uv run --isolated --no-project --find-links dist --with qg --with qg-github qg --version
+	uv run --isolated --no-project --find-links dist --with qg qg result schema >/dev/null
+	@error=$$(mktemp); \
+	if uv run --isolated --no-project --find-links dist --with qg qg validate 2>"$$error"; then \
+		echo "CLI unexpectedly loaded a provider-free installation"; rm -f "$$error"; exit 1; \
+	fi; \
+	grep -q "uv add qg-github" "$$error"; status=$$?; rm -f "$$error"; exit $$status
 
 check: fmt-check lint type analyze coverage audit package
 

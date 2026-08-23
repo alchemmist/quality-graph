@@ -5,7 +5,7 @@
       "maintain"
     ]
   },
-  "graphDigest": "a77af7a02406437efff0ac8c4975923b6260d223c9df360d3e19a0d6db079458",
+  "graphDigest": "3d4354298ece53839809dd5362cd32352e566f9a0e610511756d12bc776cd48a",
   "graphVersion": 0,
   "labels": {
     "enabled": true,
@@ -120,6 +120,7 @@
       ]
     }
   },
+  "provider": "github",
   "resultSchemaVersion": 0,
   "runtime": {
     "action": "alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

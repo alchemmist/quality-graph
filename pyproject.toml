@@ -1,40 +1,6 @@
-[build-system]
-requires = ["hatchling==1.27.0"]
-build-backend = "hatchling.build"
-
-[project]
-name = "quality-graph"
-version = "0.1.0.dev0"
-description = "Declarative GitHub-native quality pipelines"
-readme = "README.md"
-requires-python = ">=3.12"
-license = "MIT"
-authors = [{ name = "Anton Grishin" }]
-keywords = ["ci", "github-actions", "quality", "testing"]
-classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
-  "Environment :: Console",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.14",
-  "Typing :: Typed",
-]
-dependencies = [
-  "defusedxml>=0.7.1",
-  "httpx>=0.28.1",
-  "jinja2>=3.1.6",
-  "pyyaml>=6.0.2",
-]
-
-[project.scripts]
-qg = "quality_graph.cli:main"
-
-[project.urls]
-Documentation = "https://github.com/alchemmist/quality-graph#readme"
-Issues = "https://github.com/alchemmist/quality-graph/issues"
-Repository = "https://github.com/alchemmist/quality-graph"
+[tool.uv.workspace]
+members = ["packages/core", "packages/github", "apps/qg"]
+exclude = ["examples/*"]
 
 [dependency-groups]
 format = ["mdformat>=0.7.22", "ruff==0.15.22"]
@@ -66,23 +32,6 @@ dev = [
   { include-group = "type" },
 ]
 
-[tool.hatch.build.targets.sdist]
-include = [
-  "src/quality_graph",
-  "schemas",
-  "docs",
-  "examples",
-  "action.yml",
-  "LICENSE",
-  "README.md",
-]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/quality_graph"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"schemas" = "quality_graph/schemas"
-
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers"
 testpaths = ["tests"]
@@ -90,7 +39,7 @@ markers = ["integration: exercises a real local external dependency"]
 
 [tool.coverage.run]
 branch = true
-source = ["quality_graph"]
+source = ["quality_graph_core", "qg_github", "qg_cli"]
 
 [tool.coverage.report]
 fail_under = 90
@@ -100,22 +49,22 @@ skip_covered = true
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["src", "tests"]
+src = ["packages/core/src", "packages/github/src", "apps/qg/src", "tests"]
 
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = ["COM812", "D203", "D212"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["quality_graph"]
+known-first-party = ["quality_graph_core", "qg_github", "qg_cli"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D100", "D101", "D102", "D103", "PLR2004", "S101"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["src/quality_graph", "scripts"]
-mypy_path = ["src"]
+files = ["packages/core/src", "packages/github/src", "apps/qg/src", "scripts"]
+mypy_path = ["packages/core/src", "packages/github/src", "apps/qg/src"]
 strict = true
 warn_unreachable = true
 extra_checks = true
@@ -143,20 +92,25 @@ enable_error_code = [
 exclude_dirs = ["tests", ".venv", "build", "mutants"]
 
 [tool.vulture]
-paths = ["src/quality_graph"]
+paths = ["packages/core/src", "packages/github/src", "apps/qg/src"]
 exclude = ["*/.venv/*", "*/build/*", "*/mutants/*"]
 min_confidence = 80
 
 [tool.mutmut]
-source_paths = ["src/quality_graph"]
+source_paths = [
+  "packages/core/src/quality_graph_core",
+  "packages/github/src/qg_github",
+]
 only_mutate = [
-  "src/quality_graph/compiler.py",
-  "src/quality_graph/commands.py",
-  "src/quality_graph/graph.py",
-  "src/quality_graph/policy.py",
-  "src/quality_graph/result.py",
+  "packages/github/src/qg_github/compiler.py",
+  "packages/github/src/qg_github/commands.py",
+  "packages/core/src/quality_graph_core/graph.py",
+  "packages/core/src/quality_graph_core/policy.py",
+  "packages/core/src/quality_graph_core/result.py",
 ]
 also_copy = [
+  "apps",
+  "tests",
   "scripts",
   "examples",
   "schemas",
@@ -165,6 +119,10 @@ also_copy = [
   "LICENSE",
   "README.md",
   "quality-graph.yml",
+  "packages/core/pyproject.toml",
+  "packages/core/README.md",
+  "packages/github/pyproject.toml",
+  "packages/github/README.md",
 ]
 pytest_add_cli_args = ["-q", "-m", "not integration"]
 do_not_mutate_patterns = ["^\\s*message ="]

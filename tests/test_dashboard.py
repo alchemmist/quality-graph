@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from quality_graph.dashboard import (
+from qg_github.dashboard import (
     DashboardControlGroup,
     DashboardModel,
     DashboardRun,
@@ -13,8 +13,8 @@ from quality_graph.dashboard import (
     pending_dashboard,
     render_dashboard,
 )
-from quality_graph.graph import Graph
-from quality_graph.result import (
+from quality_graph_core.graph import Graph
+from quality_graph_core.result import (
     Control,
     ControlKind,
     FailureKind,

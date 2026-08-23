@@ -1,13 +1,13 @@
 from dataclasses import replace
 from pathlib import Path
 
-from quality_graph.reporting import (
+from qg_github.reporting import (
     MAX_JOB_SUMMARY_CHARACTERS,
     MAX_SUMMARY_FINDINGS,
     append_job_summary,
     render_job_summary,
 )
-from quality_graph.result import (
+from quality_graph_core.result import (
     Diagnostic,
     DiagnosticKind,
     FailureKind,

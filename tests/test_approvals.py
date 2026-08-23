@@ -3,16 +3,16 @@ import json
 
 import pytest
 
-from quality_graph.approvals import (
+from qg_github.approvals import (
     ApprovalRecord,
     append_approval_record,
     approval_ledger,
     decode_record,
     record_marker,
 )
-from quality_graph.github import MemoryGitHubPort
-from quality_graph.policy import ApprovalTarget
-from quality_graph.result import ControlKind
+from qg_github.github import MemoryGitHubPort
+from quality_graph_core.policy import ApprovalTarget
+from quality_graph_core.result import ControlKind
 
 
 def target(value: str = "finding") -> ApprovalTarget:

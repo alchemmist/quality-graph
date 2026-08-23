@@ -1,13 +1,13 @@
 import pytest
 
-from quality_graph.comments import (
+from qg_github.comments import (
     GITHUB_COMMENT_BODY_LIMIT,
     bounded_comment,
     find_managed_comment,
     marker,
     upsert_managed_comment,
 )
-from quality_graph.github import MemoryGitHubPort
+from qg_github.github import MemoryGitHubPort
 
 
 def comments_path(number: int, page: int = 1) -> str:

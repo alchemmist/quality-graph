@@ -57,5 +57,5 @@ runs:
         QG_COMMAND_OUTCOME: ${{ inputs.command-outcome }}
         QG_GRAPH_DIGEST: ${{ inputs.graph-digest }}
       run: >-
-        uv run --project "$GITHUB_ACTION_PATH" --locked
-        python -m quality_graph.runtime "$QG_OPERATION"
+        uv run --project "$GITHUB_ACTION_PATH" --locked --package qg-github
+        python -m qg_github.runtime "$QG_OPERATION"
