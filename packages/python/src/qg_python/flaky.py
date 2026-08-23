@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 import anyio
 
@@ -13,11 +13,14 @@ from qg_python.diff import added_lines_by_path, patch_for_base
 
 MIN_ATTEMPTS = 2
 
-if TYPE_CHECKING:
-    from subprocess import CompletedProcess
+
+class ProcessResult(Protocol):
+    """Expose the subprocess state needed by the flaky gate."""
+
+    returncode: int
 
 
-async def run_test(command: list[str]) -> CompletedProcess[bytes]:
+async def run_test(command: list[str]) -> ProcessResult:
     """Run one pytest command without raising for a test failure."""
     return await anyio.run_process(command, check=False)
 
