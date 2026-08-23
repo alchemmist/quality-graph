@@ -1,0 +1,134 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quality-graph"
+version = "0.1.0.dev0"
+description = "Declarative GitHub-native quality pipelines"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "Anton Grishin" }]
+keywords = ["ci", "github-actions", "quality", "testing"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Typing :: Typed",
+]
+dependencies = [
+  "defusedxml>=0.7.1",
+  "httpx>=0.28.1",
+  "jinja2>=3.1.6",
+  "pydantic>=2.12.0",
+  "pyyaml>=6.0.2",
+]
+
+[project.scripts]
+qg = "quality_graph.cli:main"
+
+[project.urls]
+Documentation = "https://github.com/alchemmist/quality-graph#readme"
+Issues = "https://github.com/alchemmist/quality-graph/issues"
+Repository = "https://github.com/alchemmist/quality-graph"
+
+[dependency-groups]
+format = ["mdformat>=0.7.22", "ruff==0.15.22"]
+lint = [
+  "codespell>=2.4.1",
+  "mdformat>=0.7.22",
+  "ruff==0.15.22",
+  "yamllint>=1.37.1",
+]
+type = ["mypy>=1.18.2", "types-pyyaml>=6.0.12.20250915"]
+test = ["pytest>=9.0.2", "pytest-cov>=7.0.0"]
+analyze = ["bandit>=1.8.6", "vulture>=2.14"]
+audit = ["pip-audit>=2.10.0"]
+mutation = [{ include-group = "test" }, "mutmut>=3.4.0"]
+dev = [
+  { include-group = "analyze" },
+  { include-group = "audit" },
+  { include-group = "format" },
+  { include-group = "lint" },
+  { include-group = "mutation" },
+  { include-group = "test" },
+  { include-group = "type" },
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/quality_graph", "LICENSE", "README.md", "TASK.md"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quality_graph"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers"
+testpaths = ["tests"]
+markers = ["integration: exercises a real local external dependency"]
+
+[tool.coverage.run]
+branch = true
+source = ["quality_graph"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["COM812", "D203", "D212"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["quality_graph"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["D100", "D101", "D102", "D103", "PLR2004", "S101"]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["quality_graph"]
+strict = true
+warn_unreachable = true
+extra_checks = true
+explicit_package_bases = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+disallow_any_explicit = true
+disallow_any_unimported = true
+disallow_any_decorated = true
+warn_return_any = true
+enable_error_code = [
+  "explicit-override",
+  "ignore-without-code",
+  "mutable-override",
+  "possibly-undefined",
+  "redundant-expr",
+  "truthy-bool",
+  "truthy-iterable",
+  "unused-awaitable",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "build", "mutants"]
+
+[tool.vulture]
+paths = ["src/quality_graph"]
+exclude = ["*/.venv/*", "*/build/*", "*/mutants/*"]
+min_confidence = 80
+
+[tool.mutmut]
+paths_to_mutate = ["src/quality_graph"]
+pytest_add_cli_args = ["-q"]
