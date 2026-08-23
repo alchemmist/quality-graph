@@ -144,7 +144,8 @@ mutation:
 mutation-diff:
 	@if git diff --quiet "$(BASE)...HEAD" -- packages/github/src/qg_github/compiler.py \
 		packages/github/src/qg_github/commands.py packages/core/src/quality_graph_core/graph.py \
-		packages/core/src/quality_graph_core/policy.py packages/core/src/quality_graph_core/result.py; then \
+		packages/core/src/quality_graph_core/policy.py packages/core/src/quality_graph_core/result.py \
+		packages/python/src/qg_python; then \
 		echo "No changed mutation-gated decision modules"; \
 	else \
 		$(MAKE) mutation; \
