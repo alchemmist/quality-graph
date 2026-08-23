@@ -20,6 +20,7 @@ from quality_graph.adapters import (
     read_report,
 )
 from quality_graph.annotations import publish_annotations
+from quality_graph.commands import handle_command
 from quality_graph.github import HttpGitHubPort
 from quality_graph.graph import AdapterKind
 from quality_graph.publication import publish_workflow_run, read_event_json
@@ -124,6 +125,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if operation == ["publish"]:
         event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
         publish_workflow_run(HttpGitHubPort.from_environment(), event)
+        return 0
+    if operation == ["command"]:
+        event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+        handle_command(HttpGitHubPort.from_environment(), event)
         return 0
     message = f"Unsupported Quality Graph runtime operation: {' '.join(operation)}"
     raise SystemExit(message)

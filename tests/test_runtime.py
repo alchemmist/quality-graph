@@ -105,7 +105,7 @@ def test_runtime_rejects_unknown_operation_and_event_shape(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with pytest.raises(SystemExit, match="Unsupported"):
-        main(["command"])
+        main(["unknown"])
     values = environment(tmp_path)
     Path(values["GITHUB_EVENT_PATH"]).write_text("[]")
     for name, value in values.items():
@@ -137,6 +137,11 @@ def test_runtime_main_dispatches_publication(
     monkeypatch.setattr("quality_graph.runtime.publish_workflow_run", publish)
 
     assert main(["publish"]) == 0
+    assert observed == [port, {}]
+
+    observed.clear()
+    monkeypatch.setattr("quality_graph.runtime.handle_command", publish)
+    assert main(["command"]) == 0
     assert observed == [port, {}]
 
 
