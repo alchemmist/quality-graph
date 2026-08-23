@@ -1,0 +1,47 @@
+---
+version: 0
+
+runtime:
+  action: alchemmist/quality-graph@4707114b53f3add10c3fe0e4dfc673944768c498
+
+profiles:
+  default:
+    runner: ubuntu-latest
+    setup:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: "false"
+
+  python:
+    extends: default
+    setup:
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: "true"
+          cache-dependency-glob: uv.lock
+      - name: Install locked dependencies
+        run: uv sync --locked --all-groups
+
+nodes:
+  format:
+    title: Format check
+    profile: python
+    run: make fmt-check
+
+  type:
+    title: Type check
+    profile: python
+    needs: [format]
+    run: make type
+
+  test:
+    title: Tests and coverage
+    profile: python
+    needs: [type]
+    run: make coverage
+
+  package:
+    title: Package
+    profile: python
+    needs: [test]
+    run: make package
