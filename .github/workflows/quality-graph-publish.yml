@@ -27,7 +27,7 @@ jobs:
       checks: write
       contents: read
       issues: write
-      pull-requests: read
+      pull-requests: write
     steps:
     - name: Publish trusted Quality Graph state
       uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
@@ -41,7 +41,7 @@ jobs:
       actions: write
       contents: read
       issues: write
-      pull-requests: read
+      pull-requests: write
     steps:
     - name: Handle trusted Quality Graph command
       uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
