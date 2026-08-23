@@ -26,7 +26,7 @@ jobs:
         persist-credentials: 'false'
     - uses: astral-sh/setup-uv@v7
     - run: uv sync --locked
-    - run: mkdir -p reports && uv run ruff check --output-format sarif --output-file reports/ruff.sarif .
+    - run: bash scripts/lint.sh
       name: Run Ruff
       id: quality-command
       continue-on-error: true
@@ -41,7 +41,7 @@ jobs:
         adapter: sarif
         report-path: reports/ruff.sarif
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 511723fd4a8c1940954b416f1915fa26432ec16d1a215076d99d81fa6347e7ea
+        graph-digest: 0eae8d8033a6908c8599ba9c7590bc426ad015c71853a2e1800c85d6b5f6d142
     - name: Upload Ruff result
       if: always()
       uses: actions/upload-artifact@v7
@@ -67,7 +67,7 @@ jobs:
         persist-credentials: 'false'
     - uses: astral-sh/setup-uv@v7
     - run: uv sync --locked
-    - run: mkdir -p reports && uv run pytest --junitxml reports/pytest.xml
+    - run: bash scripts/test.sh
       name: Run Pytest
       id: quality-command
       continue-on-error: true
@@ -82,7 +82,7 @@ jobs:
         adapter: junit
         report-path: reports/pytest.xml
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 511723fd4a8c1940954b416f1915fa26432ec16d1a215076d99d81fa6347e7ea
+        graph-digest: 0eae8d8033a6908c8599ba9c7590bc426ad015c71853a2e1800c85d6b5f6d142
     - name: Upload Pytest result
       if: always()
       uses: actions/upload-artifact@v7
