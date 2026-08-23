@@ -11,10 +11,14 @@ MARKDOWN_SOURCES := README.md $(wildcard docs/*.md packages/*/README.md apps/*/R
 	python-suppressions python-object-annotations python-triple-quotes \
 	python-time-bombs python-no-comments coverage-diff flaky-python \
 	mutation mutation-diff audit package check clean fmt-staged \
-	precommit-install precommit-uninstall examples-generate examples-check
+	precommit-install precommit-uninstall examples-generate examples-check \
+	release-setup
 
 install:
 	uv sync --locked --all-groups --all-packages
+
+release-setup:
+	bash scripts/setup-release-publishing.sh
 
 tools:
 	QUALITY_GRAPH_TOOLS_BIN="$(TOOLS_BIN)" bash scripts/install-tools.sh
@@ -153,7 +157,7 @@ mutation-diff:
 
 audit: tools
 	@requirements=$$(mktemp); \
-	uv export --locked --package qg-github --no-dev --no-hashes --format requirements-txt -o "$$requirements"; \
+	uv export --locked --package quality-graph-github --no-dev --no-hashes --format requirements-txt -o "$$requirements"; \
 	uv run --locked --all-packages --group audit pip-audit -r "$$requirements"; status=$$?; \
 	rm -f "$$requirements"; exit $$status
 	"$(TOOLS_BIN)/gitleaks" detect --no-banner --redact
@@ -164,17 +168,17 @@ package:
 	uv run --locked --all-packages --group package twine check dist/*
 	uv run --locked --all-packages --group package check-wheel-contents dist/*.whl
 	uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
-		--with dist/qg_github-*-py3-none-any.whl --with dist/qg-*-py3-none-any.whl qg --version
+		--with dist/quality_graph_github-*-py3-none-any.whl --with dist/qg-*-py3-none-any.whl qg --version
 	uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
 		--with dist/qg-*-py3-none-any.whl qg result schema >/dev/null
-	uv run --isolated --no-project --with dist/qg_python-*-py3-none-any.whl \
+	uv run --isolated --no-project --with dist/quality_graph_python-*-py3-none-any.whl \
 		qg-python-time-bombs --help >/dev/null
 	@error=$$(mktemp); \
 	if uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
 		--with dist/qg-*-py3-none-any.whl qg validate 2>"$$error"; then \
 		echo "CLI unexpectedly loaded a provider-free installation"; rm -f "$$error"; exit 1; \
 	fi; \
-	grep -q "uv tool install qg --with qg-github" "$$error"; status=$$?; \
+	grep -q "uv tool install qg --with quality-graph-github" "$$error"; status=$$?; \
 	rm -f "$$error"; exit $$status
 
 check: fmt-check python-suppressions python-object-annotations python-triple-quotes \

@@ -45,7 +45,10 @@ def test_provider_discovery_reports_actionable_missing_package(
 ) -> None:
     monkeypatch.setattr("qg_cli.providers.entry_points", lambda **_kwargs: installed())
 
-    with pytest.raises(ProviderNotInstalledError, match="uv tool install qg --with qg-gitlab"):
+    with pytest.raises(
+        ProviderNotInstalledError,
+        match="uv tool install qg --with quality-graph-gitlab",
+    ):
         load_provider("gitlab")
 
 

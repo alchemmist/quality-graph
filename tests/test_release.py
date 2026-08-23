@@ -5,19 +5,31 @@ from pathlib import Path
 import yaml
 
 VERSION = "0.1.0"
+PROJECT_NAMES = {
+    "quality-graph-core",
+    "quality-graph-github",
+    "quality-graph-python",
+    "qg",
+}
 PROJECT_FILES = (
     Path("packages/core/pyproject.toml"),
     Path("packages/github/pyproject.toml"),
     Path("packages/python/pyproject.toml"),
     Path("apps/qg/pyproject.toml"),
 )
-PUBLISH_JOBS = ("publish-core", "publish-python", "publish-github", "publish-cli")
+PUBLISH_ENVIRONMENTS = {
+    "publish-core": "pypi",
+    "publish-python": "pypi-python",
+    "publish-github": "pypi-github",
+    "publish-cli": "pypi-cli",
+}
 PINNED_ACTION = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 
 
 def test_workspace_releases_one_exact_version() -> None:
     projects = [tomllib.loads(path.read_text()) for path in PROJECT_FILES]
 
+    assert {project["project"]["name"] for project in projects} == PROJECT_NAMES
     assert {project["project"]["version"] for project in projects} == {VERSION}
     assert projects[1]["project"]["dependencies"][-1] == f"quality-graph-core=={VERSION}"
     assert projects[3]["project"]["dependencies"] == [f"quality-graph-core=={VERSION}"]
@@ -30,8 +42,8 @@ def test_release_workflow_is_tag_bound_and_least_privilege() -> None:
     assert workflow["on"]["push"]["tags"] == ["v[0-9]+.[0-9]+.[0-9]+"]
     assert workflow["permissions"] == {"contents": "read"}
     assert "permissions" not in jobs["build"]
-    for name in PUBLISH_JOBS:
-        assert jobs[name]["environment"]["name"] == "pypi"
+    for name, environment in PUBLISH_ENVIRONMENTS.items():
+        assert jobs[name]["environment"]["name"] == environment
         assert jobs[name]["permissions"] == {"id-token": "write"}
     assert jobs["release"]["permissions"] == {"contents": "write"}
 

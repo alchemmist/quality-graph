@@ -3,7 +3,7 @@ requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "qg-github"
+name = "quality-graph-github"
 version = "0.1.0"
 description = "GitHub provider and Action runtime for Quality Graph"
 readme = "README.md"

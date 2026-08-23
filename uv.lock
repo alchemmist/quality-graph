@@ -11,9 +11,9 @@ resolution-markers = [
 [manifest]
 members = [
     "qg",
-    "qg-github",
-    "qg-python",
     "quality-graph-core",
+    "quality-graph-github",
+    "quality-graph-python",
 ]
 
 [manifest.dependency-groups]
@@ -2057,7 +2057,22 @@ dependencies = [
 requires-dist = [{ name = "quality-graph-core", editable = "packages/core" }]
 
 [[package]]
-name = "qg-github"
+name = "quality-graph-core"
+version = "0.1.0"
+source = { editable = "packages/core" }
+dependencies = [
+    { name = "defusedxml" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "defusedxml", specifier = ">=0.7.1" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+]
+
+[[package]]
+name = "quality-graph-github"
 version = "0.1.0"
 source = { editable = "packages/github" }
 dependencies = [
@@ -2076,7 +2091,7 @@ requires-dist = [
 ]
 
 [[package]]
-name = "qg-python"
+name = "quality-graph-python"
 version = "0.1.0"
 source = { editable = "packages/python" }
 dependencies = [
@@ -2085,21 +2100,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "anyio", specifier = ">=4.11.0" }]
-
-[[package]]
-name = "quality-graph-core"
-version = "0.1.0"
-source = { editable = "packages/core" }
-dependencies = [
-    { name = "defusedxml" },
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "defusedxml", specifier = ">=0.7.1" },
-    { name = "pyyaml", specifier = ">=6.0.2" },
-]
 
 [[package]]
 name = "readme-renderer"

@@ -3,7 +3,7 @@ requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "qg-python"
+name = "quality-graph-python"
 version = "0.1.0"
 description = "Reusable Python quality gates for Quality Graph"
 readme = "README.md"
