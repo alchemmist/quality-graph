@@ -5,6 +5,12 @@ from pathlib import Path
 import yaml
 
 VERSION = "0.1.0"
+PROJECT_NAMES = {
+    "quality-graph-core",
+    "quality-graph-github",
+    "quality-graph-python",
+    "qg",
+}
 PROJECT_FILES = (
     Path("packages/core/pyproject.toml"),
     Path("packages/github/pyproject.toml"),
@@ -23,6 +29,7 @@ PINNED_ACTION = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 def test_workspace_releases_one_exact_version() -> None:
     projects = [tomllib.loads(path.read_text()) for path in PROJECT_FILES]
 
+    assert {project["project"]["name"] for project in projects} == PROJECT_NAMES
     assert {project["project"]["version"] for project in projects} == {VERSION}
     assert projects[1]["project"]["dependencies"][-1] == f"quality-graph-core=={VERSION}"
     assert projects[3]["project"]["dependencies"] == [f"quality-graph-core=={VERSION}"]

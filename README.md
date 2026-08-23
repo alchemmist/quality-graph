@@ -37,7 +37,7 @@ nodes:
 ```
 
 ```bash
-uv tool install qg==0.1.0 --with qg-github==0.1.0
+uv tool install qg==0.1.0 --with quality-graph-github==0.1.0
 qg init --runtime-action 'alchemmist/quality-graph@<release-commit-sha>'
 qg generate
 git add quality-graph.yml .github/workflows .quality-graph/manifest.json
@@ -57,9 +57,9 @@ Quality Graph is a locked uv workspace with four independently buildable distrib
 
 - `quality-graph-core` owns the platform-independent graph, result protocol, policies,
   schemas, and provider interface;
-- `qg-github` implements GitHub workflow generation, transport, publication, and the
+- `quality-graph-github` implements GitHub workflow generation, transport, publication, and the
   composite Action runtime;
-- `qg-python` provides optional reusable quality gates for Python repositories;
+- `quality-graph-python` provides optional reusable quality gates for Python repositories;
 - `qg` is the command-line composition root and discovers installed providers through the
   `qg.providers` entry-point group.
 

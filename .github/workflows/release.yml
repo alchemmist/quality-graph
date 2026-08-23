@@ -28,13 +28,13 @@ jobs:
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: qg-python
-          path: dist/qg_python-*
+          name: quality-graph-python
+          path: dist/quality_graph_python-*
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: qg-github
-          path: dist/qg_github-*
+          name: quality-graph-github
+          path: dist/quality_graph_github-*
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -62,13 +62,13 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi-python
-      url: https://pypi.org/project/qg-python/
+      url: https://pypi.org/project/quality-graph-python/
     permissions:
       id-token: write
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: qg-python
+          name: quality-graph-python
           path: dist
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
 
@@ -77,13 +77,13 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi-github
-      url: https://pypi.org/project/qg-github/
+      url: https://pypi.org/project/quality-graph-github/
     permissions:
       id-token: write
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: qg-github
+          name: quality-graph-github
           path: dist
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
 
@@ -115,8 +115,9 @@ jobs:
           merge-multiple: true
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: quality-graph-core
+          pattern: "quality-graph-*"
           path: dist
+          merge-multiple: true
       - name: Create immutable GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
