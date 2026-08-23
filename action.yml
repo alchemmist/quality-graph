@@ -1,0 +1,60 @@
+---
+name: Quality Graph runtime
+description: Collect and publish portable Quality Graph results
+inputs:
+  operation:
+    description: Internal runtime operation
+    required: true
+  node-id:
+    description: Stable graph node identifier
+    required: false
+    default: ""
+  title:
+    description: Human-readable node title
+    required: false
+    default: ""
+  adapter:
+    description: Result adapter name
+    required: false
+    default: exit-code
+  report-path:
+    description: Repository-relative structured report path
+    required: false
+    default: ""
+  command-outcome:
+    description: GitHub command step outcome
+    required: false
+    default: success
+  graph-digest:
+    description: Digest of the compiled graph manifest
+    required: false
+    default: ""
+outputs:
+  result-path:
+    description: Portable result artifact path
+    value: ${{ steps.runtime.outputs.result-path }}
+  exit-code:
+    description: Exit code that enforces the raw node result
+    value: ${{ steps.runtime.outputs.exit-code }}
+runs:
+  using: composite
+  steps:
+    - name: Setup Quality Graph runtime
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        cache-dependency-glob: ${{ github.action_path }}/uv.lock
+    - name: Run Quality Graph runtime
+      id: runtime
+      shell: bash
+      env:
+        QG_OPERATION: ${{ inputs.operation }}
+        QG_NODE_ID: ${{ inputs.node-id }}
+        QG_TITLE: ${{ inputs.title }}
+        QG_ADAPTER: ${{ inputs.adapter }}
+        QG_REPORT_PATH: ${{ inputs.report-path }}
+        QG_COMMAND_OUTCOME: ${{ inputs.command-outcome }}
+        QG_GRAPH_DIGEST: ${{ inputs.graph-digest }}
+      run: >-
+        uv run --project "$GITHUB_ACTION_PATH" --locked
+        python -m quality_graph.runtime "$QG_OPERATION"
