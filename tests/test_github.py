@@ -93,6 +93,35 @@ def test_http_port_reads_environment_and_user_path() -> None:
     assert observed == ["https://github.test/user"]
 
 
+def test_http_port_downloads_binary_content_and_handles_failures() -> None:
+    responses = iter([httpx.Response(200, content=b"archive"), httpx.Response(403)])
+    port = HttpGitHubPort(
+        "owner/repository",
+        "token",
+        client=httpx.Client(transport=httpx.MockTransport(lambda _: next(responses))),
+    )
+
+    assert port.download("/actions/artifacts/1/zip") == b"archive"
+    with pytest.raises(GitHubError, match="HTTP 403"):
+        port.download("/actions/artifacts/2/zip")
+
+
+def test_http_port_masks_download_transport_errors() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        message = "token=secret"
+        raise httpx.ConnectError(message, request=request)
+
+    port = HttpGitHubPort(
+        "owner/repository",
+        "secret",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    with pytest.raises(RuntimeError, match="ConnectError") as captured:
+        port.download("/failure")
+    assert "secret" not in str(captured.value)
+
+
 def test_memory_port_records_and_sequences_exact_requests() -> None:
     port = MemoryGitHubPort()
     port.enqueue("GET", "/state", {"value": 1}, {"value": 2})
@@ -107,6 +136,12 @@ def test_memory_port_records_and_sequences_exact_requests() -> None:
     ]
     with pytest.raises(AssertionError, match="Unexpected"):
         port.request("POST", "/state")
+
+    port.downloads["/archive"] = b"content"
+    assert port.download("/archive") == b"content"
+    assert port.downloaded == ["/archive"]
+    with pytest.raises(AssertionError, match="Unexpected"):
+        port.download("/missing")
 
 
 def test_pagination_reads_every_page_and_preserves_query_strings() -> None:
