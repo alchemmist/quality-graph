@@ -217,14 +217,15 @@ printf '  %sDo not add a PyPI token or GitHub Actions secret.%s\n' "$RED" "$RESE
 confirm "Are all four environments restricted to v* tags?" || exit 1
 
 stage "PyPI — pending Trusted Publishers"
-say "Register the four projects before their first upload."
+say "Register three projects now; PyPI permits only three pending publishers at once."
 open_url "https://pypi.org/manage/account/publishing/"
 step "For each project below, choose Add a new pending publisher."
-step "Use PyPI project names: quality-graph-core, qg-python, qg-github, and qg."
+step "Use PyPI project names: quality-graph-core, qg-python, and qg-github."
 step "For every project set Owner to alchemmist and Repository to quality-graph."
 step "Set Workflow name to release.yml for every project."
-step "Use environments pypi, pypi-python, pypi-github, and pypi-cli respectively."
-step "Submit all four publishers. They remain pending until the first trusted upload."
-confirm "Are all four pending Trusted Publishers listed?" || exit 1
+step "Use environments pypi, pypi-python, and pypi-github respectively."
+step "Do not register qg yet; add it with pypi-cli after the first three uploads complete."
+confirm "Are the first three pending Trusted Publishers listed?" || exit 1
+SKIPPED+=("qg pending publisher after the first three projects are published")
 
 finish
