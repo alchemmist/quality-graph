@@ -19,7 +19,7 @@ from quality_graph.adapters import (
     adapter_failure,
     read_report,
 )
-from quality_graph.annotations import publish_annotations
+from quality_graph.annotations import escape_data, publish_annotations
 from quality_graph.commands import handle_command
 from quality_graph.github import HttpGitHubPort
 from quality_graph.graph import AdapterKind
@@ -134,6 +134,17 @@ def main(arguments: Sequence[str] | None = None) -> int:
     raise SystemExit(message)
 
 
+def entrypoint(arguments: Sequence[str] | None = None) -> int:
+    """Expose runtime failures as safe public workflow annotations."""
+    try:
+        return main(arguments)
+    except Exception as error:
+        name = type(error).__name__
+        detail = escape_data(str(error))
+        sys.stderr.write(f"::error title=Quality Graph runtime::{name}: {detail}\n")
+        raise
+
+
 def _provenance(
     environment: Mapping[str, str],
     event: Mapping[str, JsonValue],
@@ -181,4 +192,4 @@ def _result_exit_code(result: Result) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(entrypoint())
