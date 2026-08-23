@@ -1,5 +1,7 @@
 # Quality Graph
 
+[![Quality Graph](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml/badge.svg?branch=main)](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml)
+
 Bring your checks. Quality Graph provides the graph, result protocol, reporting, and
 governance.
 
