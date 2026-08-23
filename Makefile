@@ -137,13 +137,17 @@ package:
 	uv build --all-packages --out-dir dist
 	uv run --locked --all-packages --group package twine check dist/*
 	uv run --locked --all-packages --group package check-wheel-contents dist/*.whl
-	uv run --isolated --no-project --find-links dist --with qg --with qg-github qg --version
-	uv run --isolated --no-project --find-links dist --with qg qg result schema >/dev/null
+	uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
+		--with dist/qg_github-*-py3-none-any.whl --with dist/qg-*-py3-none-any.whl qg --version
+	uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
+		--with dist/qg-*-py3-none-any.whl qg result schema >/dev/null
 	@error=$$(mktemp); \
-	if uv run --isolated --no-project --find-links dist --with qg qg validate 2>"$$error"; then \
+	if uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
+		--with dist/qg-*-py3-none-any.whl qg validate 2>"$$error"; then \
 		echo "CLI unexpectedly loaded a provider-free installation"; rm -f "$$error"; exit 1; \
 	fi; \
-	grep -q "uv add qg-github" "$$error"; status=$$?; rm -f "$$error"; exit $$status
+	grep -q "uv tool install qg --with qg-github" "$$error"; status=$$?; \
+	rm -f "$$error"; exit $$status
 
 check: fmt-check lint type analyze coverage audit package
 

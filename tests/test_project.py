@@ -43,7 +43,7 @@ def test_project_refuses_missing_or_existing_declaration(tmp_path: Path) -> None
         Project.initialize(tmp_path, RUNTIME)
 
     replaced = Project.initialize(tmp_path, RUNTIME, force=True)
-    assert replaced.graph.runtime.action == RUNTIME
+    assert replaced.graph.provider.values["runtime"] == {"action": RUNTIME}
 
 
 def test_project_does_not_write_when_default_provider_is_missing(

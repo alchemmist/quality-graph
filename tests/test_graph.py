@@ -11,17 +11,19 @@ from quality_graph_core.graph import (
     Node,
     NodePolicy,
     Profile,
+    ProviderConfiguration,
     ResultAdapter,
-    RuntimeReference,
     Severity,
     Step,
 )
 
 RUNTIME = "alchemmist/quality-graph@" + "a" * 40
 GRAPH = f"""version: 0
-provider: github
-runtime:
-  action: {RUNTIME}
+provider:
+  name: github
+  configuration:
+    runtime:
+      action: {RUNTIME}
 profiles:
   default:
     runner: ubuntu-latest
@@ -97,8 +99,8 @@ def test_graph_loads_profiles_nodes_policies_and_labels() -> None:
     graph = Graph.from_yaml(GRAPH)
 
     assert graph.version == 0
-    assert graph.provider == "github"
-    assert graph.runtime.action == RUNTIME
+    assert graph.provider.name == "github"
+    assert graph.provider.values["runtime"] == {"action": RUNTIME}
     assert graph.node_order() == ("format", "lint")
     assert graph.nodes[1].result.kind is AdapterKind.SARIF
     assert graph.nodes[1].result.path == "reports/lint.sarif"
@@ -110,9 +112,20 @@ def test_graph_loads_profiles_nodes_policies_and_labels() -> None:
 
 
 def test_graph_defaults_to_github_provider_for_legacy_declarations() -> None:
-    graph = Graph.from_yaml(GRAPH.replace("provider: github\n", ""))
+    provider = (
+        f"provider:\n  name: github\n  configuration:\n    runtime:\n      action: {RUNTIME}\n"
+    )
+    legacy = GRAPH.replace(provider, f"runtime:\n  action: {RUNTIME}\n")
+    graph = Graph.from_yaml(legacy)
 
-    assert graph.provider == "github"
+    assert graph.provider == ProviderConfiguration("github", {"runtime": {"action": RUNTIME}})
+
+
+def test_provider_configuration_rejects_legacy_runtime_and_unknown_fields() -> None:
+    with pytest.raises(ValueError, match="cannot be combined"):
+        Graph.from_yaml(GRAPH.replace("profiles:\n", f"runtime:\n  action: {RUNTIME}\nprofiles:\n"))
+    with pytest.raises(ValueError, match="unknown fields"):
+        Graph.from_yaml(GRAPH.replace("  name: github", "  name: github\n  unknown: true"))
 
 
 def test_complete_graph_model_matches_contract_snapshot() -> None:
@@ -141,20 +154,12 @@ def test_profile_inheritance_appends_setup_and_merges_mappings() -> None:
     [
         ("", "must not be empty"),
         (GRAPH.replace("version: 0", "version: 1"), "unsupported graph version"),
-        (GRAPH.replace("runtime:\n", "runtime:\n  unknown: true\n"), "unknown fields"),
         (GRAPH.replace("  lint:\n", "  lint:\n  lint:\n"), "duplicate YAML key"),
         (GRAPH.replace("needs: [format]", "needs: [missing]"), "unknown dependencies"),
         (GRAPH.replace("profile: python", "profile: missing", 1), "unknown profile"),
         (GRAPH.replace("extends: default", "extends: missing"), "unknown parent profile"),
         (GRAPH.replace("needs: [format]", "needs: [lint]"), "exclude itself"),
         (GRAPH.replace("needs: [format]", "needs: [format, format]"), "must be unique"),
-        (
-            GRAPH.replace(
-                "runner: ubuntu-latest",
-                "runner: ubuntu-latest\n    permissions:\n      issues: write",
-            ),
-            "none or read",
-        ),
         (GRAPH.replace("sarif: reports/lint.sarif", "sarif: ../lint.sarif"), "repository-relative"),
     ],
 )
@@ -179,7 +184,6 @@ def test_graph_rejects_dependency_and_profile_cycles() -> None:
 @pytest.mark.parametrize(
     "replacement",
     [
-        "uses: local-action",
         "uses: actions/checkout@v7\n    run: make lint",
         "run: ''",
     ],
@@ -204,13 +208,6 @@ def test_node_label_can_explicitly_disable_inherited_management() -> None:
         (
             GRAPH.replace("runner: ubuntu-latest", "timeout-minutes: 361"),
             "profile timeout",
-        ),
-        (
-            GRAPH.replace(
-                "runner: ubuntu-latest",
-                "runner: ubuntu-latest\n    permissions:\n      unknown: read",
-            ),
-            "unknown GitHub permission",
         ),
         (
             GRAPH.replace("blocking-severities: [error, warning]", "blocking-severities: []"),
@@ -255,10 +252,6 @@ def test_node_label_can_explicitly_disable_inherited_management() -> None:
             GRAPH.replace("enabled: true\n  failing: quality:failed", "enabled: true"),
             "configured together",
         ),
-        (
-            GRAPH.replace(RUNTIME, "alchemmist/quality-graph@main"),
-            "40-character-commit",
-        ),
     ],
 )
 def test_graph_rejects_invalid_policy_and_execution_bounds(source: str, message: str) -> None:
@@ -266,9 +259,10 @@ def test_graph_rejects_invalid_policy_and_execution_bounds(source: str, message:
         Graph.from_yaml(source)
 
 
-def test_step_rejects_github_only_fields_on_action() -> None:
-    with pytest.raises(ValueError, match="cannot define"):
-        Step(uses="actions/checkout@v7", working_directory="src")
+def test_core_step_accepts_provider_owned_action_fields() -> None:
+    step = Step(uses="local-action", working_directory="src")
+
+    assert step.uses == "local-action"
 
 
 def test_result_adapter_requires_report_exactly_for_structured_formats() -> None:
@@ -279,16 +273,16 @@ def test_result_adapter_requires_report_exactly_for_structured_formats() -> None
 
 
 def test_graph_constructor_rejects_duplicate_and_missing_declarations() -> None:
-    runtime = RuntimeReference(RUNTIME)
+    provider = ProviderConfiguration("github", {"runtime": {"action": RUNTIME}})
     profile = Profile("default")
     node = Node("test", "Tests", Step(run="make test"))
 
     with pytest.raises(ValueError, match="profile identifiers"):
-        Graph(runtime, (profile, profile), (node,))
+        Graph(provider, (profile, profile), (node,))
     with pytest.raises(ValueError, match="default profile"):
-        Graph(runtime, (Profile("python"),), (node,))
+        Graph(provider, (Profile("python"),), (node,))
     with pytest.raises(ValueError, match="node identifiers"):
-        Graph(runtime, (profile,), (node, node))
+        Graph(provider, (profile,), (node, node))
 
 
 def test_direct_model_validation_covers_label_and_policy_bounds() -> None:
