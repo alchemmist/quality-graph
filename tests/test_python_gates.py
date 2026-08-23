@@ -33,6 +33,9 @@ def test_diff_parser_handles_additions_deletions_renames_and_invalid_refs() -> N
     )
 
     assert diff.added_lines_by_path(patch) == {"new.py": frozenset({2, 3})}
+    quoted = '+++ "b/caf\\303\\251.py"\n@@ -0,0 +1 @@\n+value = 1'
+    assert diff.added_lines_by_path(quoted) == {"café.py": frozenset({1})}
+    assert diff.added_lines_by_path("+++ /dev/null\n@@ -1 +0,0 @@\n-value") == {}
     with pytest.raises(ValueError, match="invalid base"):
         diff.validated_base("main; unsafe")
 
@@ -43,11 +46,16 @@ def test_diff_loader_filters_missing_and_unselected_files(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     (tmp_path / "selected.py").write_text("value = 1\n")
+    (tmp_path / "selected.toml").write_text("value = 1\n")
     monkeypatch.setattr(
         "qg_python.diff.patch_for_base",
         lambda _base: (
             "diff --git a/selected.py b/selected.py\n"
             "+++ b/selected.py\n"
+            "@@ -0,0 +1 @@\n"
+            "+value = 1\n"
+            "diff --git a/selected.toml b/selected.toml\n"
+            "+++ b/selected.toml\n"
             "@@ -0,0 +1 @@\n"
             "+value = 1\n"
             "diff --git a/missing.py b/missing.py\n"
@@ -61,9 +69,26 @@ def test_diff_loader_filters_missing_and_unselected_files(
         ),
     )
 
-    assert diff.changed_files("main", (".py",)) == (
+    assert diff.changed_files("main", (".py", ".toml")) == (
         diff.ChangedFile("selected.py", "value = 1\n", frozenset({1})),
+        diff.ChangedFile("selected.toml", "value = 1\n", frozenset({1})),
     )
+
+
+def test_diff_loader_honors_python_encoding_cookie(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "encoded.py").write_bytes(b"# coding: latin-1\nvalue = 'caf\xe9'\n")
+    monkeypatch.setattr(
+        "qg_python.diff.patch_for_base",
+        lambda _base: "+++ b/encoded.py\n@@ -0,0 +1,2 @@\n+# coding: latin-1\n+value",
+    )
+
+    changed = diff.changed_files("main", (".py",))
+
+    assert changed[0].source.endswith("value = 'café'\n")
 
 
 def test_patch_runner_uses_validated_argv_and_requires_git(
@@ -160,6 +185,9 @@ def test_triple_quote_gate_checks_inline_opening_closing_and_token_errors() -> N
     )
     assert scan_triple_quotes("app.py", 'value = f"ordinary"\n', frozenset({1})) == ()
     assert scan_triple_quotes("app.py", '"""Documentation."""\n', frozenset({1})) == ()
+    assert scan_triple_quotes("app.py", 'if enabled:\n    """inline"""\n', frozenset({2}))
+    assert scan_triple_quotes("app.py", 'r"""Documentation."""\n', frozenset({1})) == ()
+    assert scan_triple_quotes("app.py", "", frozenset()) == ()
 
 
 def test_time_bomb_gate_classifies_units_and_ignores_unrelated_numbers() -> None:
@@ -194,6 +222,10 @@ def test_no_comment_gate_allows_directives_and_reports_comments(tmp_path: Path) 
     assert findings[0].line == 3
     assert no_comments.python_files((tmp_path,)) == (source,)
     assert no_comments.main([str(tmp_path)]) == 1
+
+    malformed = tmp_path / "malformed.py"
+    malformed.write_text('value = """unterminated')
+    assert "cannot tokenize" in no_comments.scan_file(malformed)[0].message
 
 
 def test_flaky_gate_selects_and_repeats_changed_python_tests(
@@ -242,6 +274,27 @@ def test_flaky_gate_returns_first_failure_and_report_writes_findings(
     assert report((finding,)) == 1
     assert "app.py:1:2" in capsys.readouterr().out
     assert report(()) == 0
+
+
+def test_flaky_gate_runs_every_attempt_and_detects_mixed_results(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    results = iter((1, 0, 0))
+    calls = []
+
+    def run(
+        _function: Callable[..., CompletedProcess[str]],
+        command: list[str],
+    ) -> CompletedProcess[str]:
+        calls.append(command)
+        return CompletedProcess(command, next(results))
+
+    monkeypatch.setattr("qg_python.flaky.anyio.run", run)
+
+    assert flaky.repeat(("test_feature.py",), 3) == 1
+    assert len(calls) == 3
+    assert "flaky across repeated runs" in capsys.readouterr().err
 
 
 def test_flaky_process_adapter_disables_subprocess_checking(

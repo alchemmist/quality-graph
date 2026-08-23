@@ -30,21 +30,34 @@ def python_files(roots: tuple[Path, ...]) -> tuple[Path, ...]:
 def scan_file(path: Path) -> tuple[Finding, ...]:
     """Return disallowed comment tokens in one Python file."""
     findings = []
-    with tokenize.open(path) as source:
-        for token in tokenize.generate_tokens(source.readline):
-            if token.type != tokenize.COMMENT:
-                continue
-            text = token.string
-            if text.startswith("#!") or ALLOWED_COMMENT.match(text):
-                continue
-            findings.append(
-                Finding(
-                    path.as_posix(),
-                    token.start[0],
-                    token.start[1] + 1,
-                    f"code comment is not allowed: {text}",
+    try:
+        with tokenize.open(path) as source:
+            for token in tokenize.generate_tokens(source.readline):
+                if token.type != tokenize.COMMENT:
+                    continue
+                text = token.string
+                if text.startswith("#!") or ALLOWED_COMMENT.match(text):
+                    continue
+                findings.append(
+                    Finding(
+                        path.as_posix(),
+                        token.start[0],
+                        token.start[1] + 1,
+                        f"code comment is not allowed: {text}",
+                    )
                 )
+    except (IndentationError, SyntaxError, tokenize.TokenError) as error:
+        location = (
+            error.args[1] if len(error.args) > 1 and isinstance(error.args[1], tuple) else (1, 1)
+        )
+        findings.append(
+            Finding(
+                path.as_posix(),
+                int(location[0]),
+                int(location[1]),
+                f"cannot tokenize Python: {error}",
             )
+        )
     return tuple(findings)
 
 

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import ast
 import re
 import shutil
+import tokenize
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -61,9 +63,10 @@ def added_lines_by_path(patch: str) -> dict[str, frozenset[int]]:
             path = None
             line_number = None
             continue
-        if line.startswith("+++ b/"):
-            path = line[6:]
-            result.setdefault(path, set())
+        if line.startswith("+++ "):
+            path = _patch_path(line[4:])
+            if path is not None:
+                result.setdefault(path, set())
             continue
         match = HUNK_RE.match(line)
         if match is not None:
@@ -79,6 +82,14 @@ def added_lines_by_path(patch: str) -> dict[str, frozenset[int]]:
     return {path: frozenset(lines) for path, lines in result.items() if lines}
 
 
+def _patch_path(value: str) -> str | None:
+    decoded = value
+    if value.startswith('"'):
+        literal = str(ast.literal_eval(value))
+        decoded = literal.encode("latin1").decode("utf-8")
+    return decoded[2:] if decoded.startswith("b/") else None
+
+
 def changed_files(base: str, suffixes: tuple[str, ...]) -> tuple[ChangedFile, ...]:
     """Load changed existing files matching the selected suffixes."""
     result = []
@@ -86,5 +97,10 @@ def changed_files(base: str, suffixes: tuple[str, ...]) -> tuple[ChangedFile, ..
         source_path = Path(path)
         if source_path.suffix.lower() not in suffixes or not source_path.is_file():
             continue
-        result.append(ChangedFile(path, source_path.read_text(), lines))
+        if source_path.suffix.lower() == ".py":
+            with tokenize.open(source_path) as source:
+                text = source.read()
+        else:
+            text = source_path.read_text(encoding="utf-8")
+        result.append(ChangedFile(path, text, lines))
     return tuple(sorted(result, key=lambda item: item.path))

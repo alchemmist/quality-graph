@@ -40,15 +40,19 @@ def changed_test_files(base: str) -> tuple[str, ...]:
 
 def repeat(files: tuple[str, ...], attempts: int) -> int:
     """Run changed test files repeatedly with retries disabled."""
+    results = []
     for attempt in range(1, attempts + 1):
         completed = anyio.run(
             run_test,
             [sys.executable, "-m", "pytest", "-q", *files],
         )
+        results.append(completed.returncode)
         if completed.returncode != 0:
             sys.stderr.write(f"changed tests failed on repeat {attempt}/{attempts}\n")
-            return completed.returncode
-    return 0
+    if len(set(results)) > 1:
+        sys.stderr.write("changed tests are flaky across repeated runs\n")
+        return 1
+    return results[0]
 
 
 def main(arguments: list[str] | None = None) -> int:

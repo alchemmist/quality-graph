@@ -54,7 +54,7 @@ def scan_source(path: str, source: str, added: frozenset[int]) -> tuple[Finding,
                                 token.end[0],
                                 token.end[1] - len(delimiter),
                             ),
-                            docstrings,
+                            is_docstring=False,
                         )
                     )
                 continue
@@ -76,7 +76,7 @@ def scan_source(path: str, source: str, added: frozenset[int]) -> tuple[Finding,
                         token.end[0],
                         token.end[1] - len(delimiter),
                     ),
-                    docstrings,
+                    is_docstring=(token.start[0], token.start[1]) in docstrings,
                 )
             )
     except (IndentationError, tokenize.TokenError) as error:
@@ -89,11 +89,12 @@ def _span_findings(
     lines: list[str],
     added: frozenset[int],
     span: StringSpan,
-    docstrings: frozenset[tuple[int, int]],
+    *,
+    is_docstring: bool,
 ) -> tuple[Finding, ...]:
+    if is_docstring:
+        return ()
     if span.start_line == span.end_line:
-        if (span.start_line, span.start_column) in docstrings:
-            return ()
         return (
             (
                 Finding(
@@ -125,6 +126,8 @@ def _docstring_positions(source: str) -> frozenset[tuple[int, int]]:
         return frozenset()
     positions = []
     for node in ast.walk(tree):
+        if not isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
         body = getattr(node, "body", None)
         if not isinstance(body, list) or not body:
             continue
