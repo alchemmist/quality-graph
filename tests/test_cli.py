@@ -119,3 +119,21 @@ def test_result_commands_report_actionable_errors(arguments: list[str]) -> None:
 def test_result_parent_command_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["result"]) == 0
     assert "Work with native result JSON" in capsys.readouterr().out
+
+
+def test_project_commands_initialize_generate_and_validate(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    runtime = "alchemmist/quality-graph@" + "a" * 40
+
+    assert main(["init", "--root", str(tmp_path), "--runtime-action", runtime]) == 0
+    assert main(["validate", "--root", str(tmp_path)]) == 1
+    assert "missing generated file" in capsys.readouterr().err
+    assert main(["generate", "--root", str(tmp_path)]) == 0
+    assert main(["validate", "--root", str(tmp_path)]) == 0
+
+
+def test_project_commands_report_invalid_roots(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        main(["generate", "--root", str(tmp_path)])

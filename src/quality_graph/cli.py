@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from quality_graph import __version__
+from quality_graph.project import Project
 from quality_graph.result import FailureKind, Metric, Provenance, Result, ResultStatus
 from quality_graph.schema import result_schema_json
 
@@ -20,6 +21,15 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(prog="qg", description="Quality Graph")
     result.add_argument("--version", action="version", version=__version__)
     commands = result.add_subparsers(dest="command")
+    initialize = commands.add_parser("init", help="Create a starter Quality Graph declaration")
+    initialize.add_argument("--root", default=".")
+    initialize.add_argument("--runtime-action", required=True)
+    initialize.add_argument("--preset", choices=("oss", "internal"), default="oss")
+    initialize.add_argument("--force", action="store_true")
+    generate = commands.add_parser("generate", help="Generate committed GitHub workflows")
+    generate.add_argument("--root", default=".")
+    validate_project = commands.add_parser("validate", help="Validate declaration freshness")
+    validate_project.add_argument("--root", default=".")
     result_command = commands.add_parser("result", help="Work with native result JSON")
     result_commands = result_command.add_subparsers(dest="result_command")
     validate = result_commands.add_parser("validate", help="Validate native result JSON")
@@ -47,21 +57,46 @@ def main(arguments: Sequence[str] | None = None) -> int:
     """Run the Quality Graph command-line interface."""
     command_parser = parser()
     args = command_parser.parse_args(arguments)
-    if args.command != "result":
-        command_parser.print_help()
-        return 0
     try:
-        if args.result_command == "validate":
-            Result.from_json(_read_text(args.path))
-            return 0
-        if args.result_command == "schema":
-            _write_text(args.output, result_schema_json())
-            return 0
-        if args.result_command == "emit":
-            _write_text(args.output, _emitted_result(args).to_json())
-            return 0
+        if args.command in {"init", "generate", "validate"}:
+            return _project_command(args)
+        if args.command == "result":
+            return _result_command(command_parser, args)
     except (OSError, TypeError, ValueError) as error:
         command_parser.error(str(error))
+    command_parser.print_help()
+    return 0
+
+
+def _project_command(args: argparse.Namespace) -> int:
+    if args.command == "init":
+        Project.initialize(
+            Path(args.root),
+            args.runtime_action,
+            preset=args.preset,
+            force=args.force,
+        )
+        return 0
+    if args.command == "generate":
+        Project.open(Path(args.root)).generate()
+        return 0
+    report = Project.open(Path(args.root)).validate()
+    if report.current:
+        return 0
+    sys.stderr.write("\n".join(report.problems) + "\n")
+    return 1
+
+
+def _result_command(command_parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    if args.result_command == "validate":
+        Result.from_json(_read_text(args.path))
+        return 0
+    if args.result_command == "schema":
+        _write_text(args.output, result_schema_json())
+        return 0
+    if args.result_command == "emit":
+        _write_text(args.output, _emitted_result(args).to_json())
+        return 0
     command_parser.print_help()
     return 0
 
