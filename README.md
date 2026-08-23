@@ -73,6 +73,7 @@ to the CLI or imports from the GitHub provider.
 
 - [Installation and generation](docs/installation.md)
 - [Configuration reference](docs/configuration.md)
+- [Provider authoring](docs/provider-authoring.md)
 - [Result protocol](docs/result-protocol.md)
 - [Result adapters](docs/adapters.md)
 - [Permissions and fork security](docs/security.md)
