@@ -1,6 +1,6 @@
 import json
 
-from quality_graph.schema import (
+from quality_graph_core.schema import (
     graph_schema_json,
     graph_schema_value,
     result_schema_json,

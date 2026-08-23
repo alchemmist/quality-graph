@@ -6,6 +6,7 @@ schema is [`schemas/graph-v0.schema.json`](../schemas/graph-v0.schema.json).
 ## Top-level fields
 
 - `version`: currently `0`.
+- `provider`: installed provider name; defaults to `github` for legacy declarations.
 - `runtime.action`: `owner/repository@<40-character-commit>`.
 - `profiles`: reusable execution environments; `default` is required.
 - `nodes`: ordered graph operations keyed by stable node ID.

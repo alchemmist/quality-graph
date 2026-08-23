@@ -2,13 +2,13 @@ from io import StringIO
 
 import pytest
 
-from quality_graph.annotations import (
+from qg_github.annotations import (
     MAX_STEP_ANNOTATIONS,
     grouped_annotations,
     publish_annotations,
     workflow_annotation_command,
 )
-from quality_graph.result import Annotation, Severity, SourceLocation
+from quality_graph_core.result import Annotation, Severity, SourceLocation
 
 
 def annotation(line: int, message: str = "Failure") -> Annotation:

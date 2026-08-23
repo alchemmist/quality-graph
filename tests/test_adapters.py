@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from quality_graph.adapters import (
+from quality_graph_core.adapters import (
     MAX_REPORT_BYTES,
     MAX_SUMMARY_CHARACTERS,
     AdapterContext,
@@ -16,7 +16,7 @@ from quality_graph.adapters import (
     adapter_failure,
     read_report,
 )
-from quality_graph.result import FailureKind, Provenance, ResultStatus, Severity
+from quality_graph_core.result import FailureKind, Provenance, ResultStatus, Severity
 
 
 def context(*, succeeded: bool = True) -> AdapterContext:

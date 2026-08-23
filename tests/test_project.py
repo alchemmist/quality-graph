@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from quality_graph.compiler import EXECUTION_WORKFLOW
-from quality_graph.project import Project
+from qg_cli.project import Project
+from qg_github.compiler import EXECUTION_WORKFLOW
 
 RUNTIME = "alchemmist/quality-graph@" + "a" * 40
 
@@ -44,3 +44,19 @@ def test_project_refuses_missing_or_existing_declaration(tmp_path: Path) -> None
 
     replaced = Project.initialize(tmp_path, RUNTIME, force=True)
     assert replaced.graph.runtime.action == RUNTIME
+
+
+def test_project_does_not_write_when_default_provider_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def missing(_name: str) -> object:
+        message = "provider missing"
+        raise ValueError(message)
+
+    monkeypatch.setattr("qg_cli.project.load_provider", missing)
+
+    with pytest.raises(ValueError, match="provider missing"):
+        Project.initialize(tmp_path, RUNTIME)
+
+    assert not (tmp_path / "quality-graph.yml").exists()

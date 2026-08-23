@@ -6,15 +6,15 @@ from dataclasses import replace
 
 import pytest
 
-from quality_graph.artifacts import (
+from qg_github.artifacts import (
     MAX_ARTIFACT_ARCHIVE_BYTES,
     MAX_ARTIFACT_FILES,
     ArtifactError,
     ArtifactExpectation,
     download_results,
 )
-from quality_graph.github import MemoryGitHubPort
-from quality_graph.result import Provenance, Result, ResultStatus
+from qg_github.github import MemoryGitHubPort
+from quality_graph_core.result import Provenance, Result, ResultStatus
 
 
 def result(node: str = "lint", *, attempt: int = 1) -> Result:
@@ -231,7 +231,7 @@ def test_downloader_rejects_archive_file_count_symlink_and_invalid_json() -> Non
 def test_downloader_rejects_uncompressed_size_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("quality_graph.artifacts.MAX_ARTIFACT_CONTENT_BYTES", 10)
+    monkeypatch.setattr("qg_github.artifacts.MAX_ARTIFACT_CONTENT_BYTES", 10)
     content = raw_archive(b"x" * 11)
     port = MemoryGitHubPort()
     port.enqueue(

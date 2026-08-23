@@ -8,6 +8,69 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[manifest]
+members = [
+    "qg",
+    "qg-github",
+    "quality-graph-core",
+]
+
+[manifest.dependency-groups]
+analyze = [
+    { name = "bandit", specifier = ">=1.8.6" },
+    { name = "semgrep", specifier = ">=1.136.0" },
+    { name = "vulture", specifier = ">=2.14" },
+]
+audit = [{ name = "pip-audit", specifier = ">=2.10.0" }]
+dev = [
+    { name = "bandit", specifier = ">=1.8.6" },
+    { name = "check-wheel-contents", specifier = ">=0.6.3" },
+    { name = "codespell", specifier = ">=2.4.1" },
+    { name = "mdformat", specifier = ">=0.7.22" },
+    { name = "mutmut", specifier = ">=3.4.0" },
+    { name = "mypy", specifier = ">=1.18.2" },
+    { name = "pip-audit", specifier = ">=2.10.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "ruff", specifier = "==0.15.22" },
+    { name = "semgrep", specifier = ">=1.136.0" },
+    { name = "shellcheck-py", specifier = "==0.11.0.1" },
+    { name = "twine", specifier = ">=6.2.0" },
+    { name = "types-defusedxml", specifier = ">=0.7.0.20250822" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
+    { name = "vulture", specifier = ">=2.14" },
+    { name = "yamllint", specifier = ">=1.37.1" },
+]
+format = [
+    { name = "mdformat", specifier = ">=0.7.22" },
+    { name = "ruff", specifier = "==0.15.22" },
+]
+lint = [
+    { name = "codespell", specifier = ">=2.4.1" },
+    { name = "mdformat", specifier = ">=0.7.22" },
+    { name = "ruff", specifier = "==0.15.22" },
+    { name = "shellcheck-py", specifier = "==0.11.0.1" },
+    { name = "yamllint", specifier = ">=1.37.1" },
+]
+mutation = [
+    { name = "mutmut", specifier = ">=3.4.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+]
+package = [
+    { name = "check-wheel-contents", specifier = ">=0.6.3" },
+    { name = "twine", specifier = ">=6.2.0" },
+]
+test = [
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+]
+type = [
+    { name = "mypy", specifier = ">=1.18.2" },
+    { name = "types-defusedxml", specifier = ">=0.7.0.20250822" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
+]
+
 [[package]]
 name = "annotated-types"
 version = "0.8.0"
@@ -1923,136 +1986,48 @@ wheels = [
 ]
 
 [[package]]
-name = "quality-graph"
+name = "qg"
 version = "0.1.0.dev0"
-source = { editable = "." }
+source = { editable = "apps/qg" }
 dependencies = [
-    { name = "defusedxml" },
+    { name = "quality-graph-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "quality-graph-core", editable = "packages/core" }]
+
+[[package]]
+name = "qg-github"
+version = "0.1.0.dev0"
+source = { editable = "packages/github" }
+dependencies = [
     { name = "httpx" },
     { name = "jinja2" },
     { name = "pyyaml" },
+    { name = "quality-graph-core" },
 ]
 
-[package.dev-dependencies]
-analyze = [
-    { name = "bandit" },
-    { name = "semgrep" },
-    { name = "vulture" },
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "quality-graph-core", editable = "packages/core" },
 ]
-audit = [
-    { name = "pip-audit" },
-]
-dev = [
-    { name = "bandit" },
-    { name = "check-wheel-contents" },
-    { name = "codespell" },
-    { name = "mdformat" },
-    { name = "mutmut" },
-    { name = "mypy" },
-    { name = "pip-audit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "semgrep" },
-    { name = "shellcheck-py" },
-    { name = "twine" },
-    { name = "types-defusedxml" },
-    { name = "types-pyyaml" },
-    { name = "vulture" },
-    { name = "yamllint" },
-]
-format = [
-    { name = "mdformat" },
-    { name = "ruff" },
-]
-lint = [
-    { name = "codespell" },
-    { name = "mdformat" },
-    { name = "ruff" },
-    { name = "shellcheck-py" },
-    { name = "yamllint" },
-]
-mutation = [
-    { name = "mutmut" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-]
-package = [
-    { name = "check-wheel-contents" },
-    { name = "twine" },
-]
-test = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-]
-type = [
-    { name = "mypy" },
-    { name = "types-defusedxml" },
-    { name = "types-pyyaml" },
+
+[[package]]
+name = "quality-graph-core"
+version = "0.1.0.dev0"
+source = { editable = "packages/core" }
+dependencies = [
+    { name = "defusedxml" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "defusedxml", specifier = ">=0.7.1" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "pyyaml", specifier = ">=6.0.2" },
-]
-
-[package.metadata.requires-dev]
-analyze = [
-    { name = "bandit", specifier = ">=1.8.6" },
-    { name = "semgrep", specifier = ">=1.136.0" },
-    { name = "vulture", specifier = ">=2.14" },
-]
-audit = [{ name = "pip-audit", specifier = ">=2.10.0" }]
-dev = [
-    { name = "bandit", specifier = ">=1.8.6" },
-    { name = "check-wheel-contents", specifier = ">=0.6.3" },
-    { name = "codespell", specifier = ">=2.4.1" },
-    { name = "mdformat", specifier = ">=0.7.22" },
-    { name = "mutmut", specifier = ">=3.4.0" },
-    { name = "mypy", specifier = ">=1.18.2" },
-    { name = "pip-audit", specifier = ">=2.10.0" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-cov", specifier = ">=7.0.0" },
-    { name = "ruff", specifier = "==0.15.22" },
-    { name = "semgrep", specifier = ">=1.136.0" },
-    { name = "shellcheck-py", specifier = "==0.11.0.1" },
-    { name = "twine", specifier = ">=6.2.0" },
-    { name = "types-defusedxml", specifier = ">=0.7.0.20250822" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
-    { name = "vulture", specifier = ">=2.14" },
-    { name = "yamllint", specifier = ">=1.37.1" },
-]
-format = [
-    { name = "mdformat", specifier = ">=0.7.22" },
-    { name = "ruff", specifier = "==0.15.22" },
-]
-lint = [
-    { name = "codespell", specifier = ">=2.4.1" },
-    { name = "mdformat", specifier = ">=0.7.22" },
-    { name = "ruff", specifier = "==0.15.22" },
-    { name = "shellcheck-py", specifier = "==0.11.0.1" },
-    { name = "yamllint", specifier = ">=1.37.1" },
-]
-mutation = [
-    { name = "mutmut", specifier = ">=3.4.0" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-cov", specifier = ">=7.0.0" },
-]
-package = [
-    { name = "check-wheel-contents", specifier = ">=0.6.3" },
-    { name = "twine", specifier = ">=6.2.0" },
-]
-test = [
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-cov", specifier = ">=7.0.0" },
-]
-type = [
-    { name = "mypy", specifier = ">=1.18.2" },
-    { name = "types-defusedxml", specifier = ">=0.7.0.20250822" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
 ]
 
 [[package]]

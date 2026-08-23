@@ -40,7 +40,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: a77af7a02406437efff0ac8c4975923b6260d223c9df360d3e19a0d6db079458
+        graph-digest: 3d4354298ece53839809dd5362cd32352e566f9a0e610511756d12bc776cd48a
     - name: Upload Formatting result
       if: always()
       uses: actions/upload-artifact@v7
@@ -82,7 +82,7 @@ jobs:
         adapter: sarif
         report-path: reports/lint.sarif
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: a77af7a02406437efff0ac8c4975923b6260d223c9df360d3e19a0d6db079458
+        graph-digest: 3d4354298ece53839809dd5362cd32352e566f9a0e610511756d12bc776cd48a
     - name: Upload Lint result
       if: always()
       uses: actions/upload-artifact@v7

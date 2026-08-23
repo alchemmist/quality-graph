@@ -5,7 +5,7 @@
       "maintain"
     ]
   },
-  "graphDigest": "586467a7319c6b9e057e3f78311906760f4a763a6615720385fc0551b0a25dd4",
+  "graphDigest": "90a0c6bcb7bdea647daf5b29261dd1d1906448944e91ba1cf2224256a167b1b1",
   "graphVersion": 0,
   "labels": {
     "enabled": true,
@@ -149,6 +149,7 @@
       "timeoutMinutes": 45
     }
   },
+  "provider": "github",
   "resultSchemaVersion": 0,
   "runtime": {
     "action": "alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

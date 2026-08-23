@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, ClassVar, cast, override
 if TYPE_CHECKING:
     from types import TracebackType
 
-    from quality_graph.result import JsonValue
+    from quality_graph_core.result import JsonValue
 
 
 @dataclass

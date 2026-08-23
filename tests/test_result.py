@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from quality_graph.result import (
+from quality_graph_core.result import (
     Annotation,
     Control,
     ControlKind,

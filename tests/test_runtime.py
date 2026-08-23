@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from quality_graph.github import MemoryGitHubPort
-from quality_graph.graph import AdapterKind
-from quality_graph.publication import PublicationOutcome
-from quality_graph.result import FailureKind, ResultStatus
-from quality_graph.runtime import CollectionRequest, collect, entrypoint, main, publish_collection
+from qg_github.github import MemoryGitHubPort
+from qg_github.publication import PublicationOutcome
+from qg_github.runtime import CollectionRequest, collect, entrypoint, main, publish_collection
+from quality_graph_core.graph import AdapterKind
+from quality_graph_core.result import FailureKind, ResultStatus
 
 
 def environment(tmp_path: Path, *, outcome: str = "success") -> dict[str, str]:
@@ -144,14 +144,14 @@ def test_runtime_main_dispatches_publication(
         observed.extend((selected, event_value))
         return PublicationOutcome(published=False)
 
-    monkeypatch.setattr("quality_graph.runtime.HttpGitHubPort.from_environment", from_environment)
-    monkeypatch.setattr("quality_graph.runtime.publish_workflow_run", publish)
+    monkeypatch.setattr("qg_github.runtime.HttpGitHubPort.from_environment", from_environment)
+    monkeypatch.setattr("qg_github.runtime.publish_workflow_run", publish)
 
     assert main(["publish"]) == 0
     assert observed == [port, {}]
 
     observed.clear()
-    monkeypatch.setattr("quality_graph.runtime.handle_command", publish)
+    monkeypatch.setattr("qg_github.runtime.handle_command", publish)
     assert main(["command"]) == 0
     assert observed == [port, {}]
 
@@ -184,7 +184,7 @@ def test_runtime_module_entrypoint(
 ) -> None:
     for name, value in environment(tmp_path).items():
         monkeypatch.setenv(name, value)
-    monkeypatch.setattr(sys, "argv", ["quality_graph.runtime", "collect"])
+    monkeypatch.setattr(sys, "argv", ["qg_github.runtime", "collect"])
 
     with pytest.warns(RuntimeWarning), pytest.raises(SystemExit, match="0"):
-        runpy.run_module("quality_graph.runtime", run_name="__main__")
+        runpy.run_module("qg_github.runtime", run_name="__main__")

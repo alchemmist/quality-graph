@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quality-graph-core"
+version = "0.1.0.dev0"
+description = "Platform-independent Quality Graph contracts and decision logic"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = ["defusedxml>=0.7.1", "pyyaml>=6.0.2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quality_graph_core"]

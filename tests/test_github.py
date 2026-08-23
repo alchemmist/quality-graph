@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from quality_graph.github import (
+from qg_github.github import (
     GITHUB_PAGE_SIZE,
     GitHubError,
     HttpGitHubPort,

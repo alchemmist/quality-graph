@@ -1,11 +1,11 @@
-from quality_graph.controls import (
+from qg_github.controls import (
     control_commands,
     control_marker,
     control_states,
     decode_control_marker,
     render_control,
 )
-from quality_graph.result import Control, ControlKind
+from quality_graph_core.result import Control, ControlKind
 
 
 def test_controls_encode_reversible_commands_for_every_scope() -> None:

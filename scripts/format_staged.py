@@ -134,6 +134,7 @@ def _run_tool(*arguments: str) -> None:
         "--project",
         str(TOOL_ROOT),
         "--locked",
+        "--all-packages",
         *arguments,
     )
 

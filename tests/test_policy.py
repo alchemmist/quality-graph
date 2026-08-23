@@ -1,8 +1,8 @@
 import pytest
 
-from quality_graph.graph import Graph
-from quality_graph.policy import ApprovalTarget, effective_graph
-from quality_graph.result import (
+from quality_graph_core.graph import Graph
+from quality_graph_core.policy import ApprovalTarget, effective_graph
+from quality_graph_core.result import (
     ControlKind,
     FailureKind,
     Finding,

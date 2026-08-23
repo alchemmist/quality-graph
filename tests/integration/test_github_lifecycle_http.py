@@ -4,12 +4,12 @@ import zipfile
 
 import pytest
 
-from quality_graph.commands import handle_command
-from quality_graph.compiler import compile_graph
-from quality_graph.github import HttpGitHubPort
-from quality_graph.graph import Graph
-from quality_graph.publication import publish_workflow_run
-from quality_graph.result import (
+from qg_github.commands import handle_command
+from qg_github.compiler import compile_graph
+from qg_github.github import HttpGitHubPort
+from qg_github.publication import publish_workflow_run
+from quality_graph_core.graph import Graph
+from quality_graph_core.result import (
     FailureKind,
     Finding,
     Provenance,

@@ -5,7 +5,7 @@ import zipfile
 
 import pytest
 
-from quality_graph.commands import (
+from qg_github.commands import (
     Command,
     CommandName,
     CommandOutcome,
@@ -13,11 +13,11 @@ from quality_graph.commands import (
     handle_command,
     parse_command,
 )
-from quality_graph.compiler import compile_graph
-from quality_graph.controls import render_control
-from quality_graph.github import GitHubError, MemoryGitHubPort
-from quality_graph.graph import Graph
-from quality_graph.result import (
+from qg_github.compiler import compile_graph
+from qg_github.controls import render_control
+from qg_github.github import GitHubError, MemoryGitHubPort
+from quality_graph_core.graph import Graph
+from quality_graph_core.result import (
     Control,
     ControlKind,
     FailureKind,

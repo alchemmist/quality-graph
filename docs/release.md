@@ -8,12 +8,13 @@ A release candidate must pass:
 - Ruff ALL, strict mypy, static analysis, unit, fake-HTTP integration, and coverage gates;
 - dependency and secret audits;
 - mutation score threshold;
-- deterministic sdist and wheel build, content inspection, clean installation, and CLI smoke;
+- deterministic sdist and wheel builds for `quality-graph-core`, `qg-github`, and `qg`,
+  content inspection, clean installation, provider discovery, and provider-free CLI smoke;
 - the repository's own generated Quality Graph workflow.
 
 Before the first public release, resolve the contract-freeze and immutable distribution issues,
-configure a protected `pypi` GitHub environment, and register a PyPI pending Trusted Publisher
-for `alchemmist/quality-graph` and `.github/workflows/release.yml`.
+configure a protected `pypi` GitHub environment, and register PyPI pending Trusted Publishers
+for every workspace distribution and `.github/workflows/release.yml`.
 
 The release workflow must use job-level `id-token: write`, build distributions in a separate
 unprivileged job, publish only tag artifacts, and create attestations. No long-lived PyPI token

@@ -41,7 +41,7 @@ jobs:
         adapter: sarif
         report-path: reports/ruff.sarif
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 0eae8d8033a6908c8599ba9c7590bc426ad015c71853a2e1800c85d6b5f6d142
+        graph-digest: d8a3258e7b0205b8353a831ba6b93ce051af8dd23b7c17f3b09a5b901901bc32
     - name: Upload Ruff result
       if: always()
       uses: actions/upload-artifact@v7
@@ -82,7 +82,7 @@ jobs:
         adapter: junit
         report-path: reports/pytest.xml
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 0eae8d8033a6908c8599ba9c7590bc426ad015c71853a2e1800c85d6b5f6d142
+        graph-digest: d8a3258e7b0205b8353a831ba6b93ce051af8dd23b7c17f3b09a5b901901bc32
     - name: Upload Pytest result
       if: always()
       uses: actions/upload-artifact@v7

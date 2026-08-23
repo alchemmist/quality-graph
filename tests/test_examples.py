@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from quality_graph.project import Project
+from qg_cli.project import Project
 
 
 @pytest.mark.parametrize("ecosystem", ["python", "typescript", "go"])

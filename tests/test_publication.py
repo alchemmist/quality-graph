@@ -6,17 +6,17 @@ import zipfile
 
 import pytest
 
-from quality_graph.comments import marker
-from quality_graph.compiler import compile_graph
-from quality_graph.github import MemoryGitHubPort
-from quality_graph.graph import Graph
-from quality_graph.publication import (
+from qg_github.comments import marker
+from qg_github.compiler import compile_graph
+from qg_github.github import MemoryGitHubPort
+from qg_github.publication import (
     PublicationOutcome,
     WorkflowRunEvent,
     publish_workflow_run,
     read_event_json,
 )
-from quality_graph.result import Provenance, Result, ResultStatus
+from quality_graph_core.graph import Graph
+from quality_graph_core.result import Provenance, Result, ResultStatus
 from tests.test_graph import GRAPH
 
 RUNS_PATH = "/actions/workflows/quality-graph.yml/runs?event=pull_request&per_page=100&page=1"

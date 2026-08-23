@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qg"
+version = "0.1.0.dev0"
+description = "Provider-driven Quality Graph command-line application"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = ["quality-graph-core==0.1.0.dev0"]
+
+[project.scripts]
+qg = "qg_cli.cli:main"
+
+[tool.uv.sources]
+quality-graph-core = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qg_cli"]

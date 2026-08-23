@@ -43,7 +43,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 4f765b9af5d9c61a296d1d637e96318604d34aea49a186ed5672330454f73ac0
+        graph-digest: acce954c2edc200087eecc4e4ea9dee267a20e8607e50c631268ee5268e67fdd
     - name: Upload Go vet result
       if: always()
       uses: actions/upload-artifact@v7
@@ -86,7 +86,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 4f765b9af5d9c61a296d1d637e96318604d34aea49a186ed5672330454f73ac0
+        graph-digest: acce954c2edc200087eecc4e4ea9dee267a20e8607e50c631268ee5268e67fdd
     - name: Upload Go test result
       if: always()
       uses: actions/upload-artifact@v7
