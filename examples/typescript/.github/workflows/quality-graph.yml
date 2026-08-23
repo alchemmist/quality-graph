@@ -36,7 +36,7 @@ jobs:
     - name: Collect TypeScript result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
       with:
         operation: collect
         node-id: type
@@ -44,7 +44,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 976ebe75ed71396e01eb746d2c28177e02037fa8ab8a4e51e5f3aa9ff854fe92
+        graph-digest: 42649c77a8347a9e99b2dc75632ee42da18134d878cb90923ae749b523688b6e
     - name: Upload TypeScript result
       if: always()
       uses: actions/upload-artifact@v7
@@ -80,7 +80,7 @@ jobs:
     - name: Collect Vitest result
       id: quality-result
       if: always()
-      uses: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
       with:
         operation: collect
         node-id: test
@@ -88,7 +88,7 @@ jobs:
         adapter: junit
         report-path: reports/vitest.xml
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 976ebe75ed71396e01eb746d2c28177e02037fa8ab8a4e51e5f3aa9ff854fe92
+        graph-digest: 42649c77a8347a9e99b2dc75632ee42da18134d878cb90923ae749b523688b6e
     - name: Upload Vitest result
       if: always()
       uses: actions/upload-artifact@v7
