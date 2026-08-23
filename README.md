@@ -37,13 +37,10 @@ nodes:
 ```
 
 ```bash
-git clone https://github.com/alchemmist/quality-graph.git
-cd quality-graph
-git checkout <sha>
-uv run --locked --all-packages qg init --root ../project \
-  --runtime-action 'alchemmist/quality-graph@<sha>'
-uv run --locked --all-packages qg generate --root ../project
-(cd ../project && git add quality-graph.yml .github/workflows .quality-graph/manifest.json)
+uv tool install qg==0.1.0 --with qg-github==0.1.0
+qg init --runtime-action 'alchemmist/quality-graph@<release-commit-sha>'
+qg generate
+git add quality-graph.yml .github/workflows .quality-graph/manifest.json
 ```
 
 Generated workflows preserve independent runners, native dependencies, logs, summaries,
@@ -56,18 +53,19 @@ change without migration tooling. Do not use a mutable Action ref.
 
 ## Architecture
 
-Quality Graph is a locked uv workspace with three independently buildable distributions:
+Quality Graph is a locked uv workspace with four independently buildable distributions:
 
 - `quality-graph-core` owns the platform-independent graph, result protocol, policies,
   schemas, and provider interface;
 - `qg-github` implements GitHub workflow generation, transport, publication, and the
   composite Action runtime;
+- `qg-python` provides optional reusable quality gates for Python repositories;
 - `qg` is the command-line composition root and discovers installed providers through the
   `qg.providers` entry-point group.
 
-After publication, the intended installation is `uv tool install qg --with qg-github`.
-Future providers such as `qg-gitlab` can implement the same core interface without changes
-to the CLI or imports from the GitHub provider.
+The intended installation pins the CLI and provider to one release. Future providers such as
+`qg-gitlab` can implement the same core interface without changes to the CLI or imports from
+the GitHub provider.
 
 ## Documentation
 

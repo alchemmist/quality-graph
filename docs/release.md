@@ -1,6 +1,7 @@
-# Release preparation
+# Releases
 
-This repository prepares but does not trigger public releases during the pre-release pass.
+An exact semantic-version tag triggers the release workflow. The tag version must match all
+four workspace distributions.
 
 A release candidate must pass:
 
@@ -12,13 +13,22 @@ A release candidate must pass:
   content inspection, clean installation, provider discovery, and provider-free CLI smoke;
 - the repository's own generated Quality Graph workflow.
 
-Before the first public release, resolve the contract-freeze and immutable distribution issues,
-configure a protected `pypi` GitHub environment, and register PyPI pending Trusted Publishers
-for every workspace distribution and `.github/workflows/release.yml`.
+The repository uses a protected `pypi` GitHub environment and one PyPI pending Trusted Publisher
+for each workspace distribution. Every publisher is bound to `alchemmist/quality-graph`,
+`.github/workflows/release.yml`, and the `pypi` environment.
 
-The release workflow must use job-level `id-token: write`, build distributions in a separate
-unprivileged job, publish only tag artifacts, and create attestations. No long-lived PyPI token
-is required.
+The release workflow builds and verifies distributions in an unprivileged job. Four isolated
+publication jobs receive only `id-token: write`, and PyPI creates attestations through Trusted
+Publishing. A final job creates the GitHub Release from the exact uploaded files. No long-lived
+PyPI token is used.
 
-Do not create a tag, GitHub Release, moving major Action tag, or PyPI upload until the owner
-explicitly starts the release task.
+Release procedure:
+
+1. merge a version PR with every local and pull-request check green;
+1. confirm all four Trusted Publishers and the `pypi` environment are configured;
+1. create the immutable `vX.Y.Z` tag at the reviewed release commit;
+1. wait for all PyPI publication jobs and the GitHub Release job;
+1. install the exact versions from PyPI in a clean environment and validate the Action from a
+   separate repository.
+
+Do not create a moving Action tag. Consumers pin the release commit SHA.
