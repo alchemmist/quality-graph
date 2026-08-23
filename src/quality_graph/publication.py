@@ -21,6 +21,7 @@ from quality_graph.dashboard import (
 )
 from quality_graph.github import GITHUB_PAGE_SIZE, GitHubPort
 from quality_graph.graph import Graph
+from quality_graph.policy import effective_graph
 from quality_graph.result import JsonValue, ResultStatus
 
 if TYPE_CHECKING:
@@ -136,7 +137,8 @@ def _completed_dashboard(
             status=ResultStatus.FAILED,
             message=f"The final dashboard could not be assembled: {error}",
         )
-    return final_dashboard(graph, results, run)
+    effective = effective_graph(graph, results, set())
+    return final_dashboard(graph, effective.results, run)
 
 
 def _require_complete_results(
