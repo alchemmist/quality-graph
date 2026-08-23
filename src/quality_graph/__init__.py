@@ -2,6 +2,8 @@
 
 from importlib.metadata import version
 
+from quality_graph.result import Result
+
 __version__ = version("quality-graph")
 
-__all__ = ["__version__"]
+__all__ = ["Result", "__version__"]

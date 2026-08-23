@@ -4,18 +4,27 @@ BASE ?= origin/main
 
 .DEFAULT_GOAL := check
 
-.PHONY: install fmt fmt-check lint type analyze test test-unit test-integration coverage \
+.PHONY: install schemas schemas-check fmt fmt-check lint type analyze test test-unit test-integration coverage \
 	mutation mutation-diff audit package check clean
 
 install:
 	uv sync --locked --all-groups
 
-fmt:
+schemas:
+	uv run --locked qg result schema --output schemas/result-v0.schema.json
+
+schemas-check:
+	@schema=$$(mktemp); \
+	uv run --locked qg result schema --output "$$schema"; \
+	cmp schemas/result-v0.schema.json "$$schema"; status=$$?; \
+	rm -f "$$schema"; exit $$status
+
+fmt: schemas
 	uv run --locked --group format ruff check $(PYTHON_SOURCES) --fix
 	uv run --locked --group format ruff format $(PYTHON_SOURCES)
 	uv run --locked --group format mdformat README.md
 
-fmt-check:
+fmt-check: schemas-check
 	uv run --locked --group format ruff check $(PYTHON_SOURCES)
 	uv run --locked --group format ruff format --check $(PYTHON_SOURCES)
 	uv run --locked --group format mdformat --check README.md

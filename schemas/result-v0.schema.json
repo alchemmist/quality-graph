@@ -1,0 +1,381 @@
+{
+  "$defs": {
+    "annotation": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "enum": [
+            "notice",
+            "warning",
+            "error"
+          ],
+          "minLength": 0,
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/sourceLocation"
+        },
+        "message": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 255,
+          "minLength": 0,
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "message",
+        "location"
+      ],
+      "type": "object"
+    },
+    "control": {
+      "additionalProperties": false,
+      "properties": {
+        "checked": {
+          "type": "boolean"
+        },
+        "kind": {
+          "enum": [
+            "finding",
+            "file",
+            "node"
+          ],
+          "minLength": 0,
+          "type": "string"
+        },
+        "target": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "target",
+        "checked"
+      ],
+      "type": "object"
+    },
+    "diagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "maxLength": 20000,
+          "minLength": 0,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "command",
+            "adapter",
+            "protocol",
+            "infrastructure"
+          ],
+          "minLength": 0,
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "message",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "finding": {
+      "additionalProperties": false,
+      "properties": {
+        "documentationUrl": {
+          "format": "uri",
+          "type": "string"
+        },
+        "fingerprint": {
+          "maxLength": 512,
+          "minLength": 0,
+          "type": "string"
+        },
+        "group": {
+          "maxLength": 255,
+          "minLength": 0,
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9._:-]{0,254}$",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/sourceLocation"
+        },
+        "message": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "ruleId": {
+          "maxLength": 255,
+          "minLength": 0,
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "notice",
+            "warning",
+            "error"
+          ],
+          "minLength": 0,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "severity",
+        "message"
+      ],
+      "type": "object"
+    },
+    "metric": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 500,
+          "minLength": 0,
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "type": "object"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "graphDigest": {
+          "minLength": 0,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "headSha": {
+          "minLength": 0,
+          "pattern": "^[0-9a-f]{40}(?:[0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "pullRequest": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "repository": {
+          "minLength": 0,
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "type": "string"
+        },
+        "runAttempt": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workflowRunId": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "repository",
+        "headSha",
+        "workflowRunId",
+        "runAttempt",
+        "graphDigest"
+      ],
+      "type": "object"
+    },
+    "sourceLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "endColumn": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "endLine": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+          "type": "string"
+        },
+        "startColumn": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "startLine": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "startLine",
+        "endLine"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/alchemmist/quality-graph/blob/main/schemas/result-v0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "not": {
+          "required": [
+            "failureKind"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "failed",
+              "cancelled"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "failureKind"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "annotations": {
+      "items": {
+        "$ref": "#/$defs/annotation"
+      },
+      "maxItems": 10000,
+      "type": "array"
+    },
+    "controls": {
+      "items": {
+        "$ref": "#/$defs/control"
+      },
+      "maxItems": 10000,
+      "type": "array"
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "failureKind": {
+      "enum": [
+        "quality",
+        "command",
+        "adapter",
+        "protocol",
+        "cancellation",
+        "infrastructure"
+      ],
+      "minLength": 0,
+      "type": "string"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "maxItems": 10000,
+      "type": "array"
+    },
+    "metrics": {
+      "items": {
+        "$ref": "#/$defs/metric"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "nodeId": {
+      "minLength": 0,
+      "pattern": "^[a-z][a-z0-9-]{0,62}$",
+      "type": "string"
+    },
+    "notes": {
+      "items": {
+        "maxLength": 1000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "schemaVersion": {
+      "const": 0
+    },
+    "status": {
+      "enum": [
+        "waiting",
+        "in_progress",
+        "passed",
+        "failed",
+        "skipped",
+        "cancelled"
+      ],
+      "minLength": 0,
+      "type": "string"
+    },
+    "summary": {
+      "maxLength": 200000,
+      "minLength": 0,
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 255,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "nodeId",
+    "title",
+    "status",
+    "summary",
+    "metrics",
+    "findings",
+    "annotations",
+    "diagnostics",
+    "controls",
+    "notes",
+    "provenance"
+  ],
+  "title": "Quality Graph Result v0",
+  "type": "object"
+}
