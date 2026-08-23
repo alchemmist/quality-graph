@@ -10,6 +10,7 @@ import pytest
         ("packages/core/src", ("qg_github", "qg_cli")),
         ("packages/github/src", ("qg_cli",)),
         ("apps/qg/src", ("qg_github",)),
+        ("packages/python/src", ("qg_github", "qg_cli")),
     ],
 )
 def test_package_import_direction(root: str, forbidden: tuple[str, ...]) -> None:

@@ -6,6 +6,7 @@ __pycache__/
 .ruff_cache/
 .coverage
 coverage.json
+coverage.xml
 htmlcov/
 coverage-report/
 dist/

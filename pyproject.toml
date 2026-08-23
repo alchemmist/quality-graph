@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["packages/core", "packages/github", "apps/qg"]
+members = ["packages/core", "packages/github", "packages/python", "apps/qg"]
 exclude = ["examples/*"]
 
 [dependency-groups]
@@ -16,7 +16,7 @@ type = [
   "types-defusedxml>=0.7.0.20250822",
   "types-pyyaml>=6.0.12.20250915",
 ]
-test = ["pytest>=9.0.2", "pytest-cov>=7.0.0"]
+test = ["diff-cover>=10.4.1", "pytest>=9.0.2", "pytest-cov>=7.0.0"]
 analyze = ["bandit>=1.8.6", "semgrep>=1.136.0", "vulture>=2.14"]
 audit = ["pip-audit>=2.10.0"]
 package = ["check-wheel-contents>=0.6.3", "twine>=6.2.0"]
@@ -39,7 +39,7 @@ markers = ["integration: exercises a real local external dependency"]
 
 [tool.coverage.run]
 branch = true
-source = ["quality_graph_core", "qg_github", "qg_cli"]
+source = ["quality_graph_core", "qg_github", "qg_cli", "qg_python"]
 
 [tool.coverage.report]
 fail_under = 90
@@ -49,22 +49,39 @@ skip_covered = true
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["packages/core/src", "packages/github/src", "apps/qg/src", "tests"]
+src = [
+  "packages/core/src",
+  "packages/github/src",
+  "packages/python/src",
+  "apps/qg/src",
+  "tests",
+]
 
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = ["COM812", "D203", "D212"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["quality_graph_core", "qg_github", "qg_cli"]
+known-first-party = ["quality_graph_core", "qg_github", "qg_cli", "qg_python"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D100", "D101", "D102", "D103", "PLR2004", "S101"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["packages/core/src", "packages/github/src", "apps/qg/src", "scripts"]
-mypy_path = ["packages/core/src", "packages/github/src", "apps/qg/src"]
+files = [
+  "packages/core/src",
+  "packages/github/src",
+  "packages/python/src",
+  "apps/qg/src",
+  "scripts",
+]
+mypy_path = [
+  "packages/core/src",
+  "packages/github/src",
+  "packages/python/src",
+  "apps/qg/src",
+]
 strict = true
 warn_unreachable = true
 extra_checks = true
@@ -92,7 +109,7 @@ enable_error_code = [
 exclude_dirs = ["tests", ".venv", "build", "mutants"]
 
 [tool.vulture]
-paths = ["packages/core/src", "packages/github/src", "apps/qg/src"]
+paths = ["packages/core/src", "packages/github/src", "packages/python/src", "apps/qg/src"]
 exclude = ["*/.venv/*", "*/build/*", "*/mutants/*"]
 min_confidence = 80
 
@@ -100,6 +117,7 @@ min_confidence = 80
 source_paths = [
   "packages/core/src/quality_graph_core",
   "packages/github/src/qg_github",
+  "packages/python/src/qg_python",
 ]
 only_mutate = [
   "packages/github/src/qg_github/compiler.py",
@@ -107,6 +125,10 @@ only_mutate = [
   "packages/core/src/quality_graph_core/graph.py",
   "packages/core/src/quality_graph_core/policy.py",
   "packages/core/src/quality_graph_core/result.py",
+  "packages/python/src/qg_python/object_annotations.py",
+  "packages/python/src/qg_python/suppressions.py",
+  "packages/python/src/qg_python/time_bombs.py",
+  "packages/python/src/qg_python/triple_quotes.py",
 ]
 also_copy = [
   "apps",
@@ -123,6 +145,8 @@ also_copy = [
   "packages/core/README.md",
   "packages/github/pyproject.toml",
   "packages/github/README.md",
+  "packages/python/pyproject.toml",
+  "packages/python/README.md",
 ]
 pytest_add_cli_args = ["-q", "-m", "not integration"]
 do_not_mutate_patterns = ["^\\s*message ="]
