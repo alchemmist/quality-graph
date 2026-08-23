@@ -28,20 +28,38 @@ nodes:
     profile: python
     run: make fmt-check
 
+  lint:
+    title: Lint
+    profile: python
+    needs: [format]
+    run: make lint
+
   type:
     title: Type check
     profile: python
-    needs: [format]
+    needs: [lint]
     run: make type
+
+  analyze:
+    title: Static analysis
+    profile: python
+    needs: [type]
+    run: make analyze
 
   test:
     title: Tests and coverage
     profile: python
-    needs: [type]
+    needs: [analyze]
     run: make coverage
+
+  audit:
+    title: Dependency and secret audit
+    profile: python
+    needs: [test]
+    run: make audit
 
   package:
     title: Package
     profile: python
-    needs: [test]
+    needs: [audit]
     run: make package

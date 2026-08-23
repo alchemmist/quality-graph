@@ -4,7 +4,7 @@
       "admin"
     ]
   },
-  "graphDigest": "68c4b4a9b5180a517000eebb5f06a61ad95a2ad79b97b9e4ee605e335e43a1d6",
+  "graphDigest": "4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -37,9 +37,35 @@
     },
     {
       "env": {},
-      "id": "type",
+      "id": "lint",
       "needs": [
         "format"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make lint"
+      },
+      "title": "Lint"
+    },
+    {
+      "env": {},
+      "id": "type",
+      "needs": [
+        "lint"
       ],
       "policy": {
         "approvals": {
@@ -63,9 +89,35 @@
     },
     {
       "env": {},
-      "id": "test",
+      "id": "analyze",
       "needs": [
         "type"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make analyze"
+      },
+      "title": "Static analysis"
+    },
+    {
+      "env": {},
+      "id": "test",
+      "needs": [
+        "analyze"
       ],
       "policy": {
         "approvals": {
@@ -89,9 +141,35 @@
     },
     {
       "env": {},
-      "id": "package",
+      "id": "audit",
       "needs": [
         "test"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make audit"
+      },
+      "title": "Dependency and secret audit"
+    },
+    {
+      "env": {},
+      "id": "package",
+      "needs": [
+        "audit"
       ],
       "policy": {
         "approvals": {

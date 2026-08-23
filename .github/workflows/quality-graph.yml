@@ -45,7 +45,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 68c4b4a9b5180a517000eebb5f06a61ad95a2ad79b97b9e4ee605e335e43a1d6
+        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
     - name: Upload Format check result
       if: always()
       uses: actions/upload-artifact@v7
@@ -60,6 +60,53 @@ jobs:
       env:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups
+    - run: make lint
+      name: Run Lint
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Lint result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      with:
+        operation: collect
+        node-id: lint
+        title: Lint
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+    - name: Upload Lint result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-lint-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/lint.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Lint result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - format
   type:
     name: Type check
     runs-on: ubuntu-latest
@@ -90,7 +137,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 68c4b4a9b5180a517000eebb5f06a61ad95a2ad79b97b9e4ee605e335e43a1d6
+        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
     - name: Upload Type check result
       if: always()
       uses: actions/upload-artifact@v7
@@ -106,7 +153,54 @@ jobs:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
     needs:
-    - format
+    - lint
+  analyze:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups
+    - run: make analyze
+      name: Run Static analysis
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Static analysis result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      with:
+        operation: collect
+        node-id: analyze
+        title: Static analysis
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+    - name: Upload Static analysis result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-analyze-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/analyze.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Static analysis result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - type
   test:
     name: Tests and coverage
     runs-on: ubuntu-latest
@@ -137,7 +231,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 68c4b4a9b5180a517000eebb5f06a61ad95a2ad79b97b9e4ee605e335e43a1d6
+        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
     - name: Upload Tests and coverage result
       if: always()
       uses: actions/upload-artifact@v7
@@ -153,7 +247,54 @@ jobs:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
     needs:
-    - type
+    - analyze
+  audit:
+    name: Dependency and secret audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups
+    - run: make audit
+      name: Run Dependency and secret audit
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Dependency and secret audit result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+      with:
+        operation: collect
+        node-id: audit
+        title: Dependency and secret audit
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
+    - name: Upload Dependency and secret audit result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-audit-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/audit.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Dependency and secret audit result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - test
   package:
     name: Package
     runs-on: ubuntu-latest
@@ -184,7 +325,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 68c4b4a9b5180a517000eebb5f06a61ad95a2ad79b97b9e4ee605e335e43a1d6
+        graph-digest: 4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178
     - name: Upload Package result
       if: always()
       uses: actions/upload-artifact@v7
@@ -200,4 +341,4 @@ jobs:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
     needs:
-    - test
+    - audit
