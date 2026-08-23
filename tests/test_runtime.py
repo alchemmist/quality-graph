@@ -10,7 +10,7 @@ from quality_graph.github import MemoryGitHubPort
 from quality_graph.graph import AdapterKind
 from quality_graph.publication import PublicationOutcome
 from quality_graph.result import FailureKind, ResultStatus
-from quality_graph.runtime import CollectionRequest, collect, main, publish_collection
+from quality_graph.runtime import CollectionRequest, collect, entrypoint, main, publish_collection
 
 
 def environment(tmp_path: Path, *, outcome: str = "success") -> dict[str, str]:
@@ -112,6 +112,17 @@ def test_runtime_rejects_unknown_operation_and_event_shape(
         monkeypatch.setenv(name, value)
     with pytest.raises(TypeError, match="payload must be an object"):
         main(["collect"])
+
+
+def test_runtime_entrypoint_publishes_safe_error_annotation(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(KeyError):
+        entrypoint(["publish"])
+
+    error = capsys.readouterr().err
+    assert error.startswith("::error title=Quality Graph runtime::KeyError:")
+    assert "\n" not in error.rstrip("\n")
 
 
 def test_runtime_main_dispatches_publication(
