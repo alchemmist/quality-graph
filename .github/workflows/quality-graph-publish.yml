@@ -30,7 +30,7 @@ jobs:
       pull-requests: read
     steps:
     - name: Publish trusted Quality Graph state
-      uses: alchemmist/quality-graph@4707114b53f3add10c3fe0e4dfc673944768c498
+      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
       with:
         operation: publish
   command:
@@ -44,6 +44,6 @@ jobs:
       pull-requests: read
     steps:
     - name: Handle trusted Quality Graph command
-      uses: alchemmist/quality-graph@4707114b53f3add10c3fe0e4dfc673944768c498
+      uses: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
       with:
         operation: command
