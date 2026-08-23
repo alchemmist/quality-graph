@@ -22,3 +22,7 @@
 | Frontend mutation/build/bundle size | Irrelevant | No frontend product is shipped. |
 | Browser/backend performance | Irrelevant | No serving application or performance SLA exists. |
 | Docker application lint/E2E | Irrelevant | The repository ships Python packages and a composite Action. |
+
+The expanded graph is validated end to end by pull requests based on the current
+default branch: all 16 declared nodes must publish successful results before the
+aggregate `Quality Graph` check succeeds.
