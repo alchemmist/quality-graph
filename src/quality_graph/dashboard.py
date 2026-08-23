@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from quality_graph.comments import GITHUB_COMMENT_BODY_LIMIT, marker
 from quality_graph.controls import render_control
+from quality_graph.labels import configured_label_names, label_state_marker
 from quality_graph.result import Control, Result, ResultStatus
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ class DashboardModel:
     head_sha: str
     rows: tuple[DashboardRow, ...]
     control_groups: tuple[DashboardControlGroup, ...] = ()
+    managed_labels: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -134,6 +136,7 @@ def final_dashboard(
         run.head_sha,
         tuple(rows),
         tuple(groups),
+        configured_label_names(graph),
     )
 
 
@@ -160,6 +163,7 @@ def pending_dashboard(
         run.attempt,
         run.head_sha,
         rows,
+        managed_labels=configured_label_names(graph),
     )
 
 
@@ -198,6 +202,7 @@ def dashboard_metric(result: Result | None) -> str:
 
 def _render(model: DashboardModel) -> str:
     lines = [
+        label_state_marker(model.managed_labels),
         f"## {_status_icon(model.status)} Quality Graph",
         "",
         model.message,

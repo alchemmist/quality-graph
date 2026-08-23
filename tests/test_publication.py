@@ -55,6 +55,7 @@ def configure_publication(port: MemoryGitHubPort, *, comment_id: int = 5) -> Non
         {"id": comment_id, "body": marker("dashboard") + "\nbody"},
     )
     port.enqueue("POST", "/check-runs", {"id": 100})
+    port.enqueue("GET", "/issues/42/labels?per_page=100&page=1", [])
 
 
 def result_archive(node_id: str, title: str) -> bytes:
@@ -102,6 +103,37 @@ def test_in_progress_event_publishes_pending_dashboard_and_check() -> None:
     assert "conclusion" not in check[2]
 
 
+def test_in_progress_event_preserves_previous_owned_labels() -> None:
+    port = MemoryGitHubPort()
+    port.enqueue(
+        "GET",
+        "/pulls/42",
+        {"head": {"sha": "a" * 40}, "base": {"sha": "d" * 40}},
+    )
+    port.enqueue("GET", RUNS_PATH, {"workflow_runs": []})
+    content = base64.b64encode(GRAPH.encode()).decode()
+    port.enqueue(
+        "GET",
+        f"/contents/quality-graph.yml?ref={'d' * 40}",
+        {"content": content},
+    )
+    comments = "/issues/42/comments?per_page=100&page=1"
+    existing = {
+        "id": 5,
+        "body": "<!-- quality-graph:dashboard -->\n<!-- quality-graph:labels:WyJvbGQiXQ -->",
+        "user": {"login": "github-actions[bot]"},
+    }
+    port.enqueue("GET", comments, [existing])
+    port.enqueue("PATCH", "/issues/comments/5", {"id": 5, "body": "updated"})
+    port.enqueue("POST", "/check-runs", {"id": 100})
+
+    outcome = publish_workflow_run(port, event())
+
+    assert outcome.published is True
+    patch = next(request for request in port.requests if request[0] == "PATCH")
+    assert "WyJvbGQiXQ" in patch[2]["body"]
+
+
 def test_completed_event_downloads_results_and_publishes_success() -> None:
     port = MemoryGitHubPort()
     configure_publication(port)
@@ -128,7 +160,8 @@ def test_completed_event_downloads_results_and_publishes_success() -> None:
     outcome = publish_workflow_run(port, event("completed"))
 
     assert outcome.status is ResultStatus.PASSED
-    assert port.requests[-1][2]["conclusion"] == "success"
+    check = next(request for request in port.requests if request[1] == "/check-runs")
+    assert check[2]["conclusion"] == "success"
 
 
 def test_completed_event_surfaces_invalid_artifacts_as_failure() -> None:

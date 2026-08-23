@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, cast
 
 from quality_graph.approvals import approval_ledger
 from quality_graph.artifacts import ArtifactError, ArtifactExpectation, download_results
-from quality_graph.comments import upsert_managed_comment
+from quality_graph.comments import find_managed_comment, upsert_managed_comment
 from quality_graph.compiler import compile_graph
 from quality_graph.dashboard import (
     DASHBOARD_MARKER,
@@ -22,11 +22,14 @@ from quality_graph.dashboard import (
 )
 from quality_graph.github import GITHUB_PAGE_SIZE, GitHubPort
 from quality_graph.graph import Graph
+from quality_graph.labels import parse_label_state, reconcile_labels
 from quality_graph.policy import effective_graph
 from quality_graph.result import JsonValue, ResultStatus
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from quality_graph.result import Result
 
 
 @dataclass(frozen=True)
@@ -101,15 +104,34 @@ def publish_workflow_run(
     graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", pull.base_sha))
     compiled = compile_graph(graph)
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
+    effective_results: Mapping[str, Result] | None = None
     if event.action in {"requested", "in_progress"}:
         model = pending_dashboard(graph, run)
     elif event.action == "completed":
-        model = _completed_dashboard(port, graph, compiled.graph_digest, pull, run)
+        model, effective_results = _completed_dashboard(
+            port,
+            graph,
+            compiled.graph_digest,
+            pull,
+            run,
+        )
     else:
         message = f"unsupported workflow_run action: {event.action}"
         raise ValueError(message)
+    existing = find_managed_comment(port, number, DASHBOARD_MARKER)
+    previous_labels = parse_label_state(existing.body) if existing is not None else frozenset()
+    if effective_results is None and previous_labels:
+        model = replace(model, managed_labels=tuple(sorted(previous_labels)))
     comment = upsert_managed_comment(port, number, DASHBOARD_MARKER, render_dashboard(model))
     _publish_check(port, model)
+    if effective_results is not None:
+        reconcile_labels(
+            port,
+            number,
+            graph,
+            effective_results,
+            previous_owned=previous_labels,
+        )
     return PublicationOutcome(published=True, status=model.status, comment_id=comment.id)
 
 
@@ -119,7 +141,7 @@ def _completed_dashboard(
     graph_digest: str,
     pull: PullRequestState,
     run: DashboardRun,
-) -> DashboardModel:
+) -> tuple[DashboardModel, Mapping[str, Result] | None]:
     expectation = ArtifactExpectation(
         port.repository,
         pull.number,
@@ -133,14 +155,17 @@ def _completed_dashboard(
         _require_complete_results(results, expectation.node_ids)
     except ArtifactError as error:
         pending = pending_dashboard(graph, run)
-        return replace(
-            pending,
-            status=ResultStatus.FAILED,
-            message=f"The final dashboard could not be assembled: {error}",
+        return (
+            replace(
+                pending,
+                status=ResultStatus.FAILED,
+                message=f"The final dashboard could not be assembled: {error}",
+            ),
+            None,
         )
     approvals = approval_ledger(port, pull.number)
     effective = effective_graph(graph, results, approvals)
-    return final_dashboard(graph, effective.results, run)
+    return final_dashboard(graph, effective.results, run), effective.results
 
 
 def _require_complete_results(
