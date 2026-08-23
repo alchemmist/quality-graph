@@ -37,6 +37,7 @@ class WorkflowRunEvent:
     """Carry trusted workflow-run identity from one GitHub event."""
 
     action: str
+    event: str
     id: int
     attempt: int
     workflow_head_sha: str
@@ -60,6 +61,7 @@ class WorkflowRunEvent:
                 pull_head = _optional_string(head.get("sha"), "pull request head SHA")
         return cls(
             _string(event.get("action"), "workflow action"),
+            _string(run.get("event"), "workflow trigger event"),
             _integer(run.get("id"), "workflow run id"),
             _integer(run.get("run_attempt", 1), "workflow run attempt"),
             _string(run.get("head_sha"), "workflow head SHA"),
@@ -93,6 +95,8 @@ def publish_workflow_run(
 ) -> PublicationOutcome:
     """Publish one trusted workflow-run event if it is current."""
     event = WorkflowRunEvent.from_value(event_value)
+    if event.event != "pull_request":
+        return PublicationOutcome(published=False)
     number = event.pull_request or _resolve_pull_request(port, event.workflow_head_sha)
     if number is None:
         return PublicationOutcome(published=False)

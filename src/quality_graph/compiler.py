@@ -260,7 +260,10 @@ def _publication_workflow(graph: Graph) -> dict[str, JsonValue]:
     }
     publish_job: dict[str, JsonValue] = {
         "name": "Publish Quality Graph",
-        "if": "github.event_name == 'workflow_run'",
+        "if": (
+            "github.event_name == 'workflow_run' "
+            "&& github.event.workflow_run.event == 'pull_request'"
+        ),
         "runs-on": "ubuntu-latest",
         "permissions": publish_permissions,
         "steps": [

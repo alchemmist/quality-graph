@@ -72,6 +72,7 @@ def workflow_event() -> dict[str, object]:
     return {
         "action": "completed",
         "workflow_run": {
+            "event": "pull_request",
             "id": 10,
             "run_attempt": 1,
             "head_sha": "c" * 40,
