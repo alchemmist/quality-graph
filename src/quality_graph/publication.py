@@ -8,6 +8,7 @@ import urllib.parse
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
 
+from quality_graph.approvals import approval_ledger
 from quality_graph.artifacts import ArtifactError, ArtifactExpectation, download_results
 from quality_graph.comments import upsert_managed_comment
 from quality_graph.compiler import compile_graph
@@ -137,7 +138,8 @@ def _completed_dashboard(
             status=ResultStatus.FAILED,
             message=f"The final dashboard could not be assembled: {error}",
         )
-    effective = effective_graph(graph, results, set())
+    approvals = approval_ledger(port, pull.number)
+    effective = effective_graph(graph, results, approvals)
     return final_dashboard(graph, effective.results, run)
 
 

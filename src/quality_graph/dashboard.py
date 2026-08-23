@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from quality_graph.comments import GITHUB_COMMENT_BODY_LIMIT, marker
+from quality_graph.controls import render_control
 from quality_graph.result import Control, Result, ResultStatus
 
 if TYPE_CHECKING:
@@ -213,7 +214,7 @@ def _render(model: DashboardModel) -> str:
         lines.extend(("", "<details><summary>For repository administrators</summary>", ""))
         for group in model.control_groups:
             lines.extend((f"#### {html.escape(group.title)}", ""))
-            lines.extend(_control_line(control) for control in group.controls)
+            lines.extend(render_control(control) for control in group.controls)
             lines.extend(html.escape(note) for note in group.notes)
         lines.extend(("", "</details>"))
     head = html.escape(model.head_sha)
@@ -240,12 +241,6 @@ def _selected_groups(
             notes = (*notes, f"{omitted} additional actions are available in {details}.")
         groups.append(DashboardControlGroup(group.node_id, group.title, controls, notes))
     return tuple(groups)
-
-
-def _control_line(control: Control) -> str:
-    state = "x" if control.checked else " "
-    target = html.escape(control.target)
-    return f"- [{state}] {control.kind.value}: `{target}`"
 
 
 def _status_icon(status: ResultStatus) -> str:
