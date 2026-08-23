@@ -1,6 +1,11 @@
 import json
 
-from quality_graph.schema import result_schema_json, result_schema_value
+from quality_graph.schema import (
+    graph_schema_json,
+    graph_schema_value,
+    result_schema_json,
+    result_schema_value,
+)
 
 
 def test_result_schema_is_deterministic_and_describes_protocol_contract() -> None:
@@ -14,3 +19,14 @@ def test_result_schema_is_deterministic_and_describes_protocol_contract() -> Non
     assert schema["additionalProperties"] is False
     assert "failureKind" not in schema["required"]
     assert schema["allOf"][0]["then"] == {"required": ["failureKind"]}
+
+
+def test_graph_schema_is_deterministic_and_describes_declaration_contract() -> None:
+    serialized = graph_schema_json()
+    schema = json.loads(serialized)
+
+    assert serialized == graph_schema_json()
+    assert schema == graph_schema_value()
+    assert schema["properties"]["version"] == {"const": 0}
+    assert schema["properties"]["profiles"]["required"] == ["default"]
+    assert schema["$defs"]["node"]["oneOf"] == schema["$defs"]["step"]["oneOf"]

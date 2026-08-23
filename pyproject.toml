@@ -53,6 +53,7 @@ type = [
 test = ["pytest>=9.0.2", "pytest-cov>=7.0.0"]
 analyze = ["bandit>=1.8.6", "semgrep>=1.136.0", "vulture>=2.14"]
 audit = ["pip-audit>=2.10.0"]
+package = ["check-wheel-contents>=0.6.3", "twine>=6.2.0"]
 mutation = [{ include-group = "test" }, "mutmut>=3.4.0"]
 dev = [
   { include-group = "analyze" },
@@ -60,12 +61,24 @@ dev = [
   { include-group = "format" },
   { include-group = "lint" },
   { include-group = "mutation" },
+  { include-group = "package" },
   { include-group = "test" },
   { include-group = "type" },
 ]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/quality_graph", "schemas", "LICENSE", "README.md", "TASK.md"]
+include = [
+  "src/quality_graph",
+  "schemas",
+  "docs",
+  "examples",
+  "action.yml",
+  "CONTRIBUTING.md",
+  "LICENSE",
+  "README.md",
+  "SECURITY.md",
+  "TASK.md",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/quality_graph"]

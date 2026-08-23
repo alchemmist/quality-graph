@@ -1,0 +1,23 @@
+---
+version: 0
+runtime:
+  action: alchemmist/quality-graph@c7522e4fecd84011a36153bd123e2d3b32dac9c2
+profiles:
+  default:
+    runner: ubuntu-latest
+    setup:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: "false"
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: "true"
+nodes:
+  vet:
+    title: Go vet
+    run: go vet ./...
+  test:
+    title: Go test
+    needs: [vet]
+    run: go test ./...

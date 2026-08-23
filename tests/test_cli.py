@@ -134,6 +134,17 @@ def test_project_commands_initialize_generate_and_validate(
     assert main(["validate", "--root", str(tmp_path)]) == 0
 
 
+def test_graph_schema_command_supports_file_and_stdout(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = tmp_path / "graph-schema.json"
+    assert main(["schema", "--output", str(output)]) == 0
+    assert json.loads(output.read_text())["properties"]["version"] == {"const": 0}
+    assert main(["schema"]) == 0
+    assert json.loads(capsys.readouterr().out)["properties"]["version"] == {"const": 0}
+
+
 def test_project_commands_report_invalid_roots(tmp_path: Path) -> None:
     with pytest.raises(SystemExit, match="2"):
         main(["generate", "--root", str(tmp_path)])

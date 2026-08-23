@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from quality_graph import __version__
 from quality_graph.project import Project
 from quality_graph.result import FailureKind, Metric, Provenance, Result, ResultStatus
-from quality_graph.schema import result_schema_json
+from quality_graph.schema import graph_schema_json, result_schema_json
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -30,6 +30,8 @@ def parser() -> argparse.ArgumentParser:
     generate.add_argument("--root", default=".")
     validate_project = commands.add_parser("validate", help="Validate declaration freshness")
     validate_project.add_argument("--root", default=".")
+    graph_schema = commands.add_parser("schema", help="Render the graph JSON Schema")
+    graph_schema.add_argument("--output", default="-")
     result_command = commands.add_parser("result", help="Work with native result JSON")
     result_commands = result_command.add_subparsers(dest="result_command")
     validate = result_commands.add_parser("validate", help="Validate native result JSON")
@@ -58,7 +60,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     command_parser = parser()
     args = command_parser.parse_args(arguments)
     try:
-        if args.command in {"init", "generate", "validate"}:
+        if args.command in {"init", "generate", "validate", "schema"}:
             return _project_command(args)
         if args.command == "result":
             return _result_command(command_parser, args)
@@ -79,6 +81,9 @@ def _project_command(args: argparse.Namespace) -> int:
         return 0
     if args.command == "generate":
         Project.open(Path(args.root)).generate()
+        return 0
+    if args.command == "schema":
+        _write_text(args.output, graph_schema_json())
         return 0
     report = Project.open(Path(args.root)).validate()
     if report.current:
