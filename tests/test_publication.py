@@ -29,6 +29,7 @@ def event(action: str = "in_progress", *, pull: bool = True) -> dict[str, object
     return {
         "action": action,
         "workflow_run": {
+            "event": "pull_request",
             "id": 10,
             "run_attempt": 1,
             "head_sha": "c" * 40,
@@ -198,6 +199,13 @@ def test_publisher_rejects_stale_head_and_superseded_run() -> None:
     assert publish_workflow_run(superseded, event()).published is False
 
 
+def test_publisher_ignores_non_pull_request_workflow_runs() -> None:
+    value = event()
+    value["workflow_run"]["event"] = "push"
+
+    assert publish_workflow_run(MemoryGitHubPort(), value).published is False
+
+
 def test_publisher_resolves_pull_from_commit_and_handles_no_association() -> None:
     missing = MemoryGitHubPort()
     missing.enqueue("GET", f"/commits/{'c' * 40}/pulls", [])
@@ -244,6 +252,7 @@ def test_workflow_event_narrows_optional_pull_head() -> None:
             "action": "started",
             "workflow_run": {
                 "id": 1,
+                "event": "pull_request",
                 "head_sha": "a",
                 "html_url": "url",
                 "pull_requests": {},
@@ -253,6 +262,7 @@ def test_workflow_event_narrows_optional_pull_head() -> None:
             "action": 1,
             "workflow_run": {
                 "id": 1,
+                "event": "pull_request",
                 "head_sha": "a",
                 "html_url": "url",
                 "pull_requests": [],
@@ -262,6 +272,7 @@ def test_workflow_event_narrows_optional_pull_head() -> None:
             "action": "started",
             "workflow_run": {
                 "id": False,
+                "event": "pull_request",
                 "head_sha": "a",
                 "html_url": "url",
                 "pull_requests": [],
