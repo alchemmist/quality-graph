@@ -23,7 +23,7 @@ profiles:
           enable-cache: "true"
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
-        run: uv sync --locked --all-groups
+        run: uv sync --locked --all-groups --all-packages
 
 nodes:
   format:
@@ -31,34 +31,82 @@ nodes:
     profile: python
     run: make fmt-check
 
+  suppressions:
+    title: Lint suppression gate
+    profile: python
+    needs: [format]
+    run: make python-suppressions
+
+  object-annotations:
+    title: Python object annotation gate
+    profile: python
+    needs: [format]
+    run: make python-object-annotations
+
+  triple-quotes:
+    title: Triple-quoted string style
+    profile: python
+    needs: [format]
+    run: make python-triple-quotes
+
+  no-comments:
+    title: Python no-comments policy
+    profile: python
+    needs: [format]
+    run: make python-no-comments
+
   lint:
     title: Lint
     profile: python
-    needs: [format]
+    needs: [suppressions, triple-quotes, no-comments]
     run: make lint
 
   type:
     title: Type check
     profile: python
-    needs: [lint]
+    needs: [object-annotations]
     run: make type
 
   analyze:
     title: Static analysis
     profile: python
-    needs: [type]
+    needs: [lint, type]
     run: make analyze
 
-  test:
-    title: Tests and coverage
+  time-bombs:
+    title: Time bomb guardrail
     profile: python
     needs: [analyze]
-    run: make coverage
+    run: make python-time-bombs
+
+  test-unit:
+    title: Unit tests
+    profile: python
+    needs: [time-bombs]
+    run: make test-unit
+
+  test-integration:
+    title: Integration tests
+    profile: python
+    needs: [time-bombs]
+    run: make test-integration
+
+  coverage:
+    title: Coverage and diff coverage
+    profile: python
+    needs: [test-unit, test-integration]
+    run: make coverage-diff
+
+  flaky-python:
+    title: Changed Python flaky-test detection
+    profile: python
+    needs: [coverage]
+    run: make flaky-python
 
   mutation:
     title: Changed decision mutation gate
     profile: python
-    needs: [test]
+    needs: [flaky-python]
     run: make mutation-diff
 
   audit:

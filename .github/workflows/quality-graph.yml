@@ -30,7 +30,7 @@ jobs:
         enable-cache: 'true'
         cache-dependency-glob: uv.lock
     - name: Install locked dependencies
-      run: uv sync --locked --all-groups
+      run: uv sync --locked --all-groups --all-packages
     - run: make fmt-check
       name: Run Format check
       id: quality-command
@@ -46,7 +46,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 94f4bec6524e842cc8df930dc8201e980500600a0680a885a85ebe36d4d67b65
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
     - name: Upload Format check result
       if: always()
       uses: actions/upload-artifact@v7
@@ -61,6 +61,198 @@ jobs:
       env:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
+  suppressions:
+    name: Lint suppression gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups --all-packages
+    - run: make python-suppressions
+      name: Run Lint suppression gate
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Lint suppression gate result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+      with:
+        operation: collect
+        node-id: suppressions
+        title: Lint suppression gate
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+    - name: Upload Lint suppression gate result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-suppressions-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/suppressions.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Lint suppression gate result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - format
+  object-annotations:
+    name: Python object annotation gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups --all-packages
+    - run: make python-object-annotations
+      name: Run Python object annotation gate
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Python object annotation gate result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+      with:
+        operation: collect
+        node-id: object-annotations
+        title: Python object annotation gate
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+    - name: Upload Python object annotation gate result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-object-annotations-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/object-annotations.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Python object annotation gate result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - format
+  triple-quotes:
+    name: Triple-quoted string style
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups --all-packages
+    - run: make python-triple-quotes
+      name: Run Triple-quoted string style
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Triple-quoted string style result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+      with:
+        operation: collect
+        node-id: triple-quotes
+        title: Triple-quoted string style
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+    - name: Upload Triple-quoted string style result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-triple-quotes-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/triple-quotes.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Triple-quoted string style result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - format
+  no-comments:
+    name: Python no-comments policy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups --all-packages
+    - run: make python-no-comments
+      name: Run Python no-comments policy
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Python no-comments policy result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+      with:
+        operation: collect
+        node-id: no-comments
+        title: Python no-comments policy
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+    - name: Upload Python no-comments policy result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-no-comments-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/no-comments.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Python no-comments policy result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - format
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -76,7 +268,7 @@ jobs:
         enable-cache: 'true'
         cache-dependency-glob: uv.lock
     - name: Install locked dependencies
-      run: uv sync --locked --all-groups
+      run: uv sync --locked --all-groups --all-packages
     - run: make lint
       name: Run Lint
       id: quality-command
@@ -92,7 +284,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 94f4bec6524e842cc8df930dc8201e980500600a0680a885a85ebe36d4d67b65
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
     - name: Upload Lint result
       if: always()
       uses: actions/upload-artifact@v7
@@ -108,7 +300,9 @@ jobs:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
     needs:
-    - format
+    - suppressions
+    - triple-quotes
+    - no-comments
   type:
     name: Type check
     runs-on: ubuntu-latest
@@ -124,7 +318,7 @@ jobs:
         enable-cache: 'true'
         cache-dependency-glob: uv.lock
     - name: Install locked dependencies
-      run: uv sync --locked --all-groups
+      run: uv sync --locked --all-groups --all-packages
     - run: make type
       name: Run Type check
       id: quality-command
@@ -140,7 +334,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 94f4bec6524e842cc8df930dc8201e980500600a0680a885a85ebe36d4d67b65
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
     - name: Upload Type check result
       if: always()
       uses: actions/upload-artifact@v7
@@ -156,7 +350,7 @@ jobs:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
     needs:
-    - lint
+    - object-annotations
   analyze:
     name: Static analysis
     runs-on: ubuntu-latest
@@ -172,7 +366,7 @@ jobs:
         enable-cache: 'true'
         cache-dependency-glob: uv.lock
     - name: Install locked dependencies
-      run: uv sync --locked --all-groups
+      run: uv sync --locked --all-groups --all-packages
     - run: make analyze
       name: Run Static analysis
       id: quality-command
@@ -188,7 +382,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 94f4bec6524e842cc8df930dc8201e980500600a0680a885a85ebe36d4d67b65
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
     - name: Upload Static analysis result
       if: always()
       uses: actions/upload-artifact@v7
@@ -204,9 +398,10 @@ jobs:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
     needs:
+    - lint
     - type
-  test:
-    name: Tests and coverage
+  time-bombs:
+    name: Time bomb guardrail
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -220,32 +415,32 @@ jobs:
         enable-cache: 'true'
         cache-dependency-glob: uv.lock
     - name: Install locked dependencies
-      run: uv sync --locked --all-groups
-    - run: make coverage
-      name: Run Tests and coverage
+      run: uv sync --locked --all-groups --all-packages
+    - run: make python-time-bombs
+      name: Run Time bomb guardrail
       id: quality-command
       continue-on-error: true
-    - name: Collect Tests and coverage result
+    - name: Collect Time bomb guardrail result
       id: quality-result
       if: always()
       uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
       with:
         operation: collect
-        node-id: test
-        title: Tests and coverage
+        node-id: time-bombs
+        title: Time bomb guardrail
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 94f4bec6524e842cc8df930dc8201e980500600a0680a885a85ebe36d4d67b65
-    - name: Upload Tests and coverage result
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+    - name: Upload Time bomb guardrail result
       if: always()
       uses: actions/upload-artifact@v7
       with:
-        name: quality-result-test-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/quality-graph/test.json
+        name: quality-result-time-bombs-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/time-bombs.json
         if-no-files-found: error
         retention-days: 7
-    - name: Enforce Tests and coverage result
+    - name: Enforce Time bomb guardrail result
       if: always()
       shell: bash
       env:
@@ -253,6 +448,199 @@ jobs:
       run: exit "${EXIT_CODE:-2}"
     needs:
     - analyze
+  test-unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups --all-packages
+    - run: make test-unit
+      name: Run Unit tests
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Unit tests result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+      with:
+        operation: collect
+        node-id: test-unit
+        title: Unit tests
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+    - name: Upload Unit tests result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-test-unit-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/test-unit.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Unit tests result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - time-bombs
+  test-integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups --all-packages
+    - run: make test-integration
+      name: Run Integration tests
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Integration tests result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+      with:
+        operation: collect
+        node-id: test-integration
+        title: Integration tests
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+    - name: Upload Integration tests result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-test-integration-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/test-integration.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Integration tests result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - time-bombs
+  coverage:
+    name: Coverage and diff coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups --all-packages
+    - run: make coverage-diff
+      name: Run Coverage and diff coverage
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Coverage and diff coverage result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+      with:
+        operation: collect
+        node-id: coverage
+        title: Coverage and diff coverage
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+    - name: Upload Coverage and diff coverage result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-coverage-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/coverage.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Coverage and diff coverage result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - test-unit
+    - test-integration
+  flaky-python:
+    name: Changed Python flaky-test detection
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups --all-packages
+    - run: make flaky-python
+      name: Run Changed Python flaky-test detection
+      id: quality-command
+      continue-on-error: true
+    - name: Collect Changed Python flaky-test detection result
+      id: quality-result
+      if: always()
+      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+      with:
+        operation: collect
+        node-id: flaky-python
+        title: Changed Python flaky-test detection
+        adapter: exit-code
+        report-path: ''
+        command-outcome: ${{ steps.quality-command.outcome }}
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+    - name: Upload Changed Python flaky-test detection result
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: quality-result-flaky-python-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/quality-graph/flaky-python.json
+        if-no-files-found: error
+        retention-days: 7
+    - name: Enforce Changed Python flaky-test detection result
+      if: always()
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+      run: exit "${EXIT_CODE:-2}"
+    needs:
+    - coverage
   mutation:
     name: Changed decision mutation gate
     runs-on: ubuntu-latest
@@ -268,7 +656,7 @@ jobs:
         enable-cache: 'true'
         cache-dependency-glob: uv.lock
     - name: Install locked dependencies
-      run: uv sync --locked --all-groups
+      run: uv sync --locked --all-groups --all-packages
     - run: make mutation-diff
       name: Run Changed decision mutation gate
       id: quality-command
@@ -284,7 +672,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 94f4bec6524e842cc8df930dc8201e980500600a0680a885a85ebe36d4d67b65
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
     - name: Upload Changed decision mutation gate result
       if: always()
       uses: actions/upload-artifact@v7
@@ -300,7 +688,7 @@ jobs:
         EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
       run: exit "${EXIT_CODE:-2}"
     needs:
-    - test
+    - flaky-python
   audit:
     name: Dependency and secret audit
     runs-on: ubuntu-latest
@@ -316,7 +704,7 @@ jobs:
         enable-cache: 'true'
         cache-dependency-glob: uv.lock
     - name: Install locked dependencies
-      run: uv sync --locked --all-groups
+      run: uv sync --locked --all-groups --all-packages
     - run: make audit
       name: Run Dependency and secret audit
       id: quality-command
@@ -332,7 +720,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 94f4bec6524e842cc8df930dc8201e980500600a0680a885a85ebe36d4d67b65
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
     - name: Upload Dependency and secret audit result
       if: always()
       uses: actions/upload-artifact@v7
@@ -364,7 +752,7 @@ jobs:
         enable-cache: 'true'
         cache-dependency-glob: uv.lock
     - name: Install locked dependencies
-      run: uv sync --locked --all-groups
+      run: uv sync --locked --all-groups --all-packages
     - run: make package
       name: Run Package
       id: quality-command
@@ -380,7 +768,7 @@ jobs:
         adapter: exit-code
         report-path: ''
         command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 94f4bec6524e842cc8df930dc8201e980500600a0680a885a85ebe36d4d67b65
+        graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
     - name: Upload Package result
       if: always()
       uses: actions/upload-artifact@v7

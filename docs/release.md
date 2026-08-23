@@ -8,7 +8,7 @@ A release candidate must pass:
 - Ruff ALL, strict mypy, static analysis, unit, fake-HTTP integration, and coverage gates;
 - dependency and secret audits;
 - mutation score threshold;
-- deterministic sdist and wheel builds for `quality-graph-core`, `qg-github`, and `qg`,
+- deterministic sdist and wheel builds for `quality-graph-core`, `qg-python`, `qg-github`, and `qg`,
   content inspection, clean installation, provider discovery, and provider-free CLI smoke;
 - the repository's own generated Quality Graph workflow.
 

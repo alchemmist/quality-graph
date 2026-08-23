@@ -8,6 +8,8 @@ MARKDOWN_SOURCES := README.md $(wildcard docs/*.md packages/*/README.md apps/*/R
 
 .PHONY: install tools schemas schemas-check graph-generate graph-validate \
 	fmt fmt-check lint type analyze test test-unit test-integration coverage \
+	python-suppressions python-object-annotations python-triple-quotes \
+	python-time-bombs python-no-comments coverage-diff flaky-python \
 	mutation mutation-diff audit package check clean fmt-staged \
 	precommit-install precommit-uninstall examples-generate examples-check
 
@@ -98,6 +100,21 @@ analyze:
 	uv run --locked --all-packages --group analyze vulture
 	uv run --locked --all-packages --group analyze semgrep --error --quiet --config p/python packages apps
 
+python-suppressions:
+	uv run --locked --all-packages qg-python-suppressions --base "$(BASE)"
+
+python-object-annotations:
+	uv run --locked --all-packages qg-python-object-annotations --base "$(BASE)"
+
+python-triple-quotes:
+	uv run --locked --all-packages qg-python-triple-quotes --base "$(BASE)"
+
+python-time-bombs:
+	uv run --locked --all-packages qg-python-time-bombs --base "$(BASE)"
+
+python-no-comments:
+	uv run --locked --all-packages qg-python-no-comments packages apps scripts
+
 test: test-unit test-integration
 
 test-unit:
@@ -108,10 +125,18 @@ test-integration:
 
 coverage:
 	uv run --locked --all-packages --group test pytest -q --cov=quality_graph_core \
-		--cov=qg_github --cov=qg_cli --cov-branch --cov-report=term-missing
+		--cov=qg_github --cov=qg_cli --cov=qg_python --cov-branch \
+		--cov-report=term-missing --cov-report=xml:coverage.xml
+
+coverage-diff: coverage
+	uv run --locked --all-packages --group test diff-cover coverage.xml \
+		--compare-branch="$(BASE)" --fail-under=100
+
+flaky-python:
+	uv run --locked --all-packages qg-python-flaky --base "$(BASE)" --attempts 3
 
 mutation:
-	PYTHONPATH="$(CURDIR)/mutants/packages/core/src:$(CURDIR)/mutants/packages/github/src:$(CURDIR)/mutants/apps/qg/src" \
+	PYTHONPATH="$(CURDIR)/mutants/packages/core/src:$(CURDIR)/mutants/packages/github/src:$(CURDIR)/mutants/packages/python/src:$(CURDIR)/mutants/apps/qg/src" \
 		uv run --locked --all-packages --group mutation mutmut run --max-children 1
 	uv run --locked --all-packages --group mutation mutmut export-cicd-stats
 	uv run --locked --all-packages python scripts/mutation_gate.py mutants/mutmut-cicd-stats.json
@@ -141,6 +166,8 @@ package:
 		--with dist/qg_github-*-py3-none-any.whl --with dist/qg-*-py3-none-any.whl qg --version
 	uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
 		--with dist/qg-*-py3-none-any.whl qg result schema >/dev/null
+	uv run --isolated --no-project --with dist/qg_python-*-py3-none-any.whl \
+		qg-python-time-bombs --help >/dev/null
 	@error=$$(mktemp); \
 	if uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
 		--with dist/qg-*-py3-none-any.whl qg validate 2>"$$error"; then \
@@ -149,11 +176,13 @@ package:
 	grep -q "uv tool install qg --with qg-github" "$$error"; status=$$?; \
 	rm -f "$$error"; exit $$status
 
-check: fmt-check lint type analyze coverage audit package
+check: fmt-check python-suppressions python-object-annotations python-triple-quotes \
+	python-no-comments lint type analyze python-time-bombs coverage coverage-diff \
+	flaky-python audit package
 
 clean:
 	@root=$$(git rev-parse --show-toplevel); \
-	for path in .coverage htmlcov coverage.json coverage-report build dist mutants reports .tools; do \
+	for path in .coverage htmlcov coverage.json coverage.xml coverage-report build dist mutants reports .tools; do \
 		[ -e "$$path" ] || continue; \
 		resolved=$$($(PYTHON) -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$$path"); \
 		case "$$resolved" in "$$root"/*) rm -rf -- "$$path" ;; *) echo "Refusing to remove $$path"; exit 1 ;; esac; \

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qg-python"
+version = "0.1.0.dev0"
+description = "Reusable Python quality gates for Quality Graph"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = ["anyio>=4.11.0"]
+
+[project.scripts]
+qg-python-suppressions = "qg_python.suppressions:main"
+qg-python-object-annotations = "qg_python.object_annotations:main"
+qg-python-triple-quotes = "qg_python.triple_quotes:main"
+qg-python-time-bombs = "qg_python.time_bombs:main"
+qg-python-no-comments = "qg_python.no_comments:main"
+qg-python-flaky = "qg_python.flaky:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qg_python"]

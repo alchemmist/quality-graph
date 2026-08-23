@@ -4,7 +4,7 @@
       "admin"
     ]
   },
-  "graphDigest": "94f4bec6524e842cc8df930dc8201e980500600a0680a885a85ebe36d4d67b65",
+  "graphDigest": "e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -37,9 +37,115 @@
     },
     {
       "env": {},
-      "id": "lint",
+      "id": "suppressions",
       "needs": [
         "format"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make python-suppressions"
+      },
+      "title": "Lint suppression gate"
+    },
+    {
+      "env": {},
+      "id": "object-annotations",
+      "needs": [
+        "format"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make python-object-annotations"
+      },
+      "title": "Python object annotation gate"
+    },
+    {
+      "env": {},
+      "id": "triple-quotes",
+      "needs": [
+        "format"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make python-triple-quotes"
+      },
+      "title": "Triple-quoted string style"
+    },
+    {
+      "env": {},
+      "id": "no-comments",
+      "needs": [
+        "format"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make python-no-comments"
+      },
+      "title": "Python no-comments policy"
+    },
+    {
+      "env": {},
+      "id": "lint",
+      "needs": [
+        "suppressions",
+        "triple-quotes",
+        "no-comments"
       ],
       "policy": {
         "approvals": {
@@ -65,7 +171,7 @@
       "env": {},
       "id": "type",
       "needs": [
-        "lint"
+        "object-annotations"
       ],
       "policy": {
         "approvals": {
@@ -91,6 +197,7 @@
       "env": {},
       "id": "analyze",
       "needs": [
+        "lint",
         "type"
       ],
       "policy": {
@@ -115,7 +222,7 @@
     },
     {
       "env": {},
-      "id": "test",
+      "id": "time-bombs",
       "needs": [
         "analyze"
       ],
@@ -135,15 +242,120 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make coverage"
+        "run": "make python-time-bombs"
       },
-      "title": "Tests and coverage"
+      "title": "Time bomb guardrail"
+    },
+    {
+      "env": {},
+      "id": "test-unit",
+      "needs": [
+        "time-bombs"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make test-unit"
+      },
+      "title": "Unit tests"
+    },
+    {
+      "env": {},
+      "id": "test-integration",
+      "needs": [
+        "time-bombs"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make test-integration"
+      },
+      "title": "Integration tests"
+    },
+    {
+      "env": {},
+      "id": "coverage",
+      "needs": [
+        "test-unit",
+        "test-integration"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make coverage-diff"
+      },
+      "title": "Coverage and diff coverage"
+    },
+    {
+      "env": {},
+      "id": "flaky-python",
+      "needs": [
+        "coverage"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make flaky-python"
+      },
+      "title": "Changed Python flaky-test detection"
     },
     {
       "env": {},
       "id": "mutation",
       "needs": [
-        "test"
+        "flaky-python"
       ],
       "policy": {
         "approvals": {
@@ -260,7 +472,7 @@
         },
         {
           "name": "Install locked dependencies",
-          "run": "uv sync --locked --all-groups"
+          "run": "uv sync --locked --all-groups --all-packages"
         }
       ]
     }
