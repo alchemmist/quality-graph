@@ -124,7 +124,9 @@ def final_dashboard(
                 )
             )
     return DashboardModel(
-        aggregate_status(row.status for row in rows),
+        aggregate_status(
+            row.status for node, row in zip(graph.nodes, rows, strict=True) if node.policy.blocking
+        ),
         "Detailed diagnostics and metrics are available in each Job Summary.",
         run.id,
         run.attempt,
