@@ -26,6 +26,10 @@ class GitHubPort(Protocol):
         """Execute one GitHub request and return decoded JSON."""
         ...
 
+    def download(self, path: str) -> bytes:
+        """Download one authenticated binary response."""
+        ...
+
 
 class GitHubError(RuntimeError):
     """Represent a failed GitHub transport request."""
@@ -93,13 +97,36 @@ class HttpGitHubPort:
             message = f"GitHub {method} {path} returned invalid JSON"
             raise RuntimeError(message) from error
 
+    def download(self, path: str) -> bytes:
+        """Download one repository-scoped binary response with redirects."""
+        api_path = f"/repos/{self.repository}{path}"
+        try:
+            response = self.client.get(
+                f"{self.base_url}{api_path}",
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": f"Bearer {self.token}",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+                follow_redirects=True,
+            )
+        except httpx.RequestError as error:
+            message = f"GitHub download {path} transport failed: {type(error).__name__}"
+            raise RuntimeError(message) from error
+        if response.is_error:
+            method = "GET"
+            raise GitHubError(method, path, response.status_code)
+        return response.content
+
 
 @dataclass
 class MemoryGitHubPort:
     """Provide deterministic queued responses for pure lifecycle tests."""
 
     responses: dict[tuple[str, str], list[JsonValue]] = field(default_factory=dict)
+    downloads: dict[str, bytes] = field(default_factory=dict)
     requests: list[tuple[str, str, JsonValue]] = field(default_factory=list)
+    downloaded: list[str] = field(default_factory=list)
 
     def enqueue(self, method: str, path: str, *responses: JsonValue) -> None:
         """Queue one or more responses for an exact request."""
@@ -115,6 +142,14 @@ class MemoryGitHubPort:
         if len(queued) == 1:
             return queued[0]
         return queued.pop(0)
+
+    def download(self, path: str) -> bytes:
+        """Record and return one configured binary download."""
+        self.downloaded.append(path)
+        if path not in self.downloads:
+            message = f"Unexpected GitHub download: {path}"
+            raise AssertionError(message)
+        return self.downloads[path]
 
 
 def paged(port: GitHubPort, path: str) -> tuple[dict[str, JsonValue], ...]:
