@@ -1,0 +1,10 @@
+#!/bin/sh
+# quality-graph-pre-commit-hook
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+make fmt-staged
+make type
+make test-unit
