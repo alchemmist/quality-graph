@@ -20,7 +20,7 @@ jobs:
       - run: uv sync --locked --all-groups
       - name: Verify release version
         run: test "$GITHUB_REF_NAME" = "v$(uv run --locked --all-packages qg --version)"
-      - run: make check
+      - run: make check BASE="$GITHUB_SHA"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: quality-graph-core

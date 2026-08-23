@@ -42,6 +42,7 @@ def test_release_workflow_is_tag_bound_and_least_privilege() -> None:
     assert workflow["on"]["push"]["tags"] == ["v[0-9]+.[0-9]+.[0-9]+"]
     assert workflow["permissions"] == {"contents": "read"}
     assert "permissions" not in jobs["build"]
+    assert {step.get("run") for step in jobs["build"]["steps"]} >= {'make check BASE="$GITHUB_SHA"'}
     for name, environment in PUBLISH_ENVIRONMENTS.items():
         assert jobs[name]["environment"]["name"] == environment
         assert jobs[name]["permissions"] == {"id-token": "write"}
