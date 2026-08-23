@@ -272,7 +272,7 @@ def test_gate_main_functions_handle_clean_and_failing_changes(
         return (changed,)
 
     for module in (suppressions, object_annotations, time_bombs, triple_quotes):
-        monkeypatch.setattr(f"{module.__name__}.changed_files", selected)
+        monkeypatch.setattr(module, "changed_files", selected)
     assert object_annotations.main(["--base", "main"]) == 1
     assert suppressions.main(["--base", "main"]) == 0
     assert time_bombs.main(["--base", "main"]) == 0
@@ -291,7 +291,8 @@ def test_gate_main_functions_handle_clean_and_failing_changes(
         frozenset({1, 2}),
     )
     monkeypatch.setattr(
-        "qg_python.suppressions.changed_files",
+        suppressions,
+        "changed_files",
         lambda base, suffixes: (
             (suppression_change,)
             if (base, suffixes) == ("origin/main", suppressions.SUFFIXES)
