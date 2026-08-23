@@ -1,10 +1,9 @@
-"""
-Enforce readable delimiters for changed triple-quoted Python strings.
-"""
+"""Enforce readable delimiters for changed triple-quoted Python strings."""
 
 from __future__ import annotations
 
 import argparse
+import ast
 import io
 import re
 import tokenize
@@ -18,9 +17,7 @@ STRING_RE = re.compile(r"^(?:r|u|b|f|br|rb|fr|rf)?(?P<delimiter>'''|\"\"\")", re
 
 @dataclass(frozen=True)
 class StringSpan:
-    """
-    Describe one tokenized triple-quoted string span.
-    """
+    """Describe one tokenized triple-quoted string span."""
 
     start_line: int
     start_column: int
@@ -30,12 +27,11 @@ class StringSpan:
 
 
 def scan_source(path: str, source: str, added: frozenset[int]) -> tuple[Finding, ...]:
-    """
-    Find changed triple-quote delimiters with inline content.
-    """
+    """Find changed triple-quote delimiters with inline content."""
     lines = source.splitlines()
     findings = []
     fstrings: list[tuple[tokenize.TokenInfo, str | None]] = []
+    docstrings = _docstring_positions(source)
     try:
         tokens = tokenize.generate_tokens(io.StringIO(source).readline)
         for token in tokens:
@@ -58,6 +54,7 @@ def scan_source(path: str, source: str, added: frozenset[int]) -> tuple[Finding,
                                 token.end[0],
                                 token.end[1] - len(delimiter),
                             ),
+                            docstrings,
                         )
                     )
                 continue
@@ -79,6 +76,7 @@ def scan_source(path: str, source: str, added: frozenset[int]) -> tuple[Finding,
                         token.end[0],
                         token.end[1] - len(delimiter),
                     ),
+                    docstrings,
                 )
             )
     except (IndentationError, tokenize.TokenError) as error:
@@ -91,8 +89,11 @@ def _span_findings(
     lines: list[str],
     added: frozenset[int],
     span: StringSpan,
+    docstrings: frozenset[tuple[int, int]],
 ) -> tuple[Finding, ...]:
     if span.start_line == span.end_line:
+        if (span.start_line, span.start_column) in docstrings:
+            return ()
         return (
             (
                 Finding(
@@ -117,10 +118,28 @@ def _span_findings(
     return tuple(findings)
 
 
+def _docstring_positions(source: str) -> frozenset[tuple[int, int]]:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return frozenset()
+    positions = []
+    for node in ast.walk(tree):
+        body = getattr(node, "body", None)
+        if not isinstance(body, list) or not body:
+            continue
+        first = body[0]
+        if (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
+        ):
+            positions.append((first.value.lineno, first.value.col_offset))
+    return frozenset(positions)
+
+
 def main(arguments: list[str] | None = None) -> int:
-    """
-    Check changed Python triple-quoted strings.
-    """
+    """Check changed Python triple-quoted strings."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="origin/main")
     args = parser.parse_args(arguments)

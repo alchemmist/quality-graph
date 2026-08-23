@@ -159,6 +159,7 @@ def test_triple_quote_gate_checks_inline_opening_closing_and_token_errors() -> N
         Finding("app.py", 1, 10, "triple quote must open alone"),
     )
     assert scan_triple_quotes("app.py", 'value = f"ordinary"\n', frozenset({1})) == ()
+    assert scan_triple_quotes("app.py", '"""Documentation."""\n', frozenset({1})) == ()
 
 
 def test_time_bomb_gate_classifies_units_and_ignores_unrelated_numbers() -> None:
