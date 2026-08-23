@@ -284,6 +284,22 @@ def test_gate_main_functions_handle_clean_and_failing_changes(
         ("main", (".py",)),
     ]
 
+    directive = "# " + "noqa: S101"
+    suppression_change = diff.ChangedFile(
+        "app.py",
+        f"safe = 1\nunsafe()  {directive}\n",
+        frozenset({1, 2}),
+    )
+    monkeypatch.setattr(
+        "qg_python.suppressions.changed_files",
+        lambda base, suffixes: (
+            (suppression_change,)
+            if (base, suffixes) == ("origin/main", suppressions.SUFFIXES)
+            else ()
+        ),
+    )
+    assert suppressions.main([]) == 1
+
     monkeypatch.setattr("qg_python.flaky.changed_test_files", lambda _base: ())
     assert flaky.main(["--base", "main"]) == 0
     with pytest.raises(SystemExit):
