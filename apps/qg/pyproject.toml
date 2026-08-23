@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "qg"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "Provider-driven Quality Graph command-line application"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
-dependencies = ["quality-graph-core==0.1.0.dev0"]
+dependencies = ["quality-graph-core==0.1.0"]
 
 [project.scripts]
 qg = "qg_cli.cli:main"

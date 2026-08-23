@@ -1,14 +1,12 @@
 # Installation and generation
 
-Quality Graph is not published to PyPI yet. Check out an exact Git commit and use its locked
-uv workspace with the same commit for the generated runtime Action.
+Install the CLI and GitHub provider from the same exact release. Pin the generated runtime
+Action to the commit attached to that release, never to a mutable branch or major-version tag.
 
 ```bash
-export QG_SHA=<reviewed-40-character-commit>
-git clone https://github.com/alchemmist/quality-graph.git
-cd quality-graph
-git checkout "$QG_SHA"
-uv run --locked --all-packages qg init --root ../project \
+export QG_SHA=<40-character-commit-shown-on-the-v0.1.0-release>
+uv tool install qg==0.1.0 --with qg-github==0.1.0
+qg init --root ../project \
   --runtime-action "alchemmist/quality-graph@$QG_SHA"
 ```
 
@@ -19,7 +17,7 @@ are preserved unless `--force` is explicit.
 Generate and commit observable GitHub files:
 
 ```bash
-uv run --locked --all-packages qg generate --root ../project
+qg generate --root ../project
 (cd ../project && git add quality-graph.yml .github/workflows .quality-graph/manifest.json)
 ```
 
@@ -35,7 +33,6 @@ The generated files are:
 Review and update both the installed CLI commit and
 `provider.configuration.runtime.action` together.
 
-The workspace builds three distributions independently. Once they are published, install
-the CLI and provider together with `uv tool install qg --with qg-github`. Installing `qg`
-without a provider is supported, but provider-backed project commands fail with an
-actionable installation message.
+The workspace builds four distributions independently. Installing `qg` without a provider is
+supported, but provider-backed project commands fail with an actionable installation message.
+`qg-python` is optional and can be installed separately for reusable Python quality gates.
