@@ -1,14 +1,41 @@
-PYTHON_SOURCES := src tests
+PYTHON_SOURCES := src tests scripts
 PYTHON ?= python3
 BASE ?= origin/main
+TOOLS_BIN := $(CURDIR)/.tools/bin
 
 .DEFAULT_GOAL := check
 
-.PHONY: install schemas schemas-check graph-generate graph-validate fmt fmt-check lint type analyze test test-unit test-integration coverage \
-	mutation mutation-diff audit package check clean
+.PHONY: install tools schemas schemas-check graph-generate graph-validate \
+	fmt fmt-check lint type analyze test test-unit test-integration coverage \
+	mutation mutation-diff audit package check clean fmt-staged \
+	precommit-install precommit-uninstall
 
 install:
 	uv sync --locked --all-groups
+
+tools:
+	QUALITY_GRAPH_TOOLS_BIN="$(TOOLS_BIN)" bash scripts/install-tools.sh
+
+fmt-staged:
+	uv run --locked python scripts/format_staged.py
+
+precommit-install:
+	@hook=$$(git rev-parse --git-path hooks)/pre-commit; \
+	if [ -e "$$hook" ] && ! grep -q '^# quality-graph-pre-commit-hook$$' "$$hook"; then \
+		echo "Refusing to replace an existing non-Quality-Graph hook: $$hook"; \
+		exit 1; \
+	fi; \
+	install -m 755 scripts/pre-commit "$$hook"; \
+	echo "Installed Quality Graph pre-commit hook at $$hook"
+
+precommit-uninstall:
+	@hook=$$(git rev-parse --git-path hooks)/pre-commit; \
+	if [ -e "$$hook" ] && grep -q '^# quality-graph-pre-commit-hook$$' "$$hook"; then \
+		$(PYTHON) -c 'from pathlib import Path; import sys; Path(sys.argv[1]).unlink()' "$$hook"; \
+		echo "Removed Quality Graph pre-commit hook from $$hook"; \
+	else \
+		echo "Quality Graph pre-commit hook is not installed"; \
+	fi
 
 schemas:
 	uv run --locked qg result schema --output schemas/result-v0.schema.json
@@ -25,25 +52,27 @@ graph-generate:
 graph-validate:
 	uv run --locked qg validate
 
-fmt: schemas graph-generate
+fmt: schemas graph-generate tools
 	uv run --locked --group format ruff check $(PYTHON_SOURCES) --fix
 	uv run --locked --group format ruff format $(PYTHON_SOURCES)
 	uv run --locked --group format mdformat README.md
+	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -w $$files
 
-fmt-check: schemas-check graph-validate
+fmt-check: schemas-check graph-validate tools
 	uv run --locked --group format ruff check $(PYTHON_SOURCES)
 	uv run --locked --group format ruff format --check $(PYTHON_SOURCES)
 	uv run --locked --group format mdformat --check README.md
+	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -d $$files
 
-lint:
+lint: tools
 	uv run --locked --group lint ruff check $(PYTHON_SOURCES)
 	@files=$$(git ls-files '*.yaml' '*.yml'); \
 	uv run --locked --group lint yamllint .yamllint.yaml $$files
 	uv run --locked --group lint codespell README.md TASK.md src tests
-	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || shellcheck $$files
-	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || shfmt -d $$files
+	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || uv run --locked --group lint shellcheck $$files
+	@files=$$(git ls-files '*.sh'); [ -z "$$files" ] || "$(TOOLS_BIN)/shfmt" -d $$files
 	@files=$$(git ls-files '.github/workflows/*.yaml' '.github/workflows/*.yml'); \
-	[ -z "$$files" ] || actionlint -shellcheck= $$files
+	[ -z "$$files" ] || "$(TOOLS_BIN)/actionlint" -shellcheck= $$files
 
 type:
 	uv run --locked --group type mypy
@@ -51,7 +80,7 @@ type:
 analyze:
 	uv run --locked --group analyze bandit -q -c pyproject.toml -r src/quality_graph
 	uv run --locked --group analyze vulture
-	semgrep --error --quiet --config p/python src/quality_graph
+	uv run --locked --group analyze semgrep --error --quiet --config p/python src/quality_graph
 
 test: test-unit test-integration
 
@@ -70,12 +99,12 @@ mutation:
 mutation-diff:
 	uv run --locked --group mutation mutmut run
 
-audit:
+audit: tools
 	@requirements=$$(mktemp); \
 	uv export --locked --no-dev --no-hashes --format requirements-txt -o "$$requirements"; \
 	uv run --locked --group audit pip-audit -r "$$requirements"; status=$$?; \
 	rm -f "$$requirements"; exit $$status
-	gitleaks detect --no-banner --redact
+	"$(TOOLS_BIN)/gitleaks" detect --no-banner --redact
 
 package:
 	rm -rf build dist
@@ -86,7 +115,7 @@ check: fmt-check lint type analyze coverage audit package
 
 clean:
 	@root=$$(git rev-parse --show-toplevel); \
-	for path in .coverage htmlcov coverage.json coverage-report build dist mutants reports; do \
+	for path in .coverage htmlcov coverage.json coverage-report build dist mutants reports .tools; do \
 		[ -e "$$path" ] || continue; \
 		resolved=$$($(PYTHON) -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$$path"); \
 		case "$$resolved" in "$$root"/*) rm -rf -- "$$path" ;; *) echo "Refusing to remove $$path"; exit 1 ;; esac; \

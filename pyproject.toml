@@ -42,6 +42,7 @@ lint = [
   "codespell>=2.4.1",
   "mdformat>=0.7.22",
   "ruff==0.15.22",
+  "shellcheck-py==0.11.0.1",
   "yamllint>=1.37.1",
 ]
 type = [
@@ -50,7 +51,7 @@ type = [
   "types-pyyaml>=6.0.12.20250915",
 ]
 test = ["pytest>=9.0.2", "pytest-cov>=7.0.0"]
-analyze = ["bandit>=1.8.6", "vulture>=2.14"]
+analyze = ["bandit>=1.8.6", "semgrep>=1.136.0", "vulture>=2.14"]
 audit = ["pip-audit>=2.10.0"]
 mutation = [{ include-group = "test" }, "mutmut>=3.4.0"]
 dev = [
@@ -103,7 +104,8 @@ known-first-party = ["quality_graph"]
 
 [tool.mypy]
 python_version = "3.12"
-packages = ["quality_graph"]
+files = ["src/quality_graph", "scripts"]
+mypy_path = ["src"]
 strict = true
 warn_unreachable = true
 extra_checks = true
