@@ -226,6 +226,6 @@ step "Set Workflow name to release.yml for every project."
 step "Use environments pypi, pypi-python, and pypi-github respectively."
 step "Do not register qg yet; add it with pypi-cli after the first three uploads complete."
 confirm "Are the first three pending Trusted Publishers listed?" || exit 1
-SKIPPED+=("qg pending publisher after the first three projects are published")
+SKIPPED+=("quality-graph-cli pending publisher after the first three projects are published")
 
 finish

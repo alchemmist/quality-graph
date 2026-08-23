@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import cast
@@ -47,7 +48,9 @@ def test_provider_discovery_reports_actionable_missing_package(
 
     with pytest.raises(
         ProviderNotInstalledError,
-        match="uv tool install qg --with quality-graph-gitlab",
+        match=re.escape(
+            "uv tool install quality-graph-cli==0.1.1 --with quality-graph-gitlab==0.1.1"
+        ),
     ):
         load_provider("gitlab")
 

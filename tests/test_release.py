@@ -4,12 +4,12 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 PROJECT_NAMES = {
     "quality-graph-core",
     "quality-graph-github",
     "quality-graph-python",
-    "qg",
+    "quality-graph-cli",
 }
 PROJECT_FILES = (
     Path("packages/core/pyproject.toml"),

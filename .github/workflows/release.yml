@@ -38,8 +38,8 @@ jobs:
           if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: qg
-          path: dist/qg-*
+          name: quality-graph-cli
+          path: dist/quality_graph_cli-*
           if-no-files-found: error
 
   publish-core:
@@ -92,13 +92,13 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi-cli
-      url: https://pypi.org/project/qg/
+      url: https://pypi.org/project/quality-graph-cli/
     permissions:
       id-token: write
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: qg
+          name: quality-graph-cli
           path: dist
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
 
@@ -108,11 +108,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          pattern: "qg*"
-          path: dist
-          merge-multiple: true
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: "quality-graph-*"
