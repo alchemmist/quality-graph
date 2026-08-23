@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
+from quality_graph.github import MemoryGitHubPort
 from quality_graph.graph import AdapterKind
+from quality_graph.publication import PublicationOutcome
 from quality_graph.result import FailureKind, ResultStatus
 from quality_graph.runtime import CollectionRequest, collect, main, publish_collection
 
@@ -103,13 +105,39 @@ def test_runtime_rejects_unknown_operation_and_event_shape(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with pytest.raises(SystemExit, match="Unsupported"):
-        main(["publish"])
+        main(["command"])
     values = environment(tmp_path)
     Path(values["GITHUB_EVENT_PATH"]).write_text("[]")
     for name, value in values.items():
         monkeypatch.setenv(name, value)
     with pytest.raises(TypeError, match="payload must be an object"):
         main(["collect"])
+
+
+def test_runtime_main_dispatches_publication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = environment(tmp_path)
+    Path(values["GITHUB_EVENT_PATH"]).write_text("{}")
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    port = MemoryGitHubPort()
+    observed: list[object] = []
+
+    def from_environment() -> MemoryGitHubPort:
+        return port
+
+    def publish(selected: object, event_value: object) -> PublicationOutcome:
+        observed.extend((selected, event_value))
+        return PublicationOutcome(published=False)
+
+    monkeypatch.setattr("quality_graph.runtime.HttpGitHubPort.from_environment", from_environment)
+    monkeypatch.setattr("quality_graph.runtime.publish_workflow_run", publish)
+
+    assert main(["publish"]) == 0
+    assert observed == [port, {}]
 
 
 def test_collection_request_requires_explicit_environment(tmp_path: Path) -> None:

@@ -48,6 +48,7 @@ runs:
       id: runtime
       shell: bash
       env:
+        GITHUB_TOKEN: ${{ github.token }}
         QG_OPERATION: ${{ inputs.operation }}
         QG_NODE_ID: ${{ inputs.node-id }}
         QG_TITLE: ${{ inputs.title }}
