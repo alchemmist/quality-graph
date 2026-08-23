@@ -1,0 +1,156 @@
+{
+  "administration": {
+    "roles": [
+      "admin",
+      "maintain"
+    ]
+  },
+  "graphDigest": "586467a7319c6b9e057e3f78311906760f4a763a6615720385fc0551b0a25dd4",
+  "graphVersion": 0,
+  "labels": {
+    "enabled": true,
+    "failing": {
+      "color": "aa0000",
+      "create": true,
+      "description": "Quality checks failed",
+      "name": "quality:failed"
+    }
+  },
+  "manifestVersion": 0,
+  "nodes": [
+    {
+      "env": {
+        "FORMAT_MODE": "check",
+        "UV_NO_SYNC": "1"
+      },
+      "id": "format",
+      "needs": [],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "env": {
+          "FORMAT_MODE": "check"
+        },
+        "run": "make fmt-check"
+      },
+      "timeoutMinutes": 10,
+      "title": "Formatting"
+    },
+    {
+      "env": {
+        "UV_NO_SYNC": "1"
+      },
+      "failingLabel": {
+        "color": "ff0000",
+        "create": true,
+        "description": "Lint failed",
+        "name": "quality:lint"
+      },
+      "id": "lint",
+      "needs": [
+        "format"
+      ],
+      "policy": {
+        "approvals": {
+          "files": true,
+          "findings": false,
+          "node": true
+        },
+        "blocking": false,
+        "blockingSeverities": [
+          "error",
+          "warning"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "sarif",
+        "path": "reports/lint.sarif"
+      },
+      "step": {
+        "run": "make lint",
+        "shell": "bash",
+        "working-directory": "tools"
+      },
+      "timeoutMinutes": 45,
+      "title": "Lint"
+    }
+  ],
+  "profiles": {
+    "default": {
+      "container": "python:3.12",
+      "env": {},
+      "permissions": {
+        "contents": "read"
+      },
+      "runner": "ubuntu-latest",
+      "services": {
+        "redis": {
+          "image": "redis:7"
+        }
+      },
+      "setup": [
+        {
+          "env": {
+            "CHECKOUT_MODE": "safe"
+          },
+          "name": "Checkout",
+          "uses": "actions/checkout@v7",
+          "with": {
+            "persist-credentials": "false"
+          }
+        }
+      ],
+      "timeoutMinutes": 45
+    },
+    "python": {
+      "container": "python:3.12",
+      "env": {
+        "UV_NO_SYNC": "1"
+      },
+      "permissions": {
+        "actions": "none",
+        "contents": "read"
+      },
+      "runner": "ubuntu-latest",
+      "services": {
+        "redis": {
+          "image": "redis:7"
+        }
+      },
+      "setup": [
+        {
+          "env": {
+            "CHECKOUT_MODE": "safe"
+          },
+          "name": "Checkout",
+          "uses": "actions/checkout@v7",
+          "with": {
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "astral-sh/setup-uv@v7"
+        }
+      ],
+      "timeoutMinutes": 45
+    }
+  },
+  "resultSchemaVersion": 0,
+  "runtime": {
+    "action": "alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

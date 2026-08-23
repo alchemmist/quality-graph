@@ -4,7 +4,7 @@
       "admin"
     ]
   },
-  "graphDigest": "4a2b6fc2954aa8864c52a5b0414930569fdd709679b689e8aadbf892413ec178",
+  "graphDigest": "596dfb29586a4b62f2f4d34fad269b466e9302c33849483e8588bdc725cdac1c",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -141,9 +141,35 @@
     },
     {
       "env": {},
-      "id": "audit",
+      "id": "mutation",
       "needs": [
         "test"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make mutation-diff"
+      },
+      "title": "Changed decision mutation gate"
+    },
+    {
+      "env": {},
+      "id": "audit",
+      "needs": [
+        "mutation"
       ],
       "policy": {
         "approvals": {
@@ -204,6 +230,7 @@
         {
           "uses": "actions/checkout@v7",
           "with": {
+            "fetch-depth": "0",
             "persist-credentials": "false"
           }
         }
@@ -220,6 +247,7 @@
         {
           "uses": "actions/checkout@v7",
           "with": {
+            "fetch-depth": "0",
             "persist-credentials": "false"
           }
         },

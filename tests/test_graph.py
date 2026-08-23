@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 import yaml
 
@@ -59,6 +61,36 @@ administration:
   roles: [admin, maintain]
 """
 
+MAXIMAL_GRAPH = (
+    GRAPH.replace(
+        "runner: ubuntu-latest",
+        "runner: ubuntu-latest\n    timeout-minutes: 45\n    container: python:3.12\n"
+        "    services:\n      redis:\n        image: redis:7",
+    )
+    .replace("- uses: actions/checkout@v7", "- name: Checkout\n        uses: actions/checkout@v7")
+    .replace(
+        'persist-credentials: "false"',
+        'persist-credentials: "false"\n        env:\n          CHECKOUT_MODE: safe',
+    )
+    .replace('UV_NO_SYNC: "1"', 'UV_NO_SYNC: "1"\n    permissions:\n      actions: none')
+    .replace(
+        "run: make fmt-check",
+        "run: make fmt-check\n    env:\n      FORMAT_MODE: check\n    timeout-minutes: 10",
+    )
+    .replace("run: make lint", "run: make lint\n    working-directory: tools\n    shell: bash")
+    .replace(
+        "blocking-severities: [error, warning]",
+        "blocking: false\n      blocking-severities: [error, warning]",
+    )
+    .replace("files: true", "findings: false\n        files: true\n        node: true")
+    .replace("color: ff0000", "color: ff0000\n      description: Lint failed")
+    .replace(
+        "failing: quality:failed",
+        "failing:\n    name: quality:failed\n    color: aa0000\n"
+        "    description: Quality checks failed\n    create: true",
+    )
+)
+
 
 def test_graph_loads_profiles_nodes_policies_and_labels() -> None:
     graph = Graph.from_yaml(GRAPH)
@@ -73,6 +105,12 @@ def test_graph_loads_profiles_nodes_policies_and_labels() -> None:
     assert graph.nodes[1].failing_label == LabelSpec("quality:lint", "ff0000", create=True)
     assert graph.labels.failing == LabelSpec("quality:failed")
     assert graph.administrator_roles == ("admin", "maintain")
+
+
+def test_complete_graph_model_matches_contract_snapshot() -> None:
+    snapshot = Path(__file__).parent / "snapshots" / "graph.txt"
+
+    assert repr(Graph.from_yaml(MAXIMAL_GRAPH)) + "\n" == snapshot.read_text()
 
 
 def test_profile_inheritance_appends_setup_and_merges_mappings() -> None:

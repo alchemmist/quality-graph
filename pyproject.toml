@@ -151,5 +151,26 @@ exclude = ["*/.venv/*", "*/build/*", "*/mutants/*"]
 min_confidence = 80
 
 [tool.mutmut]
-paths_to_mutate = ["src/quality_graph"]
-pytest_add_cli_args = ["-q"]
+source_paths = ["src/quality_graph"]
+only_mutate = [
+  "src/quality_graph/compiler.py",
+  "src/quality_graph/commands.py",
+  "src/quality_graph/graph.py",
+  "src/quality_graph/policy.py",
+  "src/quality_graph/result.py",
+]
+also_copy = [
+  "scripts",
+  "examples",
+  "schemas",
+  "docs",
+  "action.yml",
+  "CONTRIBUTING.md",
+  "LICENSE",
+  "README.md",
+  "SECURITY.md",
+  "TASK.md",
+  "quality-graph.yml",
+]
+pytest_add_cli_args = ["-q", "-m", "not integration"]
+do_not_mutate_patterns = ["^\\s*message ="]

@@ -110,10 +110,18 @@ coverage:
 	uv run --locked --group test pytest -q --cov=quality_graph --cov-branch --cov-report=term-missing
 
 mutation:
-	uv run --locked --group mutation mutmut run
+	uv run --locked --group mutation mutmut run --max-children 1
+	uv run --locked --group mutation mutmut export-cicd-stats
+	uv run --locked python scripts/mutation_gate.py mutants/mutmut-cicd-stats.json
 
 mutation-diff:
-	uv run --locked --group mutation mutmut run
+	@if git diff --quiet "$(BASE)...HEAD" -- src/quality_graph/compiler.py \
+		src/quality_graph/commands.py src/quality_graph/graph.py \
+		src/quality_graph/policy.py src/quality_graph/result.py; then \
+		echo "No changed mutation-gated decision modules"; \
+	else \
+		$(MAKE) mutation; \
+	fi
 
 audit: tools
 	@requirements=$$(mktemp); \
