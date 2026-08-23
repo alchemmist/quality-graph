@@ -256,7 +256,7 @@ def _publication_workflow(graph: Graph) -> dict[str, JsonValue]:
         "checks": "write",
         "contents": "read",
         "issues": "write",
-        "pull-requests": "read",
+        "pull-requests": "write",
     }
     publish_job: dict[str, JsonValue] = {
         "name": "Publish Quality Graph",
@@ -282,7 +282,7 @@ def _publication_workflow(graph: Graph) -> dict[str, JsonValue]:
             "actions": "write",
             "contents": "read",
             "issues": "write",
-            "pull-requests": "read",
+            "pull-requests": "write",
         },
         "steps": [
             {

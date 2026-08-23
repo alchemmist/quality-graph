@@ -90,7 +90,9 @@ def test_publication_workflow_is_privileged_without_untrusted_checkout() -> None
     assert value["permissions"] == {}
     assert value["on"]["workflow_run"]["types"] == ["requested", "in_progress", "completed"]
     assert publish["permissions"]["actions"] == "read"
+    assert publish["permissions"]["pull-requests"] == "write"
     assert publish["permissions"]["checks"] == "write"
+    assert command["permissions"]["pull-requests"] == "write"
     assert publish["if"].endswith("workflow_run.event == 'pull_request'")
     assert command["permissions"]["actions"] == "write"
     assert "actions/checkout" not in serialized
