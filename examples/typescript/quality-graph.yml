@@ -4,7 +4,7 @@ provider:
   name: github
   configuration:
     runtime:
-      action: alchemmist/quality-graph@1c69de93a83157fde21a0a3beaf14d13d111016e
+      action: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
 profiles:
   default:
     runner: ubuntu-latest
