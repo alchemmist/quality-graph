@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from importlib.metadata import entry_points
+from importlib.metadata import entry_points, version
 
 from quality_graph_core.provider import Provider
 
 PROVIDER_GROUP = "qg.providers"
+CLI_VERSION = version("quality-graph-cli")
 
 
 class ProviderNotInstalledError(ValueError):
@@ -19,8 +20,8 @@ def load_provider(name: str) -> Provider:
     if not matches:
         message = (
             f"Provider '{name}' is not installed. "
-            "Install it with: uv tool install quality-graph-cli "
-            f"--with quality-graph-{name}"
+            f"Install it with: uv tool install quality-graph-cli=={CLI_VERSION} "
+            f"--with quality-graph-{name}=={CLI_VERSION}"
         )
         raise ProviderNotInstalledError(message)
     if len(matches) != 1:
