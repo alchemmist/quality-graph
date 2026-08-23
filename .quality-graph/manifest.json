@@ -1,0 +1,166 @@
+{
+  "administration": {
+    "roles": [
+      "admin"
+    ]
+  },
+  "graphDigest": "a27a16b54a3502976d2812235d5c75f6586198b22f9c82bbad761b2860c4a3e1",
+  "graphVersion": 0,
+  "labels": {
+    "enabled": false
+  },
+  "manifestVersion": 0,
+  "nodes": [
+    {
+      "env": {},
+      "id": "format",
+      "needs": [],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make fmt-check"
+      },
+      "title": "Format check"
+    },
+    {
+      "env": {},
+      "id": "type",
+      "needs": [
+        "format"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make type"
+      },
+      "title": "Type check"
+    },
+    {
+      "env": {},
+      "id": "test",
+      "needs": [
+        "type"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make coverage"
+      },
+      "title": "Tests and coverage"
+    },
+    {
+      "env": {},
+      "id": "package",
+      "needs": [
+        "test"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make package"
+      },
+      "title": "Package"
+    }
+  ],
+  "profiles": {
+    "default": {
+      "env": {},
+      "permissions": {
+        "contents": "read"
+      },
+      "runner": "ubuntu-latest",
+      "services": {},
+      "setup": [
+        {
+          "uses": "actions/checkout@v7",
+          "with": {
+            "persist-credentials": "false"
+          }
+        }
+      ]
+    },
+    "python": {
+      "env": {},
+      "permissions": {
+        "contents": "read"
+      },
+      "runner": "ubuntu-latest",
+      "services": {},
+      "setup": [
+        {
+          "uses": "actions/checkout@v7",
+          "with": {
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "astral-sh/setup-uv@v7",
+          "with": {
+            "cache-dependency-glob": "uv.lock",
+            "enable-cache": "true"
+          }
+        },
+        {
+          "name": "Install locked dependencies",
+          "run": "uv sync --locked --all-groups"
+        }
+      ]
+    }
+  },
+  "resultSchemaVersion": 0,
+  "runtime": {
+    "action": "alchemmist/quality-graph@4707114b53f3add10c3fe0e4dfc673944768c498"
+  }
+}

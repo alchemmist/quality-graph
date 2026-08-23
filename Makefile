@@ -4,7 +4,7 @@ BASE ?= origin/main
 
 .DEFAULT_GOAL := check
 
-.PHONY: install schemas schemas-check fmt fmt-check lint type analyze test test-unit test-integration coverage \
+.PHONY: install schemas schemas-check graph-generate graph-validate fmt fmt-check lint type analyze test test-unit test-integration coverage \
 	mutation mutation-diff audit package check clean
 
 install:
@@ -19,12 +19,18 @@ schemas-check:
 	cmp schemas/result-v0.schema.json "$$schema"; status=$$?; \
 	rm -f "$$schema"; exit $$status
 
-fmt: schemas
+graph-generate:
+	uv run --locked qg generate
+
+graph-validate:
+	uv run --locked qg validate
+
+fmt: schemas graph-generate
 	uv run --locked --group format ruff check $(PYTHON_SOURCES) --fix
 	uv run --locked --group format ruff format $(PYTHON_SOURCES)
 	uv run --locked --group format mdformat README.md
 
-fmt-check: schemas-check
+fmt-check: schemas-check graph-validate
 	uv run --locked --group format ruff check $(PYTHON_SOURCES)
 	uv run --locked --group format ruff format --check $(PYTHON_SOURCES)
 	uv run --locked --group format mdformat --check README.md
