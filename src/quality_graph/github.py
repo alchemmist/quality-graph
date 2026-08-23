@@ -22,6 +22,8 @@ GITHUB_PAGE_SIZE = 100
 class GitHubPort(Protocol):
     """Describe the single request interface required by GitHub modules."""
 
+    repository: str
+
     def request(self, method: str, path: str, payload: JsonValue = None) -> JsonValue:
         """Execute one GitHub request and return decoded JSON."""
         ...
@@ -127,6 +129,7 @@ class MemoryGitHubPort:
     downloads: dict[str, bytes] = field(default_factory=dict)
     requests: list[tuple[str, str, JsonValue]] = field(default_factory=list)
     downloaded: list[str] = field(default_factory=list)
+    repository: str = "owner/repository"
 
     def enqueue(self, method: str, path: str, *responses: JsonValue) -> None:
         """Queue one or more responses for an exact request."""

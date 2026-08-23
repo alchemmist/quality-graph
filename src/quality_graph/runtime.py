@@ -20,7 +20,9 @@ from quality_graph.adapters import (
     read_report,
 )
 from quality_graph.annotations import publish_annotations
+from quality_graph.github import HttpGitHubPort
 from quality_graph.graph import AdapterKind
+from quality_graph.publication import publish_workflow_run, read_event_json
 from quality_graph.reporting import append_job_summary
 from quality_graph.result import FailureKind, JsonValue, Provenance, Result, ResultStatus
 
@@ -114,13 +116,17 @@ def publish_collection(request: CollectionRequest, result: Result) -> int:
 def main(arguments: Sequence[str] | None = None) -> int:
     """Run one generated-workflow runtime operation."""
     operation = list(arguments if arguments is not None else sys.argv[1:])
-    if operation != ["collect"]:
-        message = f"Unsupported Quality Graph runtime operation: {' '.join(operation)}"
-        raise SystemExit(message)
-    event = _read_event(Path(os.environ["GITHUB_EVENT_PATH"]))
-    request = CollectionRequest.from_environment(os.environ, event)
-    publish_collection(request, collect(request))
-    return 0
+    if operation == ["collect"]:
+        event = _read_event(Path(os.environ["GITHUB_EVENT_PATH"]))
+        request = CollectionRequest.from_environment(os.environ, event)
+        publish_collection(request, collect(request))
+        return 0
+    if operation == ["publish"]:
+        event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+        publish_workflow_run(HttpGitHubPort.from_environment(), event)
+        return 0
+    message = f"Unsupported Quality Graph runtime operation: {' '.join(operation)}"
+    raise SystemExit(message)
 
 
 def _provenance(
