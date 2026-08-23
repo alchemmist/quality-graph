@@ -25,7 +25,7 @@ PROVENANCE_ARGUMENTS = [
 
 
 def test_version_is_available_through_package_and_cli(capsys: pytest.CaptureFixture[str]) -> None:
-    assert __version__ == "0.1.1"
+    assert __version__ == "0.1.2"
     assert parser().prog == "qg"
     assert main([]) == 0
     assert "Quality Graph" in capsys.readouterr().out
