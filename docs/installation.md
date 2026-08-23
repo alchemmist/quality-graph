@@ -5,7 +5,7 @@ Action to the commit attached to that release, never to a mutable branch or majo
 
 ```bash
 export QG_SHA=<40-character-commit-shown-on-the-v0.1.0-release>
-uv tool install qg==0.1.0 --with quality-graph-github==0.1.0
+uv tool install quality-graph-cli==0.1.1 --with quality-graph-github==0.1.1
 qg init --root ../project \
   --runtime-action "alchemmist/quality-graph@$QG_SHA"
 ```
@@ -33,7 +33,8 @@ The generated files are:
 Review and update both the installed CLI commit and
 `provider.configuration.runtime.action` together.
 
-The workspace builds four distributions independently. Installing `qg` without a provider is
-supported, but provider-backed project commands fail with an actionable installation message.
+The workspace builds four distributions independently. Installing `quality-graph-cli` without a
+provider is supported, but provider-backed project commands fail with an actionable installation
+message.
 `quality-graph-python` is optional and can be installed separately for reusable Python quality
 gates.

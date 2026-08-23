@@ -10,7 +10,7 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "qg",
+    "quality-graph-cli",
     "quality-graph-core",
     "quality-graph-github",
     "quality-graph-python",
@@ -2046,8 +2046,8 @@ wheels = [
 ]
 
 [[package]]
-name = "qg"
-version = "0.1.0"
+name = "quality-graph-cli"
+version = "0.1.1"
 source = { editable = "apps/qg" }
 dependencies = [
     { name = "quality-graph-core" },
@@ -2058,7 +2058,7 @@ requires-dist = [{ name = "quality-graph-core", editable = "packages/core" }]
 
 [[package]]
 name = "quality-graph-core"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/core" }
 dependencies = [
     { name = "defusedxml" },
@@ -2073,7 +2073,7 @@ requires-dist = [
 
 [[package]]
 name = "quality-graph-github"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/github" }
 dependencies = [
     { name = "httpx" },
@@ -2092,7 +2092,7 @@ requires-dist = [
 
 [[package]]
 name = "quality-graph-python"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/python" }
 dependencies = [
     { name = "anyio" },

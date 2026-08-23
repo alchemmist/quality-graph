@@ -47,7 +47,7 @@ def test_provider_discovery_reports_actionable_missing_package(
 
     with pytest.raises(
         ProviderNotInstalledError,
-        match="uv tool install qg --with quality-graph-gitlab",
+        match="uv tool install quality-graph-cli --with quality-graph-gitlab",
     ):
         load_provider("gitlab")
 

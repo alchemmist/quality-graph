@@ -19,7 +19,8 @@ def load_provider(name: str) -> Provider:
     if not matches:
         message = (
             f"Provider '{name}' is not installed. "
-            f"Install it with: uv tool install qg --with quality-graph-{name}"
+            "Install it with: uv tool install quality-graph-cli "
+            f"--with quality-graph-{name}"
         )
         raise ProviderNotInstalledError(message)
     if len(matches) != 1:
