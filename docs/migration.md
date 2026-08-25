@@ -1,0 +1,106 @@
+# Migrating an existing repository
+
+Migrate orchestration before deleting working checks. Existing commands remain the behavioral
+baseline; Quality Graph initially calls the same Make targets and report producers.
+
+## 1. Inventory the current pipeline
+
+For every existing job, record:
+
+- its command and setup requirements;
+- dependencies on other jobs;
+- required runner, container, services, and environment variables;
+- report files such as SARIF or JUnit XML;
+- permissions, secrets, artifacts, labels, and required-check status.
+
+Separate portable quality checks from repository-specific deployment or credential-bearing jobs.
+Quality Graph pull-request execution is secretless by default; do not move privileged deployment
+steps into the graph.
+
+## 2. Install without changing required checks
+
+```bash
+uv add --dev \
+  quality-graph-cli==0.1.2 \
+  quality-graph-github==0.1.2
+```
+
+Add `quality-graph-python==0.1.2` when reusing its optional Python gates. Keep the old workflows
+enabled during migration.
+
+## 3. Map jobs to graph nodes
+
+Use one node per independently useful GitHub job. Preserve parallel branches and encode only real
+dependencies in `needs`.
+
+```yaml
+nodes:
+  lint:
+    run: make lint
+    results:
+      sarif: reports/lint.sarif
+
+  unit:
+    needs: [lint]
+    run: make test-unit
+    results:
+      junit: reports/unit.xml
+
+  integration:
+    needs: [lint]
+    run: make test-integration
+    results:
+      junit: reports/integration.xml
+```
+
+Do not copy arbitrary workflow YAML into the declaration. Put repeated runner/setup behavior in a
+profile and leave deployment, release, and credential-bearing workflows outside the graph.
+
+## 4. Bootstrap generated files
+
+```bash
+uv run qg init \
+  --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
+uv run qg generate
+uv run qg validate
+```
+
+If a declaration was prepared manually, skip `init` and run `generate` directly.
+
+The bootstrap pull request may show an incomplete or failing aggregate dashboard because the
+trusted publisher evaluates topology from the base branch. Review the generated workflows and
+individual execution jobs, merge the bootstrap, then open a probe pull request from the updated
+default branch.
+
+## 5. Compare old and new results
+
+Keep both systems active for at least one representative pull request. Compare:
+
+- commands and exit codes;
+- job dependencies and parallelism;
+- findings, annotations, summaries, and report counts;
+- fork behavior and permissions;
+- required checks and branch protection.
+
+Investigate differences before changing required-check policy. A green replacement is not proof
+of parity if a command, report adapter, or changed-file base was silently omitted.
+
+## 6. Switch governance
+
+After the probe is green:
+
+1. make the aggregate `Quality Graph` check required;
+1. remove superseded old required checks;
+1. delete only workflows and scripts whose behavior is now represented elsewhere;
+1. retain repository-specific commands called by graph nodes;
+1. run `uv run qg validate` after the cleanup.
+
+Generated workflows are outputs, not customization points. Change `quality-graph.yml`, regenerate,
+and commit source and outputs together.
+
+## Monori-shaped repositories
+
+A repository with a mature internal graph should migrate node-by-node rather than importing its
+orchestrator implementation. Reuse proven Make targets, report producers, quality policies, and
+Python gates. Replace internal dashboard, artifact, authorization, and workflow mechanics with the
+public provider instead of running two lifecycle implementations permanently.

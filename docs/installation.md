@@ -3,12 +3,34 @@
 Install the CLI and GitHub provider from the same exact release. Pin the generated runtime
 Action to the commit attached to that release, never to a mutable branch or major-version tag.
 
+## Repository-pinned installation
+
+Use repository dev dependencies when every contributor and CI job should receive the same
+Quality Graph version through the existing lockfile:
+
 ```bash
-export QG_SHA=<40-character-commit-shown-on-the-v0.1.2-release>
-uv tool install quality-graph-cli==0.1.2 --with quality-graph-github==0.1.2
-qg init --root ../project \
-  --runtime-action "alchemmist/quality-graph@$QG_SHA"
+uv add --dev quality-graph-cli==0.1.2 quality-graph-github==0.1.2
+uv run qg init \
+  --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
 ```
+
+Add `quality-graph-python==0.1.2` to the same command only when the repository uses the optional
+Python gates.
+
+## User-level tool installation
+
+Use an isolated uv tool when operating on several repositories without adding the CLI itself to
+their dependencies:
+
+```bash
+uv tool install quality-graph-cli==0.1.2 --with quality-graph-github==0.1.2
+qg --version
+```
+
+The repository-pinned form is preferable for CI and shared development. The user-level form is
+convenient for evaluation and administration. Do not mix CLI and provider versions.
+
+## Initialize and generate
 
 `qg init` creates `quality-graph.yml`. Use `--preset internal` only to select a self-hosted
 starter runner; it does not grant credentials or write permissions. Existing declarations
@@ -17,8 +39,9 @@ are preserved unless `--force` is explicit.
 Generate and commit observable GitHub files:
 
 ```bash
-qg generate --root ../project
-(cd ../project && git add quality-graph.yml .github/workflows .quality-graph/manifest.json)
+uv run qg generate
+uv run qg validate
+git add quality-graph.yml .github/workflows .quality-graph/manifest.json
 ```
 
 `qg validate` recomputes output in memory and fails for an invalid declaration, a missing
@@ -38,3 +61,6 @@ provider is supported, but provider-backed project commands fail with an actiona
 message.
 `quality-graph-python` is optional and can be installed separately for reusable Python quality
 gates.
+
+Continue with the [quickstart](quickstart.md), or follow the staged
+[migration guide](migration.md) for an existing CI repository.

@@ -36,12 +36,22 @@ nodes:
       junit: reports/tests.xml
 ```
 
+## Quickstart
+
+Install a repository-pinned toolchain:
+
 ```bash
-uv tool install quality-graph-cli==0.1.2 --with quality-graph-github==0.1.2
-qg init --runtime-action 'alchemmist/quality-graph@<release-commit-sha>'
-qg generate
-git add quality-graph.yml .github/workflows .quality-graph/manifest.json
+uv add --dev quality-graph-cli==0.1.2 quality-graph-github==0.1.2
+uv run qg init \
+  --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
+uv run qg generate
+uv run qg validate
+git add pyproject.toml uv.lock quality-graph.yml .github/workflows .quality-graph
 ```
+
+Edit `quality-graph.yml` so each node runs an existing repository command. Run
+`uv run qg generate` after every graph change and commit the declaration together with all
+generated files.
 
 Generated workflows preserve independent runners, native dependencies, logs, summaries,
 statuses, and retries. Pull-request code receives no secrets or write token. A separate
@@ -70,6 +80,10 @@ the GitHub provider.
 ## Documentation
 
 - [Installation and generation](docs/installation.md)
+- [Quickstart](docs/quickstart.md)
+- [Migrating an existing repository](docs/migration.md)
+- [Python quality gates](packages/python/README.md)
+- [Troubleshooting](docs/troubleshooting.md)
 - [Configuration reference](docs/configuration.md)
 - [Provider authoring](docs/provider-authoring.md)
 - [Result protocol](docs/result-protocol.md)
