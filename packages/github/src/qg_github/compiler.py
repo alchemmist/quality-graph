@@ -81,6 +81,10 @@ def _validate_github_graph(graph: Graph) -> str:
             _validate_step(step)
     for node in graph.nodes:
         _validate_step(node.step)
+    titles = [node.title for node in graph.nodes]
+    if len(set(titles)) != len(titles):
+        message = "GitHub dashboard requires unique node titles"
+        raise ValueError(message)
     return action
 
 
@@ -339,7 +343,11 @@ def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
             {
                 "name": "Publish trusted Quality Graph state",
                 "uses": runtime_action,
-                "with": {"operation": "publish"},
+                "with": {
+                    "operation": (
+                        "${{ github.event.action == 'completed' && 'publish' || 'watch' }}"
+                    )
+                },
             }
         ],
     }
@@ -366,7 +374,7 @@ def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
         "on": {
             "workflow_run": {
                 "workflows": ["Quality Graph"],
-                "types": ["requested", "in_progress", "completed"],
+                "types": ["requested", "completed"],
             },
             "issue_comment": {"types": ["created", "edited"]},
         },

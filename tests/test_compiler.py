@@ -102,7 +102,8 @@ def test_publication_workflow_is_privileged_without_untrusted_checkout() -> None
     serialized = generated()[str(PUBLICATION_WORKFLOW)]
 
     assert value["permissions"] == {}
-    assert value["on"]["workflow_run"]["types"] == ["requested", "in_progress", "completed"]
+    assert value["on"]["workflow_run"]["types"] == ["requested", "completed"]
+    assert publish["steps"][0]["with"]["operation"].endswith("'publish' || 'watch' }}")
     assert publish["permissions"]["actions"] == "read"
     assert publish["permissions"]["pull-requests"] == "write"
     assert publish["permissions"]["checks"] == "write"
@@ -156,6 +157,7 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
         ),
         (GRAPH.replace(RUNTIME, "alchemmist/quality-graph@main"), "40-character-commit"),
         (GRAPH.replace("name: github", "name: gitlab"), "cannot compile provider"),
+        (GRAPH.replace("title: Lint", "title: Formatting"), "unique node titles"),
         (
             GRAPH.replace("    runtime:\n", "    unknown: true\n    runtime:\n"),
             "unknown configuration",

@@ -7,7 +7,6 @@ name: Quality Graph Publisher
       - Quality Graph
     types:
       - requested
-      - in_progress
       - completed
   issue_comment:
     types:
@@ -32,7 +31,7 @@ jobs:
       - name: Publish trusted Quality Graph state
         uses: alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
         with:
-          operation: publish
+          operation: ${{ github.event.action == 'completed' && 'publish' || 'watch' }}
   command:
     name: Handle Quality Graph command
     if: github.event_name == 'issue_comment' && github.event.issue.pull_request

@@ -8,7 +8,13 @@ import pytest
 
 from qg_github.github import MemoryGitHubPort
 from qg_github.publication import PublicationOutcome
-from qg_github.runtime import CollectionRequest, collect, entrypoint, main, publish_collection
+from qg_github.runtime import (
+    CollectionRequest,
+    collect,
+    entrypoint,
+    main,
+    publish_collection,
+)
 from quality_graph_core.graph import AdapterKind
 from quality_graph_core.result import FailureKind, ResultStatus
 
@@ -164,6 +170,11 @@ def test_runtime_main_dispatches_publication(
     monkeypatch.setattr("qg_github.runtime.publish_workflow_run", publish)
 
     assert main(["publish"]) == 0
+    assert observed == [port, {}]
+
+    observed.clear()
+    monkeypatch.setattr("qg_github.runtime.watch_workflow_run", publish)
+    assert main(["watch"]) == 0
     assert observed == [port, {}]
 
     observed.clear()

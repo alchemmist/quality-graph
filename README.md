@@ -54,9 +54,9 @@ Edit `quality-graph.yml` so each node runs an existing repository command. Run
 generated files.
 
 Generated workflows preserve independent runners, native dependencies, logs, summaries,
-statuses, and retries. Pull-request code receives no secrets or write token. A separate
-default-branch `workflow_run` publisher treats artifacts as untrusted data before updating
-GitHub state.
+statuses, and retries. Pull-request code receives no secrets or write token. A single trusted
+default-branch `workflow_run` publisher watches native GitHub job lifecycle without checking out
+pull-request code, serializes live dashboard updates, and treats final artifacts as untrusted data.
 
 The project is a functional pre-release. Configuration and result protocol version `0` may
 change without migration tooling. Do not use a mutable Action ref.

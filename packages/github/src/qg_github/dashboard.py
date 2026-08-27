@@ -68,6 +68,14 @@ class DashboardRun:
     url: str
 
 
+@dataclass(frozen=True)
+class DashboardNode:
+    """Identify one graph node in live GitHub job state."""
+
+    node_id: str
+    title: str
+
+
 def load_results(directory: Path) -> dict[str, Result]:
     """Load the newest artifact attempt for every node."""
     results: dict[str, Result] = {}
@@ -166,6 +174,36 @@ def pending_dashboard(
         run.head_sha,
         rows,
         managed_labels=configured_label_names(graph),
+    )
+
+
+def live_dashboard(
+    nodes: tuple[DashboardNode, ...],
+    statuses: Mapping[str, ResultStatus],
+    run: DashboardRun,
+    *,
+    managed_labels: tuple[str, ...] = (),
+) -> DashboardModel:
+    """Build a live dashboard from authoritative GitHub job statuses."""
+    rows = tuple(
+        DashboardRow(
+            node.node_id,
+            node.title,
+            statuses.get(node.node_id, ResultStatus.WAITING),
+            "—",
+            f"{run.url}#quality-graph-{node.node_id}",
+            run.url,
+        )
+        for node in nodes
+    )
+    return DashboardModel(
+        ResultStatus.IN_PROGRESS,
+        "The current Quality Graph run is in progress.",
+        run.id,
+        run.attempt,
+        run.head_sha,
+        rows,
+        managed_labels=managed_labels,
     )
 
 

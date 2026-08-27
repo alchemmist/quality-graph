@@ -12,7 +12,11 @@ from typing import TYPE_CHECKING, cast
 from qg_github.annotations import escape_data, publish_annotations
 from qg_github.commands import handle_command
 from qg_github.github import HttpGitHubPort
-from qg_github.publication import publish_workflow_run, read_event_json
+from qg_github.publication import (
+    publish_workflow_run,
+    read_event_json,
+    watch_workflow_run,
+)
 from qg_github.reporting import append_job_summary
 from quality_graph_core.adapters import (
     AdapterContext,
@@ -142,6 +146,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if operation == ["publish"]:
         event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
         publish_workflow_run(HttpGitHubPort.from_environment(), event)
+        return 0
+    if operation == ["watch"]:
+        event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+        watch_workflow_run(HttpGitHubPort.from_environment(), event)
         return 0
     if operation == ["command"]:
         event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())

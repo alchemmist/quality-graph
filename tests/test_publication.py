@@ -10,16 +10,21 @@ from qg_github.comments import marker
 from qg_github.compiler import compile_graph
 from qg_github.github import MemoryGitHubPort
 from qg_github.publication import (
+    DashboardNode,
+    DashboardRun,
     PublicationOutcome,
     WorkflowRunEvent,
+    publish_workflow_jobs,
     publish_workflow_run,
     read_event_json,
+    watch_workflow_run,
 )
 from quality_graph_core.graph import Graph
 from quality_graph_core.result import Provenance, Result, ResultStatus
 from tests.test_graph import GRAPH
 
 RUNS_PATH = "/actions/workflows/quality-graph.yml/runs?event=pull_request&per_page=100&page=1"
+JOBS_PATH = "/actions/runs/10/jobs?filter=latest&per_page=100&page=1"
 
 
 def event(action: str = "in_progress", *, pull: bool = True) -> dict[str, object]:
@@ -83,42 +88,88 @@ def artifact(artifact_id: int, node_id: str, archive: bytes) -> dict[str, object
     }
 
 
-def test_in_progress_event_publishes_pending_dashboard_and_check() -> None:
+def test_final_publisher_ignores_non_completed_events() -> None:
     port = MemoryGitHubPort()
-    configure_publication(port)
 
     outcome = publish_workflow_run(port, event())
 
-    assert outcome == PublicationOutcome(
-        published=True,
-        status=ResultStatus.IN_PROGRESS,
-        comment_id=5,
+    assert outcome == PublicationOutcome(published=False)
+    assert port.requests == []
+
+
+def test_job_coordinator_merges_parallel_job_lifecycle_without_lost_updates() -> None:
+    port = MemoryGitHubPort()
+    nodes = (DashboardNode("format", "Formatting"), DashboardNode("lint", "Lint"))
+    port.enqueue(
+        "GET",
+        JOBS_PATH,
+        {
+            "total_count": 2,
+            "jobs": [
+                {"name": "Formatting", "status": "in_progress"},
+                {"name": "Lint", "status": "queued"},
+            ],
+        },
+        {
+            "total_count": 2,
+            "jobs": [
+                {"name": "Formatting", "status": "completed", "conclusion": "success"},
+                {"name": "Lint", "status": "in_progress"},
+            ],
+        },
     )
-    comment_request = next(
+    comments = "/issues/42/comments?per_page=100&page=1"
+    port.enqueue("GET", comments, [])
+    port.enqueue("POST", "/issues/42/comments", {"id": 5, "body": marker("dashboard")})
+    port.enqueue(
+        "GET",
+        comments,
+        [{"id": 5, "body": marker("dashboard"), "user": {"login": "github-actions[bot]"}}],
+    )
+    port.enqueue("PATCH", "/issues/comments/5", {"id": 5, "body": marker("dashboard")})
+    run = DashboardRun(10, 1, "a" * 40, "https://example.test/run/10")
+
+    assert publish_workflow_jobs(port, 42, nodes, run) is False
+    assert publish_workflow_jobs(port, 42, nodes, run) is False
+
+    writes = [request[2]["body"] for request in port.requests if request[0] in {"POST", "PATCH"}]
+    assert "| Formatting | 🚀 in_progress |" in writes[0]
+    assert "| Lint | ⏳ waiting |" in writes[0]
+    assert "| Formatting | ✅ passed |" in writes[1]
+    assert "| Lint | 🚀 in_progress |" in writes[1]
+
+
+def test_requested_event_watches_jobs_until_every_node_is_terminal() -> None:
+    port = MemoryGitHubPort()
+    configure_publication(port)
+    port.enqueue(
+        "GET",
+        JOBS_PATH,
+        {
+            "total_count": 2,
+            "jobs": [
+                {"name": "Formatting", "status": "completed", "conclusion": "success"},
+                {"name": "Lint", "status": "completed", "conclusion": "failure"},
+            ],
+        },
+    )
+
+    outcome = watch_workflow_run(port, event("requested"), sleep=lambda _: None)
+
+    assert outcome == PublicationOutcome(published=True, status=ResultStatus.IN_PROGRESS)
+    comment = next(
         request for request in port.requests if request[0] == "POST" and "comments" in request[1]
     )
-    assert "## 🚀 Quality Graph" in comment_request[2]["body"]
-    assert "| Formatting | 🚀 in_progress |" in comment_request[2]["body"]
-    assert "| Lint | ⏳ waiting |" in comment_request[2]["body"]
-    check = port.requests[-1]
-    assert check[1] == "/check-runs"
-    assert check[2]["status"] == "in_progress"
-    assert "conclusion" not in check[2]
+    assert "| Formatting | ✅ passed |" in comment[2]["body"]
+    assert "| Lint | ❌ failed |" in comment[2]["body"]
 
 
-def test_in_progress_event_preserves_previous_owned_labels() -> None:
+def test_job_coordinator_preserves_previous_owned_labels() -> None:
     port = MemoryGitHubPort()
     port.enqueue(
         "GET",
-        "/pulls/42",
-        {"head": {"sha": "a" * 40}, "base": {"sha": "d" * 40}},
-    )
-    port.enqueue("GET", RUNS_PATH, {"workflow_runs": []})
-    content = base64.b64encode(GRAPH.encode()).decode()
-    port.enqueue(
-        "GET",
-        f"/contents/quality-graph.yml?ref={'d' * 40}",
-        {"content": content},
+        JOBS_PATH,
+        {"jobs": [{"name": "Formatting", "status": "in_progress"}]},
     )
     comments = "/issues/42/comments?per_page=100&page=1"
     existing = {
@@ -128,11 +179,14 @@ def test_in_progress_event_preserves_previous_owned_labels() -> None:
     }
     port.enqueue("GET", comments, [existing])
     port.enqueue("PATCH", "/issues/comments/5", {"id": 5, "body": "updated"})
-    port.enqueue("POST", "/check-runs", {"id": 100})
 
-    outcome = publish_workflow_run(port, event())
+    publish_workflow_jobs(
+        port,
+        42,
+        (DashboardNode("format", "Formatting"),),
+        DashboardRun(10, 1, "a" * 40, "https://example.test/run/10"),
+    )
 
-    assert outcome.published is True
     patch = next(request for request in port.requests if request[0] == "PATCH")
     assert "WyJvbGQiXQ" in patch[2]["body"]
 
@@ -208,7 +262,7 @@ def test_publisher_rejects_stale_head_and_superseded_run() -> None:
         "/pulls/42",
         {"head": {"sha": "e" * 40}, "base": {"sha": "d" * 40}},
     )
-    assert publish_workflow_run(stale_head, event()).published is False
+    assert publish_workflow_run(stale_head, event("completed")).published is False
 
     superseded = MemoryGitHubPort()
     superseded.enqueue(
@@ -221,7 +275,7 @@ def test_publisher_rejects_stale_head_and_superseded_run() -> None:
         RUNS_PATH,
         {"workflow_runs": [{"id": 11, "pull_requests": [{"number": 42}]}]},
     )
-    assert publish_workflow_run(superseded, event()).published is False
+    assert publish_workflow_run(superseded, event("completed")).published is False
 
 
 def test_publisher_ignores_non_pull_request_workflow_runs() -> None:
@@ -234,23 +288,23 @@ def test_publisher_ignores_non_pull_request_workflow_runs() -> None:
 def test_publisher_resolves_pull_from_commit_and_handles_no_association() -> None:
     missing = MemoryGitHubPort()
     missing.enqueue("GET", f"/commits/{'c' * 40}/pulls", [])
-    assert publish_workflow_run(missing, event(pull=False)).published is False
+    assert publish_workflow_run(missing, event("completed", pull=False)).published is False
 
     missing_number = MemoryGitHubPort()
     missing_number.enqueue("GET", f"/commits/{'c' * 40}/pulls", [{}])
-    assert publish_workflow_run(missing_number, event(pull=False)).published is False
+    assert publish_workflow_run(missing_number, event("completed", pull=False)).published is False
 
     resolved = MemoryGitHubPort()
     resolved.enqueue("GET", f"/commits/{'c' * 40}/pulls", [{"number": 41}, {"number": 42}])
     configure_publication(resolved)
-    assert publish_workflow_run(resolved, event(pull=False)).published is True
+    resolved.enqueue("GET", "/actions/runs/10/artifacts?per_page=100&page=1", {"artifacts": []})
+    assert publish_workflow_run(resolved, event("completed", pull=False)).published is True
 
 
 def test_publisher_rejects_unknown_action_and_invalid_event_values() -> None:
     port = MemoryGitHubPort()
     configure_publication(port)
-    with pytest.raises(ValueError, match="unsupported"):
-        publish_workflow_run(port, event("cancelled"))
+    assert publish_workflow_run(port, event("cancelled")).published is False
 
     with pytest.raises(TypeError, match="GitHub event"):
         read_event_json("[]")
@@ -330,4 +384,4 @@ def test_publisher_rejects_invalid_base_configuration_encoding() -> None:
     port.enqueue("GET", f"/contents/quality-graph.yml?ref={'d' * 40}", {"content": "%%%"})
 
     with pytest.raises(ValueError, match="base64"):
-        publish_workflow_run(port, event())
+        publish_workflow_run(port, event("completed"))
