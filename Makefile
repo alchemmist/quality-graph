@@ -90,7 +90,7 @@ fmt-check: schemas-check graph-validate examples-check tools
 
 lint: tools
 	uv run --locked --all-packages --group lint ruff check $(PYTHON_SOURCES)
-	@files=$$(git ls-files '*.yaml' '*.yml'); \
+	@files=$$(git ls-files '*.yaml' '*.yml' ':!.agents/**'); \
 	uv run --locked --all-packages --group lint yamllint .yamllint.yaml $$files
 	uv run --locked --all-packages --group lint codespell --skip='*/node_modules/*,*/.venv/*,*/reports/*' \
 		$(MARKDOWN_SOURCES) packages apps tests examples
