@@ -4,7 +4,7 @@
       "admin"
     ]
   },
-  "graphDigest": "6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4",
+  "graphDigest": "6cf080363c0cd1d7755095df6edeb8e6b588a50c9a11ba517e6385294cb25960",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -90,6 +90,6 @@
   "provider": "github",
   "resultSchemaVersion": 0,
   "runtime": {
-    "action": "alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d"
+    "action": "alchemmist/quality-graph@cba464e01e2a0b2eb470d4eb9fc107ee1ad71128"
   }
 }

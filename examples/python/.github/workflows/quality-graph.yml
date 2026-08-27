@@ -33,7 +33,7 @@ jobs:
       - name: Collect Ruff result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@cba464e01e2a0b2eb470d4eb9fc107ee1ad71128
         with:
           operation: collect
           node-id: lint
@@ -41,7 +41,7 @@ jobs:
           adapter: sarif
           report-path: reports/ruff.sarif
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 08ee6b137059bff8cf2a6bf1d874e35d6b7e2d937f5abb136ac69fd1d2b04404
+          graph-digest: b7a86ccdfc359d3bba2a1aeef5f1ccf7f53dfb81ab29a87c0e5f6d3743a3e739
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -77,7 +77,7 @@ jobs:
       - name: Collect Pytest result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@cba464e01e2a0b2eb470d4eb9fc107ee1ad71128
         with:
           operation: collect
           node-id: test
@@ -85,7 +85,7 @@ jobs:
           adapter: junit
           report-path: reports/pytest.xml
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 08ee6b137059bff8cf2a6bf1d874e35d6b7e2d937f5abb136ac69fd1d2b04404
+          graph-digest: b7a86ccdfc359d3bba2a1aeef5f1ccf7f53dfb81ab29a87c0e5f6d3743a3e739
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
