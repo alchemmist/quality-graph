@@ -1,5 +1,5 @@
 <h2>
-  <img src="docs/assets/quality-graph-eye.svg" width="52" alt="Quality Graph logo" align="middle">
+  <img src="docs/assets/quality-graph-eye.svg" width="72" alt="Quality Graph logo" align="middle">
   Quality Graph
 </h2>
 
