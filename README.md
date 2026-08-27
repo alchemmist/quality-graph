@@ -1,14 +1,24 @@
-# Quality Graph
+<h2>
+  <img src="docs/assets/quality-graph-eye.svg" width="52" alt="Quality Graph logo" align="middle">
+  Quality Graph
+</h2>
 
-[![Quality Graph](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml/badge.svg?branch=main)](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml)
+[![CI](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml/badge.svg?branch=main)](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml)
+[![Documentation](https://github.com/alchemmist/quality-graph/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/alchemmist/quality-graph/actions/workflows/pages.yml)
+[![PyPI](https://img.shields.io/pypi/v/quality-graph-cli)](https://pypi.org/project/quality-graph-cli/)
+[![License](https://img.shields.io/github/license/alchemmist/quality-graph)](LICENSE)
 
-Bring your checks. Quality Graph provides the graph, result protocol, reporting, and
-governance.
+[Website](https://alchemmist.github.io/quality-graph/)
 
-Quality Graph turns a small repository-owned declaration into native GitHub Actions jobs
-and a complete pull-request quality experience. Checks remain ordinary commands and
-reusable actions; the framework owns result artifacts, Job Summaries, annotations,
-dashboards, labels, reruns, and authenticated approvals.
+Quality Graph turns a small repository-owned declaration into native GitHub Actions
+jobs and a complete pull-request quality experience. Checks remain ordinary commands
+and reusable actions: the project adds dependency-aware orchestration without hiding
+runners, logs, statuses, or retries.
+
+Every node can publish results through a portable protocol. Quality Graph validates
+those artifacts and turns them into Job Summaries, annotations, dashboards, labels,
+reruns, and authenticated approvals. Untrusted pull-request code runs without secrets
+or a write token; a separate default-branch publisher performs trusted GitHub updates.
 
 ```yaml
 version: 0
@@ -17,6 +27,7 @@ provider:
   configuration:
     runtime:
       action: alchemmist/quality-graph@<exact-commit-sha>
+
 profiles:
   default:
     runner: ubuntu-latest
@@ -24,74 +35,16 @@ profiles:
       - uses: actions/checkout@v7
         with:
           persist-credentials: "false"
+
 nodes:
   lint:
     run: make lint
     results:
       sarif: reports/lint.sarif
+
   test:
     needs: [lint]
     run: make test
     results:
       junit: reports/tests.xml
 ```
-
-## Quickstart
-
-Install a repository-pinned toolchain:
-
-```bash
-uv add --dev quality-graph-cli==0.1.2 quality-graph-github==0.1.2
-uv run qg init \
-  --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
-uv run qg generate
-uv run qg validate
-git add pyproject.toml uv.lock quality-graph.yml .github/workflows .quality-graph
-```
-
-Edit `quality-graph.yml` so each node runs an existing repository command. Run
-`uv run qg generate` after every graph change and commit the declaration together with all
-generated files.
-
-Generated workflows preserve independent runners, native dependencies, logs, summaries,
-statuses, and retries. Pull-request code receives no secrets or write token. A single trusted
-default-branch `workflow_run` publisher watches native GitHub job lifecycle without checking out
-pull-request code, serializes live dashboard updates, and treats final artifacts as untrusted data.
-
-The project is a functional pre-release. Configuration and result protocol version `0` may
-change without migration tooling. Do not use a mutable Action ref.
-
-## Architecture
-
-Quality Graph is a locked uv workspace with four independently buildable distributions:
-
-- `quality-graph-core` owns the platform-independent graph, result protocol, policies,
-  schemas, and provider interface;
-- `quality-graph-github` implements GitHub workflow generation, transport, publication, and the
-  composite Action runtime;
-- `quality-graph-python` provides optional reusable quality gates for Python repositories;
-- `quality-graph-cli` supplies the `qg` command-line composition root and discovers providers
-  through the `qg.providers` entry-point group.
-
-The intended installation pins the CLI and provider to one release. Future providers such as
-`qg-gitlab` can implement the same core interface without changes to the CLI or imports from
-the GitHub provider.
-
-## Documentation
-
-- [Installation and generation](docs/installation.md)
-- [Quickstart](docs/quickstart.md)
-- [Migrating an existing repository](docs/migration.md)
-- [Python quality gates](packages/python/README.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Configuration reference](docs/configuration.md)
-- [Provider authoring](docs/provider-authoring.md)
-- [Result protocol](docs/result-protocol.md)
-- [Result adapters](docs/adapters.md)
-- [Permissions and fork security](docs/security.md)
-- [Administrator commands](docs/commands.md)
-- [Compatibility policy](docs/compatibility.md)
-- [Release preparation](docs/release.md)
-
-Complete [Python](examples/python), [TypeScript](examples/typescript), and
-[Go](examples/go) fixtures compile through the same public interfaces.
