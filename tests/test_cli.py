@@ -134,6 +134,22 @@ def test_project_commands_initialize_generate_and_validate(
     assert main(["validate", "--root", str(tmp_path)]) == 0
 
 
+def test_generated_files_command_prints_machine_readable_paths(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    runtime = "alchemmist/quality-graph@" + "a" * 40
+    assert main(["init", "--root", str(tmp_path), "--runtime-action", runtime]) == 0
+
+    assert main(["generated-files", "--root", str(tmp_path)]) == 0
+
+    assert capsys.readouterr().out.splitlines() == [
+        ".github/workflows/quality-graph.yml",
+        ".github/workflows/quality-graph-publish.yml",
+        ".quality-graph/manifest.json",
+    ]
+
+
 def test_graph_schema_command_supports_file_and_stdout(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

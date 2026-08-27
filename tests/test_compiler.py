@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+from yamllint.config import YamlLintConfig
+from yamllint.linter import run as run_yamllint
 
 from qg_github.compiler import (
     EXECUTION_WORKFLOW,
@@ -46,6 +48,17 @@ def test_complete_compiler_output_matches_contract_snapshots() -> None:
     maximal = compile_graph(Graph.from_yaml(MAXIMAL_GRAPH))
     for item in maximal.files:
         assert item.content == (snapshot_root / "maximal" / item.path).read_text()
+
+
+def test_generated_workflows_pass_standard_yaml_indentation() -> None:
+    configuration = YamlLintConfig(
+        "{extends: default, rules: {line-length: disable, "
+        "truthy: {allowed-values: ['true', 'false', 'on']}}}"
+    )
+
+    for path in (EXECUTION_WORKFLOW, PUBLICATION_WORKFLOW):
+        problems = list(run_yamllint(generated()[str(path)], configuration, str(path)))
+        assert problems == []
 
 
 def test_manifest_expands_profiles_and_binds_graph_digest() -> None:

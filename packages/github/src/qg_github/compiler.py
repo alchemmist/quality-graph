@@ -50,6 +50,11 @@ class WorkflowDumper(yaml.SafeDumper):
         """Keep generated workflows locally readable."""
         return True
 
+    @override
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:
+        del indentless
+        super().increase_indent(flow, indentless=False)
+
 
 def _validate_github_graph(graph: Graph) -> str:
     if graph.provider.name != "github":

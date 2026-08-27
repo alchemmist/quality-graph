@@ -10,6 +10,12 @@ Until the separate contract-freeze decision:
 - generated output may change between commits;
 - mutable Action refs and broad version ranges are unsupported.
 
+Generated artifacts are compiler-owned. Prettier 3.6.2 compatibility is provided through the
+managed `.prettierignore` block, and generated YAML follows standard yamllint sequence
+indentation. The JSON representation is deterministic, sorted, two-space-indented compiler output;
+formatters must consume the generated-file list or the managed ignore block instead of rewriting
+it.
+
 The CLI, provider, generated workflows, and Action runtime must use one compatible release set.
 Providers declare an exact core dependency, and generated workflows pin the Action runtime by
 commit. During an unreleased source installation, update the workspace checkout and

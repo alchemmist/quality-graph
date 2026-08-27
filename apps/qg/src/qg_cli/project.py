@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Literal, Self
 
 from qg_cli.providers import load_provider
@@ -13,6 +13,9 @@ if TYPE_CHECKING:
     from quality_graph_core.provider import GeneratedProject, Provider
 
 CONFIGURATION_PATH = Path("quality-graph.yml")
+PRETTIER_IGNORE_PATH = Path(".prettierignore")
+PRETTIER_BLOCK_START = "# Quality Graph generated files (managed by qg)"
+PRETTIER_BLOCK_END = "# End Quality Graph generated files"
 
 
 @dataclass(frozen=True)
@@ -52,11 +55,19 @@ class Project:
     def generate(self) -> GeneratedProject:
         """Write every deterministic generated file."""
         generated = self.render()
+        prettier_ignore = self._prettier_ignore(generated)
         for item in generated.files:
             path = self.root / item.path
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(item.content)
+        ignore_path = self.root / PRETTIER_IGNORE_PATH
+        if not ignore_path.is_file() or ignore_path.read_text() != prettier_ignore:
+            ignore_path.write_text(prettier_ignore)
         return generated
+
+    def generated_files(self) -> tuple[PurePosixPath, ...]:
+        """Return stable repository-relative compiler-owned paths."""
+        return tuple(item.path for item in self.render().files)
 
     def validate(self) -> ValidationReport:
         """Compare generated output without mutating files."""
@@ -68,6 +79,37 @@ class Project:
             elif path.read_text() != item.content:
                 problems.append(f"stale generated file: {item.path}")
         return ValidationReport(tuple(problems))
+
+    def _prettier_ignore(self, generated: GeneratedProject) -> str:
+        path = self.root / PRETTIER_IGNORE_PATH
+        current = path.read_text() if path.is_file() else ""
+        lines = current.splitlines(keepends=True)
+        starts = [
+            index for index, line in enumerate(lines) if line.rstrip("\r\n") == PRETTIER_BLOCK_START
+        ]
+        ends = [
+            index for index, line in enumerate(lines) if line.rstrip("\r\n") == PRETTIER_BLOCK_END
+        ]
+        if len(starts) != len(ends) or len(starts) > 1 or (starts and ends[0] < starts[0]):
+            message = f"Malformed Quality Graph block in {path}"
+            raise ValueError(message)
+        block = (
+            "\n".join(
+                (
+                    PRETTIER_BLOCK_START,
+                    *(str(item.path) for item in generated.files),
+                    PRETTIER_BLOCK_END,
+                )
+            )
+            + "\n"
+        )
+        if starts:
+            return "".join((*lines[: starts[0]], block, *lines[ends[0] + 1 :]))
+        if not current:
+            return block
+        if current.endswith(("\n", "\r")):
+            return current + "\n" + block
+        return current + "\n\n" + block
 
     @classmethod
     def initialize(
