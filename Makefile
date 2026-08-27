@@ -185,7 +185,7 @@ package:
 
 check: fmt-check python-suppressions python-object-annotations python-triple-quotes \
 	python-no-comments lint type analyze python-time-bombs coverage coverage-diff \
-	flaky-python audit package
+	flaky-python mutation-diff audit package
 
 clean:
 	@root=$$(git rev-parse --show-toplevel); \
