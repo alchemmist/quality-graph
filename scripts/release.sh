@@ -47,6 +47,10 @@ fi
 for package in "${packages[@]}"; do
 	uv version "$next" --package "$package" --frozen
 done
+dependency_files=(apps/qg/pyproject.toml packages/github/pyproject.toml)
+sed -i.bak "s/quality-graph-core==$current/quality-graph-core==$next/g" \
+	"${dependency_files[@]}"
+rm -f "${dependency_files[@]/%/.bak}"
 uv lock
 
 make check BASE=origin/main

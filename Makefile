@@ -191,7 +191,8 @@ package:
 		--with dist/quality_graph_cli-*-py3-none-any.whl qg validate 2>"$$error"; then \
 		echo "CLI unexpectedly loaded a provider-free installation"; rm -f "$$error"; exit 1; \
 	fi; \
-	grep -q "uv tool install quality-graph-cli==0.1.2 --with quality-graph-github==0.1.2" \
+	version=$$(uv version --package quality-graph-cli --short); \
+	grep -q "uv tool install quality-graph-cli==$$version --with quality-graph-github==$$version" \
 		"$$error"; status=$$?; \
 	rm -f "$$error"; exit $$status
 

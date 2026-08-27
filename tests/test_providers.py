@@ -5,7 +5,7 @@ from typing import cast
 
 import pytest
 
-from qg_cli.providers import ProviderNotInstalledError, load_provider
+from qg_cli.providers import CLI_VERSION, ProviderNotInstalledError, load_provider
 from quality_graph_core.graph import Graph
 from quality_graph_core.provider import GeneratedFile, GeneratedProject, Provider
 
@@ -49,7 +49,8 @@ def test_provider_discovery_reports_actionable_missing_package(
     with pytest.raises(
         ProviderNotInstalledError,
         match=re.escape(
-            "uv tool install quality-graph-cli==0.1.2 --with quality-graph-gitlab==0.1.2"
+            f"uv tool install quality-graph-cli=={CLI_VERSION} "
+            f"--with quality-graph-gitlab=={CLI_VERSION}"
         ),
     ):
         load_provider("gitlab")

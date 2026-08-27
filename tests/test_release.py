@@ -4,7 +4,6 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "0.1.2"
 PROJECT_NAMES = {
     "quality-graph-core",
     "quality-graph-github",
@@ -28,11 +27,12 @@ PINNED_ACTION = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 
 def test_workspace_releases_one_exact_version() -> None:
     projects = [tomllib.loads(path.read_text()) for path in PROJECT_FILES]
+    version = projects[0]["project"]["version"]
 
     assert {project["project"]["name"] for project in projects} == PROJECT_NAMES
-    assert {project["project"]["version"] for project in projects} == {VERSION}
-    assert projects[1]["project"]["dependencies"][-1] == f"quality-graph-core=={VERSION}"
-    assert projects[3]["project"]["dependencies"] == [f"quality-graph-core=={VERSION}"]
+    assert {project["project"]["version"] for project in projects} == {version}
+    assert projects[1]["project"]["dependencies"][-1] == f"quality-graph-core=={version}"
+    assert projects[3]["project"]["dependencies"] == [f"quality-graph-core=={version}"]
 
 
 def test_release_workflow_is_tag_bound_and_least_privilege() -> None:
