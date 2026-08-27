@@ -16,6 +16,13 @@ schema is [`schemas/graph-v0.schema.json`](../schemas/graph-v0.schema.json).
 
 Unknown fields fail closed.
 
+## Default branch
+
+Graph version `0` supports repositories whose default branch is `main`. Generated execution
+workflows enforce this contract by filtering both `pull_request` and `push` events to `main`.
+Repositories using another default branch are not supported yet and must not rely on generated
+Quality Graph checks until branch selection becomes provider configuration.
+
 ## Profiles
 
 A profile supports one parent through `extends`. Parent setup runs before child setup;

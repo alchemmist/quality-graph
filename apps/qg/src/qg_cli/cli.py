@@ -30,6 +30,10 @@ def parser() -> argparse.ArgumentParser:
     generate.add_argument("--root", default=".")
     validate_project = commands.add_parser("validate", help="Validate declaration freshness")
     validate_project.add_argument("--root", default=".")
+    generated_files = commands.add_parser(
+        "generated-files", help="List compiler-owned artifact paths"
+    )
+    generated_files.add_argument("--root", default=".")
     graph_schema = commands.add_parser("schema", help="Render the graph JSON Schema")
     graph_schema.add_argument("--output", default="-")
     result_command = commands.add_parser("result", help="Work with native result JSON")
@@ -60,7 +64,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     command_parser = parser()
     args = command_parser.parse_args(arguments)
     try:
-        if args.command in {"init", "generate", "validate", "schema"}:
+        if args.command in {"init", "generate", "generated-files", "validate", "schema"}:
             return _project_command(args)
         if args.command == "result":
             return _result_command(command_parser, args)
@@ -81,6 +85,10 @@ def _project_command(args: argparse.Namespace) -> int:
         return 0
     if args.command == "generate":
         Project.open(Path(args.root)).generate()
+        return 0
+    if args.command == "generated-files":
+        project = Project.open(Path(args.root))
+        sys.stdout.write("".join(f"{path}\n" for path in project.generated_files()))
         return 0
     if args.command == "schema":
         _write_text(args.output, graph_schema_json())

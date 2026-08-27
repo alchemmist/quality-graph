@@ -29,6 +29,21 @@ git diff -- quality-graph.yml .github/workflows .quality-graph
 
 Do not edit generated workflows or `.quality-graph/manifest.json` by hand.
 
+To distinguish declaration drift from a formatter rewrite, first list the owned paths and inspect
+only their diff:
+
+```bash
+uv run qg generated-files
+uv run qg generate
+git diff -- .github/workflows .quality-graph/manifest.json .prettierignore
+```
+
+If regeneration removes the diff, the committed artifact was stale or rewritten. Run Prettier
+from the repository root so it reads the managed `.prettierignore`; invoking it from another
+working directory can bypass repository ignore discovery. Quality Graph supports Prettier 3.6.2
+with its default configuration. The managed block may be moved among user rules, but its marker
+lines and contents must not be edited.
+
 ## Runtime Action ref is rejected
 
 `provider.configuration.runtime.action` requires an exact 40-character commit SHA. For release

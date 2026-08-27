@@ -4,10 +4,10 @@ name: Quality Graph
 'on':
   pull_request:
     branches:
-    - main
+      - main
   push:
     branches:
-    - main
+      - main
   workflow_dispatch: {}
 permissions:
   contents: read
@@ -21,85 +21,85 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v7
-      with:
-        persist-credentials: 'false'
-    - uses: actions/setup-go@v6
-      with:
-        go-version-file: go.mod
-        cache: 'true'
-    - run: go vet ./...
-      name: Run Go vet
-      id: quality-command
-      continue-on-error: true
-    - name: Collect Go vet result
-      id: quality-result
-      if: always()
-      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
-      with:
-        operation: collect
-        node-id: vet
-        title: Go vet
-        adapter: exit-code
-        report-path: ''
-        command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4
-    - name: Upload Go vet result
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: quality-result-vet-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/quality-graph/vet.json
-        if-no-files-found: error
-        retention-days: 7
-    - name: Enforce Go vet result
-      if: always()
-      shell: bash
-      env:
-        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
-      run: exit "${EXIT_CODE:-2}"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: 'false'
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: 'true'
+      - run: go vet ./...
+        name: Run Go vet
+        id: quality-command
+        continue-on-error: true
+      - name: Collect Go vet result
+        id: quality-result
+        if: always()
+        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        with:
+          operation: collect
+          node-id: vet
+          title: Go vet
+          adapter: exit-code
+          report-path: ''
+          command-outcome: ${{ steps.quality-command.outcome }}
+          graph-digest: 6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4
+      - name: Upload Go vet result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-result-vet-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/vet.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce Go vet result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+        run: exit "${EXIT_CODE:-2}"
   test:
     name: Go test
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v7
-      with:
-        persist-credentials: 'false'
-    - uses: actions/setup-go@v6
-      with:
-        go-version-file: go.mod
-        cache: 'true'
-    - run: go test ./...
-      name: Run Go test
-      id: quality-command
-      continue-on-error: true
-    - name: Collect Go test result
-      id: quality-result
-      if: always()
-      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
-      with:
-        operation: collect
-        node-id: test
-        title: Go test
-        adapter: exit-code
-        report-path: ''
-        command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4
-    - name: Upload Go test result
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: quality-result-test-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/quality-graph/test.json
-        if-no-files-found: error
-        retention-days: 7
-    - name: Enforce Go test result
-      if: always()
-      shell: bash
-      env:
-        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
-      run: exit "${EXIT_CODE:-2}"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: 'false'
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: 'true'
+      - run: go test ./...
+        name: Run Go test
+        id: quality-command
+        continue-on-error: true
+      - name: Collect Go test result
+        id: quality-result
+        if: always()
+        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        with:
+          operation: collect
+          node-id: test
+          title: Go test
+          adapter: exit-code
+          report-path: ''
+          command-outcome: ${{ steps.quality-command.outcome }}
+          graph-digest: 6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4
+      - name: Upload Go test result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-result-test-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/test.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce Go test result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+        run: exit "${EXIT_CODE:-2}"
     needs:
-    - vet
+      - vet

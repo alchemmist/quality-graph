@@ -4,10 +4,10 @@ name: Quality Graph
 'on':
   pull_request:
     branches:
-    - main
+      - main
   push:
     branches:
-    - main
+      - main
   workflow_dispatch: {}
 permissions:
   contents: read
@@ -21,87 +21,87 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v7
-      with:
-        persist-credentials: 'false'
-    - uses: actions/setup-node@v7
-      with:
-        node-version: '22'
-        cache: npm
-    - run: npm ci
-    - run: npm run typecheck
-      name: Run TypeScript
-      id: quality-command
-      continue-on-error: true
-    - name: Collect TypeScript result
-      id: quality-result
-      if: always()
-      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
-      with:
-        operation: collect
-        node-id: type
-        title: TypeScript
-        adapter: exit-code
-        report-path: ''
-        command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 42649c77a8347a9e99b2dc75632ee42da18134d878cb90923ae749b523688b6e
-    - name: Upload TypeScript result
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: quality-result-type-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/quality-graph/type.json
-        if-no-files-found: error
-        retention-days: 7
-    - name: Enforce TypeScript result
-      if: always()
-      shell: bash
-      env:
-        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
-      run: exit "${EXIT_CODE:-2}"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: 'false'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+        name: Run TypeScript
+        id: quality-command
+        continue-on-error: true
+      - name: Collect TypeScript result
+        id: quality-result
+        if: always()
+        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        with:
+          operation: collect
+          node-id: type
+          title: TypeScript
+          adapter: exit-code
+          report-path: ''
+          command-outcome: ${{ steps.quality-command.outcome }}
+          graph-digest: 42649c77a8347a9e99b2dc75632ee42da18134d878cb90923ae749b523688b6e
+      - name: Upload TypeScript result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-result-type-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/type.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce TypeScript result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+        run: exit "${EXIT_CODE:-2}"
   test:
     name: Vitest
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v7
-      with:
-        persist-credentials: 'false'
-    - uses: actions/setup-node@v7
-      with:
-        node-version: '22'
-        cache: npm
-    - run: npm ci
-    - run: mkdir -p reports && npm test -- --reporter=junit --outputFile=reports/vitest.xml
-      name: Run Vitest
-      id: quality-command
-      continue-on-error: true
-    - name: Collect Vitest result
-      id: quality-result
-      if: always()
-      uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
-      with:
-        operation: collect
-        node-id: test
-        title: Vitest
-        adapter: junit
-        report-path: reports/vitest.xml
-        command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 42649c77a8347a9e99b2dc75632ee42da18134d878cb90923ae749b523688b6e
-    - name: Upload Vitest result
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: quality-result-test-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/quality-graph/test.json
-        if-no-files-found: error
-        retention-days: 7
-    - name: Enforce Vitest result
-      if: always()
-      shell: bash
-      env:
-        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
-      run: exit "${EXIT_CODE:-2}"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: 'false'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: mkdir -p reports && npm test -- --reporter=junit --outputFile=reports/vitest.xml
+        name: Run Vitest
+        id: quality-command
+        continue-on-error: true
+      - name: Collect Vitest result
+        id: quality-result
+        if: always()
+        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        with:
+          operation: collect
+          node-id: test
+          title: Vitest
+          adapter: junit
+          report-path: reports/vitest.xml
+          command-outcome: ${{ steps.quality-command.outcome }}
+          graph-digest: 42649c77a8347a9e99b2dc75632ee42da18134d878cb90923ae749b523688b6e
+      - name: Upload Vitest result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-result-test-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/test.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce Vitest result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+        run: exit "${EXIT_CODE:-2}"
     needs:
-    - type
+      - type

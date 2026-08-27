@@ -4,10 +4,10 @@ name: Quality Graph
 'on':
   pull_request:
     branches:
-    - main
+      - main
   push:
     branches:
-    - main
+      - main
   workflow_dispatch: {}
 permissions:
   contents: read
@@ -22,45 +22,45 @@ jobs:
       contents: read
       actions: none
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        persist-credentials: 'false'
-      env:
-        CHECKOUT_MODE: safe
-    - uses: astral-sh/setup-uv@v7
-    - run: make fmt-check
-      env:
-        FORMAT_MODE: check
-      name: Run Formatting
-      id: quality-command
-      continue-on-error: true
-    - name: Collect Formatting result
-      id: quality-result
-      if: always()
-      uses: alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-      with:
-        operation: collect
-        node-id: format
-        title: Formatting
-        adapter: exit-code
-        report-path: ''
-        command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 90a0c6bcb7bdea647daf5b29261dd1d1906448944e91ba1cf2224256a167b1b1
-    - name: Upload Formatting result
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: quality-result-format-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/quality-graph/format.json
-        if-no-files-found: error
-        retention-days: 7
-    - name: Enforce Formatting result
-      if: always()
-      shell: bash
-      env:
-        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
-      run: exit "${EXIT_CODE:-2}"
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: 'false'
+        env:
+          CHECKOUT_MODE: safe
+      - uses: astral-sh/setup-uv@v7
+      - run: make fmt-check
+        env:
+          FORMAT_MODE: check
+        name: Run Formatting
+        id: quality-command
+        continue-on-error: true
+      - name: Collect Formatting result
+        id: quality-result
+        if: always()
+        uses: alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        with:
+          operation: collect
+          node-id: format
+          title: Formatting
+          adapter: exit-code
+          report-path: ''
+          command-outcome: ${{ steps.quality-command.outcome }}
+          graph-digest: 90a0c6bcb7bdea647daf5b29261dd1d1906448944e91ba1cf2224256a167b1b1
+      - name: Upload Formatting result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-result-format-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/format.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce Formatting result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+        run: exit "${EXIT_CODE:-2}"
     env:
       UV_NO_SYNC: '1'
       FORMAT_MODE: check
@@ -76,47 +76,47 @@ jobs:
       contents: read
       actions: none
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        persist-credentials: 'false'
-      env:
-        CHECKOUT_MODE: safe
-    - uses: astral-sh/setup-uv@v7
-    - run: make lint
-      working-directory: tools
-      shell: bash
-      name: Run Lint
-      id: quality-command
-      continue-on-error: true
-    - name: Collect Lint result
-      id: quality-result
-      if: always()
-      uses: alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-      with:
-        operation: collect
-        node-id: lint
-        title: Lint
-        adapter: sarif
-        report-path: reports/lint.sarif
-        command-outcome: ${{ steps.quality-command.outcome }}
-        graph-digest: 90a0c6bcb7bdea647daf5b29261dd1d1906448944e91ba1cf2224256a167b1b1
-    - name: Upload Lint result
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: quality-result-lint-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/quality-graph/lint.json
-        if-no-files-found: error
-        retention-days: 7
-    - name: Enforce Lint result
-      if: always()
-      shell: bash
-      env:
-        EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
-      run: exit "${EXIT_CODE:-2}"
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: 'false'
+        env:
+          CHECKOUT_MODE: safe
+      - uses: astral-sh/setup-uv@v7
+      - run: make lint
+        working-directory: tools
+        shell: bash
+        name: Run Lint
+        id: quality-command
+        continue-on-error: true
+      - name: Collect Lint result
+        id: quality-result
+        if: always()
+        uses: alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        with:
+          operation: collect
+          node-id: lint
+          title: Lint
+          adapter: sarif
+          report-path: reports/lint.sarif
+          command-outcome: ${{ steps.quality-command.outcome }}
+          graph-digest: 90a0c6bcb7bdea647daf5b29261dd1d1906448944e91ba1cf2224256a167b1b1
+      - name: Upload Lint result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-result-lint-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/lint.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce Lint result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+        run: exit "${EXIT_CODE:-2}"
     needs:
-    - format
+      - format
     env:
       UV_NO_SYNC: '1'
     timeout-minutes: 45

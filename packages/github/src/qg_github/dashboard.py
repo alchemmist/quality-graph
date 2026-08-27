@@ -143,13 +143,15 @@ def final_dashboard(
 def pending_dashboard(
     graph: Graph,
     run: DashboardRun,
+    *,
+    started: bool = False,
 ) -> DashboardModel:
     """Build an early dashboard before portable results are available."""
     rows = tuple(
         DashboardRow(
             node.id,
             node.title,
-            ResultStatus.WAITING,
+            ResultStatus.IN_PROGRESS if started and not node.needs else ResultStatus.WAITING,
             "—",
             f"{run.url}#quality-graph-{node.id}",
             run.url,

@@ -41,7 +41,7 @@ Generate and commit observable GitHub files:
 ```bash
 uv run qg generate
 uv run qg validate
-git add quality-graph.yml .github/workflows .quality-graph/manifest.json
+git add quality-graph.yml .github/workflows .quality-graph/manifest.json .prettierignore
 ```
 
 `qg validate` recomputes output in memory and fails for an invalid declaration, a missing
@@ -52,6 +52,18 @@ The generated files are:
 - `.github/workflows/quality-graph.yml`: untrusted native graph execution;
 - `.github/workflows/quality-graph-publish.yml`: trusted publication and commands;
 - `.quality-graph/manifest.json`: expanded semantic graph and digest.
+
+List the provider-owned paths without duplicating them in repository tooling:
+
+```bash
+uv run qg generated-files
+```
+
+`qg generate` maintains a marked block for these paths in `.prettierignore`. It preserves all
+unrelated rules and replaces only its own block, so repeated generation is idempotent. Generated
+workflows use standard yamllint sequence indentation. The supported formatter contract is
+Prettier 3.6.2 with its default configuration and yamllint 1.37 or newer with line-length policy
+chosen by the adopting repository.
 
 Review and update both the installed CLI commit and
 `provider.configuration.runtime.action` together.

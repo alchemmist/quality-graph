@@ -98,6 +98,8 @@ def test_in_progress_event_publishes_pending_dashboard_and_check() -> None:
         request for request in port.requests if request[0] == "POST" and "comments" in request[1]
     )
     assert "## 🚀 Quality Graph" in comment_request[2]["body"]
+    assert "| Formatting | 🚀 in_progress |" in comment_request[2]["body"]
+    assert "| Lint | ⏳ waiting |" in comment_request[2]["body"]
     check = port.requests[-1]
     assert check[1] == "/check-runs"
     assert check[2]["status"] == "in_progress"
@@ -173,7 +175,30 @@ def test_completed_event_surfaces_invalid_artifacts_as_failure() -> None:
     outcome = publish_workflow_run(port, event("completed"))
 
     assert outcome.status is ResultStatus.FAILED
-    assert port.requests[-1][2]["conclusion"] == "failure"
+    check = next(request for request in port.requests if request[1] == "/check-runs")
+    assert check[2]["conclusion"] == "failure"
+
+
+def test_completed_event_preserves_partial_results_when_dependencies_skip() -> None:
+    port = MemoryGitHubPort()
+    configure_publication(port)
+    format_archive = result_archive("format", "Formatting")
+    artifacts_path = "/actions/runs/10/artifacts?per_page=100&page=1"
+    port.enqueue(
+        "GET",
+        artifacts_path,
+        {"artifacts": [artifact(1, "format", format_archive)]},
+    )
+    port.downloads["/actions/artifacts/1/zip"] = format_archive
+
+    outcome = publish_workflow_run(port, event("completed"))
+
+    assert outcome.status is ResultStatus.FAILED
+    comment = next(
+        request for request in port.requests if request[0] == "POST" and "comments" in request[1]
+    )
+    assert "| Formatting | ✅ passed |" in comment[2]["body"]
+    assert "| Lint | ⏭️ skipped |" in comment[2]["body"]
 
 
 def test_publisher_rejects_stale_head_and_superseded_run() -> None:

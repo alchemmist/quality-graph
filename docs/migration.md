@@ -67,6 +67,14 @@ uv run qg validate
 
 If a declaration was prepared manually, skip `init` and run `generate` directly.
 
+Generation also adds a compiler-owned block to `.prettierignore`. Commit that change, then run the
+repository formatter from its root. Existing ignore rules remain untouched. Repositories that
+maintain other formatter exclusions can obtain the exact current paths with:
+
+```bash
+uv run qg generated-files
+```
+
 The bootstrap pull request may show an incomplete or failing aggregate dashboard because the
 trusted publisher evaluates topology from the base branch. Review the generated workflows and
 individual execution jobs, merge the bootstrap, then open a probe pull request from the updated

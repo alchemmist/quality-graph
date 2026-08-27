@@ -35,6 +35,72 @@ def test_project_reports_every_missing_generated_file(tmp_path: Path) -> None:
     )
 
 
+def test_generate_manages_prettier_ignore_without_replacing_user_rules(tmp_path: Path) -> None:
+    prettier_ignore = tmp_path / ".prettierignore"
+    prettier_ignore.write_text("dist\n")
+    project = Project.initialize(tmp_path, RUNTIME)
+
+    project.generate()
+    first = prettier_ignore.read_text()
+    project.generate()
+
+    assert prettier_ignore.read_text() == first
+    assert first == (
+        "dist\n\n"
+        "# Quality Graph generated files (managed by qg)\n"
+        ".github/workflows/quality-graph.yml\n"
+        ".github/workflows/quality-graph-publish.yml\n"
+        ".quality-graph/manifest.json\n"
+        "# End Quality Graph generated files\n"
+    )
+
+
+def test_generate_replaces_its_existing_prettier_block_in_place(tmp_path: Path) -> None:
+    prettier_ignore = tmp_path / ".prettierignore"
+    prettier_ignore.write_text(
+        "before\n"
+        "# Quality Graph generated files (managed by qg)\n"
+        "obsolete.json\n"
+        "# End Quality Graph generated files\n"
+        "after\n"
+    )
+
+    Project.initialize(tmp_path, RUNTIME).generate()
+
+    assert prettier_ignore.read_text().splitlines() == [
+        "before",
+        "# Quality Graph generated files (managed by qg)",
+        ".github/workflows/quality-graph.yml",
+        ".github/workflows/quality-graph-publish.yml",
+        ".quality-graph/manifest.json",
+        "# End Quality Graph generated files",
+        "after",
+    ]
+
+
+def test_generate_separates_unterminated_prettier_rules(tmp_path: Path) -> None:
+    prettier_ignore = tmp_path / ".prettierignore"
+    prettier_ignore.write_text("dist")
+
+    Project.initialize(tmp_path, RUNTIME).generate()
+
+    assert prettier_ignore.read_text().startswith(
+        "dist\n\n# Quality Graph generated files (managed by qg)\n"
+    )
+
+
+def test_generate_rejects_malformed_prettier_block_before_writing_artifacts(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".prettierignore").write_text("# Quality Graph generated files (managed by qg)\n")
+    project = Project.initialize(tmp_path, RUNTIME)
+
+    with pytest.raises(ValueError, match="Malformed Quality Graph block"):
+        project.generate()
+
+    assert not (tmp_path / EXECUTION_WORKFLOW).exists()
+
+
 def test_project_refuses_missing_or_existing_declaration(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="does not exist"):
         Project.open(tmp_path)

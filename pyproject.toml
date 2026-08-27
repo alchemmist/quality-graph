@@ -66,6 +66,7 @@ known-first-party = ["quality_graph_core", "qg_github", "qg_cli", "qg_python"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D100", "D101", "D102", "D103", "PLR2004", "S101"]
+"tests/integration/test_formatter_contract.py" = ["S603"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -131,6 +132,7 @@ only_mutate = [
   "packages/python/src/qg_python/triple_quotes.py",
 ]
 also_copy = [
+  ".github",
   "apps",
   "tests",
   "scripts",

@@ -97,13 +97,15 @@ def test_final_and_pending_dashboard_keep_declaration_order() -> None:
     pending = pending_dashboard(
         graph,
         DashboardRun(11, 1, "b" * 40, "https://example.test/run/11"),
+        started=True,
     )
 
     assert [row.node_id for row in final.rows] == ["format", "lint"]
     assert final.rows[0].status is ResultStatus.SKIPPED
     assert final.rows[1].metric == "Findings&#124;total: 2<br>items · Errors: 1"
     assert final.control_groups[0].controls[0].checked is True
-    assert all(row.status is ResultStatus.WAITING for row in pending.rows)
+    assert pending.rows[0].status is ResultStatus.IN_PROGRESS
+    assert pending.rows[1].status is ResultStatus.WAITING
     assert "## 🚀 Quality Graph" in render_dashboard(pending)
 
 
