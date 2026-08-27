@@ -12,10 +12,13 @@ MARKDOWN_SOURCES := README.md $(wildcard docs/*.md packages/*/README.md apps/*/R
 	python-time-bombs python-no-comments coverage-diff flaky-python \
 	mutation mutation-diff audit package check clean fmt-staged \
 	precommit-install precommit-uninstall examples-generate examples-check \
-	release-setup
+	release-setup site-build
 
 install:
 	uv sync --locked --all-groups --all-packages
+
+site-build:
+	uv run --locked --all-packages mkdocs build --strict
 
 release-setup:
 	bash scripts/setup-release-publishing.sh
@@ -87,7 +90,7 @@ fmt-check: schemas-check graph-validate examples-check tools
 
 lint: tools
 	uv run --locked --all-packages --group lint ruff check $(PYTHON_SOURCES)
-	@files=$$(git ls-files '*.yaml' '*.yml'); \
+	@files=$$(git ls-files '*.yaml' '*.yml' ':!.agents/**'); \
 	uv run --locked --all-packages --group lint yamllint .yamllint.yaml $$files
 	uv run --locked --all-packages --group lint codespell --skip='*/node_modules/*,*/.venv/*,*/reports/*' \
 		$(MARKDOWN_SOURCES) packages apps tests examples

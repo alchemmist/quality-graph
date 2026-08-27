@@ -15,6 +15,7 @@ build/
 .mutmut-cache/
 mutants/
 reports/
+site/
 .tools/
 node_modules/
 .DS_Store

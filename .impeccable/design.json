@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-27T00:00:00Z",
+  "title": "Design System: Quality Graph",
+  "extensions": {
+    "colorMeta": {
+      "ink": {"role": "neutral", "displayName": "Ink", "canonical": "#171717", "tonalRamp": ["#171717", "#303030", "#4a4a4a", "#666666", "#858585", "#a6a6a6", "#cecece", "#f2f2f2"]},
+      "paper": {"role": "neutral", "displayName": "Paper", "canonical": "#ffffff", "tonalRamp": ["#262626", "#454545", "#666666", "#898989", "#adadad", "#d0d0d0", "#ededed", "#ffffff"]},
+      "link-blue": {"role": "primary", "displayName": "Link Blue", "canonical": "#173ea5", "tonalRamp": ["#07143d", "#0c235c", "#12317e", "#173ea5", "#355bc0", "#637fd3", "#9cafe6", "#e8edfb"]},
+      "code-surface": {"role": "neutral", "displayName": "Code Surface", "canonical": "#f3f3f3", "tonalRamp": ["#242424", "#424242", "#626262", "#848484", "#a8a8a8", "#cccccc", "#e6e6e6", "#f3f3f3"]},
+      "divider": {"role": "neutral", "displayName": "Divider", "canonical": "#dddddd", "tonalRamp": ["#222222", "#404040", "#606060", "#818181", "#a4a4a4", "#c5c5c5", "#dddddd", "#f4f4f4"]}
+    },
+    "typographyMeta": {
+      "display": {"displayName": "Display", "purpose": "Documentation page titles."},
+      "body": {"displayName": "Body", "purpose": "Readable technical explanation."},
+      "navigation": {"displayName": "Navigation", "purpose": "Sidebar and text-link navigation."},
+      "code": {"displayName": "Code", "purpose": "Commands and configuration samples."}
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [{"name": "mobile", "value": "800px"}]
+  },
+  "components": [
+    {
+      "name": "Text Link",
+      "kind": "nav",
+      "refersTo": "text-link",
+      "description": "The only chromatic interactive primitive.",
+      "html": "<a class=\"ds-text-link\" href=\"#\">Read the documentation →</a>",
+      "css": ".ds-text-link { color: #173ea5; font: 400 13px/1.5 ui-monospace, SFMono-Regular, monospace; text-underline-offset: 3px; } .ds-text-link:hover { text-decoration-thickness: 2px; } .ds-text-link:focus-visible { outline: 2px solid #173ea5; outline-offset: 3px; }"
+    },
+    {
+      "name": "Active Navigation Item",
+      "kind": "nav",
+      "description": "Current documentation destination.",
+      "html": "<a class=\"ds-nav-active\" href=\"#\" aria-current=\"page\">Quickstart</a>",
+      "css": ".ds-nav-active { color: #171717; font: 700 13px/1.5 ui-monospace, SFMono-Regular, monospace; text-decoration: none; } .ds-nav-active:focus-visible { outline: 2px solid #173ea5; outline-offset: 3px; }"
+    },
+    {
+      "name": "Code Block",
+      "kind": "custom",
+      "refersTo": "code-block",
+      "description": "Quiet surface for commands and configuration.",
+      "html": "<pre class=\"ds-code\"><code>uv run qg generate\nuv run qg validate</code></pre>",
+      "css": ".ds-code { overflow-x: auto; margin: 0; padding: 19px 21px; border-radius: 3px; color: #171717; background: #f3f3f3; font: 400 13px/1.65 ui-monospace, SFMono-Regular, monospace; } .ds-code:focus-visible { outline: 2px solid #173ea5; outline-offset: 3px; }"
+    },
+    {
+      "name": "Documentation Sidebar",
+      "kind": "nav",
+      "refersTo": "docs-sidebar",
+      "description": "Independent left navigation that does not shift the centered article.",
+      "html": "<nav class=\"ds-sidebar\" aria-label=\"Documentation\"><strong>Start here</strong><a href=\"#\">Installation</a><a class=\"is-active\" href=\"#\" aria-current=\"page\">Quickstart</a></nav>",
+      "css": ".ds-sidebar { display: grid; gap: 6px; width: 180px; color: #171717; font: 400 13px/1.5 ui-monospace, SFMono-Regular, monospace; } .ds-sidebar a { color: #173ea5; text-underline-offset: 2px; } .ds-sidebar .is-active { color: #171717; font-weight: 700; text-decoration: none; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Technical Pamphlet",
+    "overview": "Quality Graph uses the directness of a small, carefully typeset technical publication. The interface recedes so identity, explanation, and documentation can be understood without learning a visual language first.",
+    "keyCharacteristics": ["White canvas", "One monospace family", "Centered reading measure", "Independent left navigation", "Flat surfaces", "Prominent landing-page logo"],
+    "rules": [
+      {"name": "The Links Own Color Rule", "body": "Blue is reserved for links.", "section": "colors"},
+      {"name": "The White Canvas Rule", "body": "Pages use pure white.", "section": "colors"},
+      {"name": "The One Typeface Rule", "body": "Every text role uses the same monospace stack.", "section": "typography"},
+      {"name": "The Flat Means Flat Rule", "body": "Do not add shadows to interface elements.", "section": "elevation"}
+    ],
+    "dos": ["Do begin the landing page with the centered logo lockup.", "Do keep the article centered relative to the full viewport.", "Do use ordinary text links for navigation."],
+    "donts": ["Don't add a top header.", "Don't add cards or promotional sections.", "Don't let the sidebar push the article away from center."]
+  }
+}
