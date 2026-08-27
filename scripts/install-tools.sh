@@ -16,7 +16,25 @@ if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$expected" ]; then
 fi
 
 mkdir -p "$tools_bin"
-GOBIN="$tools_bin" go install "github.com/rhysd/actionlint/cmd/actionlint@v${ACTIONLINT_VERSION}"
-GOBIN="$tools_bin" go install "mvdan.cc/sh/v3/cmd/shfmt@v${SHFMT_VERSION}"
-GOBIN="$tools_bin" go install "github.com/zricethezav/gitleaks/v8@v${GITLEAKS_VERSION}"
+attempts=${QUALITY_GRAPH_TOOL_INSTALL_ATTEMPTS:-4}
+retry_delay=${QUALITY_GRAPH_TOOL_RETRY_DELAY:-2}
+
+install_tool() {
+	module=$1
+	attempt=1
+	until GOBIN="$tools_bin" go install "$module"; do
+		if [ "$attempt" -ge "$attempts" ]; then
+			echo "Failed to install $module after $attempt attempts." >&2
+			return 1
+		fi
+		delay=$((retry_delay * attempt))
+		echo "Retrying $module in ${delay}s (attempt $((attempt + 1))/$attempts)." >&2
+		sleep "$delay"
+		attempt=$((attempt + 1))
+	done
+}
+
+install_tool "github.com/rhysd/actionlint/cmd/actionlint@v${ACTIONLINT_VERSION}"
+install_tool "mvdan.cc/sh/v3/cmd/shfmt@v${SHFMT_VERSION}"
+install_tool "github.com/zricethezav/gitleaks/v8@v${GITLEAKS_VERSION}"
 printf '%s' "$expected" >"$stamp"
