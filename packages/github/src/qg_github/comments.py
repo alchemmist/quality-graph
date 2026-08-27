@@ -83,6 +83,8 @@ def upsert_managed_comment(
     existing = find_managed_comment(port, number, name, bot_logins=bot_logins)
     if existing is None:
         response = port.request("POST", f"/issues/{number}/comments", {"body": rendered})
+    elif existing.body == rendered:
+        return existing
     else:
         response = port.request("PATCH", f"/issues/comments/{existing.id}", {"body": rendered})
     data = _object(response, "managed comment")

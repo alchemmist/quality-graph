@@ -8,13 +8,20 @@ schema is [`schemas/graph-v0.schema.json`](https://github.com/alchemmist/quality
 - `version`: currently `0`.
 - `provider.name`: installed provider name; legacy declarations default to `github`.
 - `provider.configuration`: opaque provider-owned configuration. The GitHub provider requires
-  `runtime.action` as `owner/repository@<40-character-commit>` inside this object.
+  `runtime.action` as `owner/repository@<40-character-commit>` inside this object. An optional
+  `runtime.publisher-action` independently rolls the default-branch publisher forward.
 - `profiles`: reusable execution environments; `default` is required.
 - `nodes`: ordered graph operations keyed by stable node ID.
 - `labels`: optional aggregate label management.
 - `administration.roles`: `admin`, `maintain`, or `write`; default is `admin`.
 
 Unknown fields fail closed.
+
+`runtime.action` executes inside pull-request jobs and remains part of graph provenance.
+`runtime.publisher-action` executes only in the trusted `workflow_run` publisher without checking
+out pull-request code. It does not change execution provenance, which permits a reviewed publisher
+upgrade to land without invalidating artifacts produced by the existing execution runtime. Both
+actions must use the same `owner/repository`; only their immutable commit pins may differ.
 
 ## Default branch
 

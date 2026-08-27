@@ -8,7 +8,13 @@ import pytest
 
 from qg_github.github import MemoryGitHubPort
 from qg_github.publication import PublicationOutcome
-from qg_github.runtime import CollectionRequest, collect, entrypoint, main, publish_collection
+from qg_github.runtime import (
+    CollectionRequest,
+    collect,
+    entrypoint,
+    main,
+    publish_collection,
+)
 from quality_graph_core.graph import AdapterKind
 from quality_graph_core.result import FailureKind, ResultStatus
 
@@ -23,6 +29,9 @@ def environment(tmp_path: Path, *, outcome: str = "success") -> dict[str, str]:
         "QG_REPORT_PATH": "",
         "QG_COMMAND_OUTCOME": outcome,
         "QG_GRAPH_DIGEST": "b" * 64,
+        "QG_APPROVAL_FINDINGS": "false",
+        "QG_APPROVAL_FILES": "false",
+        "QG_APPROVAL_NODE": "false",
         "GITHUB_WORKSPACE": str(tmp_path),
         "GITHUB_REPOSITORY": "owner/repository",
         "GITHUB_SHA": "a" * 40,
@@ -89,6 +98,19 @@ def test_collector_reads_sarif_junit_and_native_reports(tmp_path: Path) -> None:
     assert collected_native == native_result
 
 
+def test_collector_replaces_native_controls_with_graph_policy_controls(tmp_path: Path) -> None:
+    values = environment(tmp_path)
+    values["QG_APPROVAL_NODE"] = "true"
+    request = CollectionRequest.from_environment(values, event())
+    native_result = collect(request)
+    native = tmp_path / "result.json"
+    native.write_text(native_result.to_json().replace('"target": "lint"', '"target": "forged"'))
+
+    collected = collect(replace(request, adapter=AdapterKind.NATIVE, report_path="result.json"))
+
+    assert tuple(control.target for control in collected.controls) == ("lint",)
+
+
 def test_runtime_main_executes_collect_operation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -151,6 +173,11 @@ def test_runtime_main_dispatches_publication(
     assert observed == [port, {}]
 
     observed.clear()
+    monkeypatch.setattr("qg_github.runtime.watch_workflow_run", publish)
+    assert main(["watch"]) == 0
+    assert observed == [port, {}]
+
+    observed.clear()
     monkeypatch.setattr("qg_github.runtime.handle_command", publish)
     assert main(["command"]) == 0
     assert observed == [port, {}]
@@ -161,6 +188,11 @@ def test_collection_request_requires_explicit_environment(tmp_path: Path) -> Non
     values.pop("QG_NODE_ID")
     with pytest.raises(ValueError, match="QG_NODE_ID"):
         CollectionRequest.from_environment(values, {})
+
+    invalid = environment(tmp_path)
+    invalid["QG_APPROVAL_NODE"] = "yes"
+    with pytest.raises(ValueError, match="must be true or false"):
+        CollectionRequest.from_environment(invalid, {})
 
 
 def test_collection_request_uses_push_sha_without_valid_pull_metadata(tmp_path: Path) -> None:

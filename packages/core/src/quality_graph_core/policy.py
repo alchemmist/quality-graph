@@ -5,13 +5,20 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
-from quality_graph_core.result import Control, ControlKind, FailureKind, Result, ResultStatus
+from quality_graph_core.result import (
+    Control,
+    ControlKind,
+    FailureKind,
+    Finding,
+    Result,
+    ResultStatus,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
-    from quality_graph_core.graph import Graph, Node
+    from quality_graph_core.graph import ApprovalPolicy, Graph, Node
 
 
 @dataclass(frozen=True, order=True)
@@ -64,24 +71,37 @@ def effective_graph(
     return EffectiveGraph(effective, targets, active)
 
 
-def _node_targets(node: Node, result: Result | None) -> tuple[ApprovalTarget, ...]:
-    if result is None:
-        return ()
+def policy_controls(
+    node_id: str,
+    findings: tuple[Finding, ...],
+    policy: ApprovalPolicy,
+    approvals: AbstractSet[ApprovalTarget] = frozenset(),
+) -> tuple[Control, ...]:
+    """Derive canonical semantic controls from findings and graph policy."""
     targets: list[ApprovalTarget] = []
-    if node.policy.approvals.findings:
-        targets.extend(
-            ApprovalTarget(ControlKind.FINDING, finding.id) for finding in result.findings
-        )
-    if node.policy.approvals.files:
+    if policy.findings:
+        targets.extend(ApprovalTarget(ControlKind.FINDING, finding.id) for finding in findings)
+    if policy.files:
         targets.extend(
             ApprovalTarget(ControlKind.FILE, path)
             for path in dict.fromkeys(
-                finding.location.path for finding in result.findings if finding.location is not None
+                finding.location.path for finding in findings if finding.location is not None
             )
         )
-    if node.policy.approvals.node:
-        targets.append(ApprovalTarget(ControlKind.NODE, node.id))
-    return tuple(targets)
+    if policy.node:
+        targets.append(ApprovalTarget(ControlKind.NODE, node_id))
+    return tuple(
+        Control(target.kind, target.target, checked=target in approvals) for target in targets
+    )
+
+
+def _node_targets(node: Node, result: Result | None) -> tuple[ApprovalTarget, ...]:
+    if result is None:
+        return ()
+    return tuple(
+        ApprovalTarget(control.kind, control.target)
+        for control in policy_controls(node.id, result.findings, node.policy.approvals)
+    )
 
 
 def _effective_result(
@@ -89,10 +109,7 @@ def _effective_result(
     result: Result,
     approvals: AbstractSet[ApprovalTarget],
 ) -> Result:
-    controls = tuple(
-        Control(target.kind, target.target, checked=target in approvals)
-        for target in _node_targets(node, result)
-    )
+    controls = policy_controls(node.id, result.findings, node.policy.approvals, approvals)
     if result.failure_kind is not FailureKind.QUALITY:
         return replace(result, controls=controls)
     node_target = ApprovalTarget(ControlKind.NODE, node.id)

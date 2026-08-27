@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import time
 import urllib.parse
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
@@ -15,8 +16,10 @@ from qg_github.compiler import compile_graph
 from qg_github.dashboard import (
     DASHBOARD_MARKER,
     DashboardModel,
+    DashboardNode,
     DashboardRun,
     final_dashboard,
+    live_dashboard,
     pending_dashboard,
     render_dashboard,
 )
@@ -27,7 +30,7 @@ from quality_graph_core.policy import effective_graph
 from quality_graph_core.result import JsonValue, ResultStatus
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from quality_graph_core.result import Result
 
@@ -95,7 +98,7 @@ def publish_workflow_run(
 ) -> PublicationOutcome:
     """Publish one trusted workflow-run event if it is current."""
     event = WorkflowRunEvent.from_value(event_value)
-    if event.event != "pull_request":
+    if event.event != "pull_request" or event.action != "completed":
         return PublicationOutcome(published=False)
     number = event.pull_request or _resolve_pull_request(port, event.workflow_head_sha)
     if number is None:
@@ -108,20 +111,13 @@ def publish_workflow_run(
     graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", pull.base_sha))
     compiled = compile_graph(graph)
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
-    effective_results: Mapping[str, Result] | None = None
-    if event.action in {"requested", "in_progress"}:
-        model = pending_dashboard(graph, run, started=event.action == "in_progress")
-    elif event.action == "completed":
-        model, effective_results = _completed_dashboard(
-            port,
-            graph,
-            compiled.graph_digest,
-            pull,
-            run,
-        )
-    else:
-        message = f"unsupported workflow_run action: {event.action}"
-        raise ValueError(message)
+    model, effective_results = _completed_dashboard(
+        port,
+        graph,
+        compiled.graph_digest,
+        pull,
+        run,
+    )
     existing = find_managed_comment(port, number, DASHBOARD_MARKER)
     previous_labels = parse_label_state(existing.body) if existing is not None else frozenset()
     if effective_results is None and previous_labels:
@@ -137,6 +133,107 @@ def publish_workflow_run(
             previous_owned=previous_labels,
         )
     return PublicationOutcome(published=True, status=model.status, comment_id=comment.id)
+
+
+def watch_workflow_run(
+    port: GitHubPort,
+    event_value: JsonValue,
+    *,
+    poll_interval: float = 5.0,
+    sleep: Callable[[float], None] = time.sleep,
+) -> PublicationOutcome:
+    """Serialize live dashboard updates from authoritative GitHub job state."""
+    event = WorkflowRunEvent.from_value(event_value)
+    if event.event != "pull_request" or event.action not in {"requested", "in_progress"}:
+        return PublicationOutcome(published=False)
+    number = event.pull_request or _resolve_pull_request(port, event.workflow_head_sha)
+    if number is None:
+        return PublicationOutcome(published=False)
+    pull = _pull_request(port, number)
+    if event.pull_head_sha is not None and event.pull_head_sha != pull.head_sha:
+        return PublicationOutcome(published=False)
+    if not _is_latest_run(port, event, number):
+        return PublicationOutcome(published=False)
+    graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", pull.base_sha))
+    nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
+    run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
+    _publish_check(port, pending_dashboard(graph, run))
+
+    def is_current() -> bool:
+        return _is_latest_run(port, event, number)
+
+    while not publish_workflow_jobs(port, number, nodes, run, is_current=is_current):
+        sleep(poll_interval)
+    return PublicationOutcome(published=True, status=ResultStatus.IN_PROGRESS)
+
+
+def publish_workflow_jobs(
+    port: GitHubPort,
+    number: int,
+    nodes: tuple[DashboardNode, ...],
+    run: DashboardRun,
+    *,
+    is_current: Callable[[], bool] = lambda: True,
+) -> bool:
+    """Merge authoritative job lifecycle into the single live dashboard."""
+    by_title = {node.title: node.node_id for node in nodes}
+    statuses: dict[str, ResultStatus] = {}
+    terminal = True
+    for value in _workflow_jobs(port, run.id):
+        job = _object(value, "workflow job")
+        name = _string(job.get("name"), "workflow job name")
+        node_id = by_title.get(name)
+        if node_id is None:
+            continue
+        status = _workflow_job_status(job)
+        statuses[node_id] = status
+        terminal = terminal and status not in {ResultStatus.WAITING, ResultStatus.IN_PROGRESS}
+    terminal = terminal and len(statuses) == len(nodes)
+    if terminal or not is_current():
+        return True
+    existing = find_managed_comment(port, number, DASHBOARD_MARKER)
+    previous_labels = parse_label_state(existing.body) if existing is not None else frozenset()
+    model = live_dashboard(nodes, statuses, run, managed_labels=tuple(sorted(previous_labels)))
+    upsert_managed_comment(port, number, DASHBOARD_MARKER, render_dashboard(model))
+    return terminal
+
+
+def _workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:
+    jobs: list[JsonValue] = []
+    page = 1
+    while True:
+        response = _object(
+            port.request(
+                "GET",
+                f"/actions/runs/{run_id}/jobs?filter=latest"
+                f"&per_page={GITHUB_PAGE_SIZE}&page={page}",
+            ),
+            "workflow jobs",
+        )
+        values = _array(response.get("jobs", []), "workflow jobs")
+        jobs.extend(values)
+        if len(values) < GITHUB_PAGE_SIZE:
+            return tuple(jobs)
+        page += 1
+
+
+def _workflow_job_status(job: Mapping[str, JsonValue]) -> ResultStatus:
+    status = _string(job.get("status"), "workflow job status")
+    if status == "queued":
+        return ResultStatus.WAITING
+    if status in {"in_progress", "pending", "requested", "waiting"}:
+        return ResultStatus.IN_PROGRESS
+    if status != "completed":
+        message = f"unsupported workflow job status: {status}"
+        raise ValueError(message)
+    conclusion = _optional_string(job.get("conclusion"), "workflow job conclusion")
+    if conclusion == "success":
+        return ResultStatus.PASSED
+    if conclusion == "skipped":
+        return ResultStatus.SKIPPED
+    if conclusion == "cancelled":
+        return ResultStatus.CANCELLED
+    return ResultStatus.FAILED
 
 
 def _completed_dashboard(

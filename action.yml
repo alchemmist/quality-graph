@@ -29,6 +29,18 @@ inputs:
     description: Digest of the compiled graph manifest
     required: false
     default: ""
+  approval-findings:
+    description: Whether graph policy permits finding approvals
+    required: false
+    default: "false"
+  approval-files:
+    description: Whether graph policy permits file approvals
+    required: false
+    default: "false"
+  approval-node:
+    description: Whether graph policy permits node approval
+    required: false
+    default: "false"
 outputs:
   result-path:
     description: Portable result artifact path
@@ -56,6 +68,9 @@ runs:
         QG_REPORT_PATH: ${{ inputs.report-path }}
         QG_COMMAND_OUTCOME: ${{ inputs.command-outcome }}
         QG_GRAPH_DIGEST: ${{ inputs.graph-digest }}
+        QG_APPROVAL_FINDINGS: ${{ inputs.approval-findings }}
+        QG_APPROVAL_FILES: ${{ inputs.approval-files }}
+        QG_APPROVAL_NODE: ${{ inputs.approval-node }}
       run: >-
         uv run --project "$GITHUB_ACTION_PATH" --locked --package quality-graph-github
         python -m qg_github.runtime "$QG_OPERATION"

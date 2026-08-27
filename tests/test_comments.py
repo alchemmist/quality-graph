@@ -57,6 +57,15 @@ def test_managed_comment_create_and_update_paths() -> None:
     )
     assert result.body == rendered
 
+    unchanged = MemoryGitHubPort()
+    unchanged.enqueue(
+        "GET",
+        comments_path(42),
+        [{"id": 10, "body": rendered, "user": {"login": "github-actions[bot]"}}],
+    )
+    assert upsert_managed_comment(unchanged, 42, "dashboard", "Body").body == rendered
+    assert all(request[0] == "GET" for request in unchanged.requests)
+
 
 def test_bounded_comment_has_exact_limit_and_omission_notice() -> None:
     value = bounded_comment("dashboard", "x" * (GITHUB_COMMENT_BODY_LIMIT + 100))

@@ -5,14 +5,18 @@ from __future__ import annotations
 import json
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from qg_github.annotations import escape_data, publish_annotations
 from qg_github.commands import handle_command
 from qg_github.github import HttpGitHubPort
-from qg_github.publication import publish_workflow_run, read_event_json
+from qg_github.publication import (
+    publish_workflow_run,
+    read_event_json,
+    watch_workflow_run,
+)
 from qg_github.reporting import append_job_summary
 from quality_graph_core.adapters import (
     AdapterContext,
@@ -24,7 +28,8 @@ from quality_graph_core.adapters import (
     adapter_failure,
     read_report,
 )
-from quality_graph_core.graph import AdapterKind
+from quality_graph_core.graph import AdapterKind, ApprovalPolicy
+from quality_graph_core.policy import policy_controls
 from quality_graph_core.result import FailureKind, JsonValue, Provenance, Result, ResultStatus
 
 if TYPE_CHECKING:
@@ -42,6 +47,7 @@ class CollectionRequest:
     result_path: Path
     summary_path: Path | None
     output_path: Path
+    approval_policy: ApprovalPolicy
 
     @classmethod
     def from_environment(
@@ -73,6 +79,11 @@ class CollectionRequest:
             result_path,
             Path(summary) if summary else None,
             Path(_required(environment, "GITHUB_OUTPUT")),
+            ApprovalPolicy(
+                _boolean(environment, "QG_APPROVAL_FINDINGS"),
+                _boolean(environment, "QG_APPROVAL_FILES"),
+                _boolean(environment, "QG_APPROVAL_NODE"),
+            ),
         )
 
 
@@ -81,15 +92,25 @@ def collect(request: CollectionRequest) -> Result:
     try:
         if request.adapter is AdapterKind.EXIT_CODE:
             state = "passed" if request.context.command_succeeded else "failed"
-            return adapt_exit(request.context, f"The declared command {state}.")
+            return _with_policy_controls(
+                request,
+                adapt_exit(request.context, f"The declared command {state}."),
+            )
         report = _structured_report(request)
         if request.adapter is AdapterKind.NATIVE:
-            return adapt_native(request.context, report)
+            return _with_policy_controls(request, adapt_native(request.context, report))
         if request.adapter is AdapterKind.SARIF:
-            return adapt_sarif(request.context, report)
-        return adapt_junit(request.context, report)
+            result = adapt_sarif(request.context, report)
+        else:
+            result = adapt_junit(request.context, report)
+        return _with_policy_controls(request, result)
     except AdapterError as error:
-        return adapter_failure(request.context, error)
+        return _with_policy_controls(request, adapter_failure(request.context, error))
+
+
+def _with_policy_controls(request: CollectionRequest, result: Result) -> Result:
+    controls = policy_controls(result.node_id, result.findings, request.approval_policy)
+    return replace(result, controls=controls)
 
 
 def _structured_report(request: CollectionRequest) -> bytes:
@@ -125,6 +146,10 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if operation == ["publish"]:
         event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
         publish_workflow_run(HttpGitHubPort.from_environment(), event)
+        return 0
+    if operation == ["watch"]:
+        event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+        watch_workflow_run(HttpGitHubPort.from_environment(), event)
         return 0
     if operation == ["command"]:
         event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
@@ -183,6 +208,14 @@ def _required(environment: Mapping[str, str], name: str) -> str:
         message = f"Required environment variable is missing: {name}"
         raise ValueError(message)
     return value
+
+
+def _boolean(environment: Mapping[str, str], name: str) -> bool:
+    value = _required(environment, name)
+    if value not in {"true", "false"}:
+        message = f"Environment variable must be true or false: {name}"
+        raise ValueError(message)
+    return value == "true"
 
 
 def _result_exit_code(result: Result) -> int:
