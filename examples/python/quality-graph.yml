@@ -5,7 +5,7 @@ provider:
   configuration:
     runtime:
       action: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
-      publisher-action: alchemmist/quality-graph@cba464e01e2a0b2eb470d4eb9fc107ee1ad71128
+      publisher-action: alchemmist/quality-graph@9f813fbdcfbcd92b8cc0a272fb2c4f8ce23e1188
 profiles:
   default:
     runner: ubuntu-latest

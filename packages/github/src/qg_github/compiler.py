@@ -77,6 +77,9 @@ def _validate_github_graph(graph: Graph) -> tuple[str, str]:
         raise ValueError(message)
     action = _runtime_action(runtime.get("action"), "runtime")
     publisher_action = _runtime_action(runtime.get("publisher-action", action), "publisher")
+    if publisher_action.partition("@")[0] != action.partition("@")[0]:
+        message = "GitHub publisher action must use the runtime action repository"
+        raise ValueError(message)
     for profile in graph.profiles:
         _validate_permissions(profile)
         for step in profile.setup:

@@ -188,6 +188,13 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
             ),
             "publisher action",
         ),
+        (
+            GRAPH.replace(
+                f"      action: {RUNTIME}",
+                f"      action: {RUNTIME}\n      publisher-action: attacker/runtime@{'b' * 40}",
+            ),
+            "runtime action repository",
+        ),
         (GRAPH.replace("name: github", "name: gitlab"), "cannot compile provider"),
         (GRAPH.replace("title: Lint", "title: Formatting"), "unique node titles"),
         (

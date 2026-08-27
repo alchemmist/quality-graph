@@ -20,7 +20,8 @@ Unknown fields fail closed.
 `runtime.action` executes inside pull-request jobs and remains part of graph provenance.
 `runtime.publisher-action` executes only in the trusted `workflow_run` publisher without checking
 out pull-request code. It does not change execution provenance, which permits a reviewed publisher
-upgrade to land without invalidating artifacts produced by the existing execution runtime.
+upgrade to land without invalidating artifacts produced by the existing execution runtime. Both
+actions must use the same `owner/repository`; only their immutable commit pins may differ.
 
 ## Default branch
 
