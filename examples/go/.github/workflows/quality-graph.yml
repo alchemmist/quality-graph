@@ -35,7 +35,7 @@ jobs:
       - name: Collect Go vet result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@cba464e01e2a0b2eb470d4eb9fc107ee1ad71128
+        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
         with:
           operation: collect
           node-id: vet
@@ -43,7 +43,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 6cf080363c0cd1d7755095df6edeb8e6b588a50c9a11ba517e6385294cb25960
+          graph-digest: 6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -81,7 +81,7 @@ jobs:
       - name: Collect Go test result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@cba464e01e2a0b2eb470d4eb9fc107ee1ad71128
+        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
         with:
           operation: collect
           node-id: test
@@ -89,7 +89,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 6cf080363c0cd1d7755095df6edeb8e6b588a50c9a11ba517e6385294cb25960
+          graph-digest: 6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
