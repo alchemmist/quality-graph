@@ -14,6 +14,8 @@ from qg_github.publication import (
     DashboardRun,
     PublicationOutcome,
     WorkflowRunEvent,
+    _workflow_job_status,
+    _workflow_jobs,
     publish_workflow_jobs,
     publish_workflow_run,
     read_event_json,
@@ -162,6 +164,138 @@ def test_requested_event_watches_jobs_until_every_node_is_terminal() -> None:
     )
     assert "| Formatting | ✅ passed |" in comment[2]["body"]
     assert "| Lint | ❌ failed |" in comment[2]["body"]
+
+
+def test_requested_event_polls_until_jobs_finish() -> None:
+    port = MemoryGitHubPort()
+    configure_publication(port)
+    port.enqueue(
+        "GET",
+        JOBS_PATH,
+        {
+            "jobs": [
+                {"name": "Formatting", "status": "in_progress"},
+                {"name": "Lint", "status": "queued"},
+            ]
+        },
+        {
+            "jobs": [
+                {"name": "Formatting", "status": "completed", "conclusion": "success"},
+                {"name": "Lint", "status": "completed", "conclusion": "success"},
+            ]
+        },
+    )
+    comments = "/issues/42/comments?per_page=100&page=1"
+    existing = {
+        "id": 5,
+        "body": marker("dashboard"),
+        "user": {"login": "github-actions[bot]"},
+    }
+    port.enqueue("GET", comments, [existing])
+    port.enqueue("PATCH", "/issues/comments/5", {"id": 5, "body": marker("dashboard")})
+    sleeps: list[float] = []
+
+    watch_workflow_run(port, event("requested"), sleep=sleeps.append)
+
+    assert sleeps == [5.0]
+
+
+@pytest.mark.parametrize(
+    ("job", "expected"),
+    [
+        ({"status": "queued"}, ResultStatus.WAITING),
+        ({"status": "pending"}, ResultStatus.IN_PROGRESS),
+        ({"status": "requested"}, ResultStatus.IN_PROGRESS),
+        ({"status": "waiting"}, ResultStatus.IN_PROGRESS),
+        ({"status": "completed", "conclusion": "success"}, ResultStatus.PASSED),
+        ({"status": "completed", "conclusion": "skipped"}, ResultStatus.SKIPPED),
+        ({"status": "completed", "conclusion": "cancelled"}, ResultStatus.CANCELLED),
+        ({"status": "completed", "conclusion": "failure"}, ResultStatus.FAILED),
+    ],
+)
+def test_workflow_job_status_maps_github_lifecycle(
+    job: dict[str, object], expected: ResultStatus
+) -> None:
+    assert _workflow_job_status(job) is expected
+
+
+def test_workflow_job_status_rejects_unknown_state() -> None:
+    with pytest.raises(ValueError, match="unsupported workflow job status"):
+        _workflow_job_status({"status": "unknown"})
+
+
+def test_workflow_jobs_paginates_complete_job_list() -> None:
+    port = MemoryGitHubPort()
+    first = "/actions/runs/10/jobs?filter=latest&per_page=100&page=1"
+    second = "/actions/runs/10/jobs?filter=latest&per_page=100&page=2"
+    jobs = [{"name": f"job-{index}", "status": "queued"} for index in range(100)]
+    port.enqueue("GET", first, {"jobs": jobs})
+    port.enqueue("GET", second, {"jobs": [{"name": "last", "status": "queued"}]})
+
+    assert len(_workflow_jobs(port, 10)) == 101
+
+
+def test_job_coordinator_ignores_non_graph_jobs() -> None:
+    port = MemoryGitHubPort()
+    port.enqueue(
+        "GET",
+        JOBS_PATH,
+        {"jobs": [{"name": "publisher", "status": "in_progress"}]},
+    )
+    comments = "/issues/42/comments?per_page=100&page=1"
+    port.enqueue("GET", comments, [])
+    port.enqueue("POST", "/issues/42/comments", {"id": 5, "body": marker("dashboard")})
+
+    assert (
+        publish_workflow_jobs(
+            port,
+            42,
+            (DashboardNode("format", "Formatting"),),
+            DashboardRun(10, 1, "a" * 40, "https://example.test/run/10"),
+        )
+        is False
+    )
+
+
+@pytest.mark.parametrize(
+    "event_value",
+    [
+        event("completed"),
+        event("requested") | {"workflow_run": {**event()["workflow_run"], "event": "push"}},
+    ],
+)
+def test_watcher_ignores_non_requested_pull_runs(event_value: dict[str, object]) -> None:
+    port = MemoryGitHubPort()
+
+    assert watch_workflow_run(port, event_value).published is False
+    assert port.requests == []
+
+
+def test_watcher_rejects_unassociated_stale_and_superseded_runs() -> None:
+    unassociated = MemoryGitHubPort()
+    unassociated.enqueue("GET", f"/commits/{'c' * 40}/pulls", [])
+    assert watch_workflow_run(unassociated, event("requested", pull=False)).published is False
+
+    stale = MemoryGitHubPort()
+    stale.enqueue(
+        "GET",
+        "/pulls/42",
+        {"head": {"sha": "b" * 40}, "base": {"sha": "d" * 40}},
+    )
+    assert watch_workflow_run(stale, event("requested")).published is False
+
+    superseded = MemoryGitHubPort()
+    superseded.enqueue(
+        "GET",
+        "/pulls/42",
+        {"head": {"sha": "a" * 40}, "base": {"sha": "d" * 40}},
+    )
+    superseded.enqueue(
+        "GET",
+        RUNS_PATH,
+        {"workflow_runs": [{"id": 11, "pull_requests": [{"number": 42}]}]},
+    )
+    assert watch_workflow_run(superseded, event("requested")).published is False
 
 
 def test_job_coordinator_preserves_previous_owned_labels() -> None:

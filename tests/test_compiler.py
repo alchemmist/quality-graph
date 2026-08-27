@@ -114,6 +114,21 @@ def test_publication_workflow_is_privileged_without_untrusted_checkout() -> None
     assert "pull_request_target" not in serialized
 
 
+def test_publisher_runtime_can_roll_forward_without_changing_execution_provenance() -> None:
+    publisher = "alchemmist/quality-graph@" + "b" * 40
+    source = GRAPH.replace(
+        f"      action: {RUNTIME}",
+        f"      action: {RUNTIME}\n      publisher-action: {publisher}",
+    )
+    original = compile_graph(Graph.from_yaml(GRAPH))
+    updated = compile_graph(Graph.from_yaml(source))
+    files = {str(item.path): item.content for item in updated.files}
+
+    assert original.graph_digest == updated.graph_digest
+    assert publisher in files[str(PUBLICATION_WORKFLOW)]
+    assert publisher not in files[str(EXECUTION_WORKFLOW)]
+
+
 def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
     configured_label = "label:\n      name: quality:lint\n      color: ff0000\n      create: true"
     source = GRAPH.replace(configured_label, "label: false")
@@ -156,6 +171,13 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
             "unknown GitHub permission",
         ),
         (GRAPH.replace(RUNTIME, "alchemmist/quality-graph@main"), "40-character-commit"),
+        (
+            GRAPH.replace(
+                f"      action: {RUNTIME}",
+                f"      action: {RUNTIME}\n      publisher-action: mutable",
+            ),
+            "publisher action",
+        ),
         (GRAPH.replace("name: github", "name: gitlab"), "cannot compile provider"),
         (GRAPH.replace("title: Lint", "title: Formatting"), "unique node titles"),
         (

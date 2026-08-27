@@ -56,7 +56,7 @@ class WorkflowDumper(yaml.SafeDumper):
         super().increase_indent(flow, indentless=False)
 
 
-def _validate_github_graph(graph: Graph) -> str:
+def _validate_github_graph(graph: Graph) -> tuple[str, str]:
     if graph.provider.name != "github":
         message = f"GitHub provider cannot compile provider '{graph.provider.name}'"
         raise ValueError(message)
@@ -68,13 +68,11 @@ def _validate_github_graph(graph: Graph) -> str:
     if not isinstance(runtime, dict):
         message = "GitHub provider requires a runtime object"
         raise TypeError(message)
-    if runtime.keys() - {"action"}:
+    if runtime.keys() - {"action", "publisher-action"}:
         message = "GitHub runtime contains unknown fields"
         raise ValueError(message)
-    action = runtime.get("action")
-    if not isinstance(action, str) or RUNTIME_ACTION_RE.fullmatch(action) is None:
-        message = "GitHub runtime action must use owner/repository@40-character-commit"
-        raise ValueError(message)
+    action = _runtime_action(runtime.get("action"), "runtime")
+    publisher_action = _runtime_action(runtime.get("publisher-action", action), "publisher")
     for profile in graph.profiles:
         _validate_permissions(profile)
         for step in profile.setup:
@@ -85,7 +83,14 @@ def _validate_github_graph(graph: Graph) -> str:
     if len(set(titles)) != len(titles):
         message = "GitHub dashboard requires unique node titles"
         raise ValueError(message)
-    return action
+    return action, publisher_action
+
+
+def _runtime_action(value: JsonValue, context: str) -> str:
+    if not isinstance(value, str) or RUNTIME_ACTION_RE.fullmatch(value) is None:
+        message = f"GitHub {context} action must use owner/repository@40-character-commit"
+        raise ValueError(message)
+    return value
 
 
 def _validate_permissions(profile: Profile) -> None:
@@ -109,7 +114,7 @@ def _validate_step(step: Step) -> None:
 
 def compile_graph(graph: Graph) -> GeneratedProject:
     """Compile one graph through the public declaration seam."""
-    runtime_action = _validate_github_graph(graph)
+    runtime_action, publisher_action = _validate_github_graph(graph)
     manifest = _manifest_value(graph, runtime_action)
     digest = hashlib.sha256(_canonical_json(manifest).encode()).hexdigest()
     manifest["graphDigest"] = digest
@@ -120,7 +125,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
         ),
         GeneratedFile(
             PUBLICATION_WORKFLOW,
-            _yaml_file(_publication_workflow(runtime_action)),
+            _yaml_file(_publication_workflow(publisher_action)),
         ),
         GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)),
     )

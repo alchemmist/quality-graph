@@ -189,6 +189,11 @@ def test_collection_request_requires_explicit_environment(tmp_path: Path) -> Non
     with pytest.raises(ValueError, match="QG_NODE_ID"):
         CollectionRequest.from_environment(values, {})
 
+    invalid = environment(tmp_path)
+    invalid["QG_APPROVAL_NODE"] = "yes"
+    with pytest.raises(ValueError, match="must be true or false"):
+        CollectionRequest.from_environment(invalid, {})
+
 
 def test_collection_request_uses_push_sha_without_valid_pull_metadata(tmp_path: Path) -> None:
     values = environment(tmp_path)
