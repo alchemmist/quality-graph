@@ -12,7 +12,7 @@ MARKDOWN_SOURCES := README.md $(wildcard docs/*.md packages/*/README.md apps/*/R
 	python-time-bombs python-no-comments coverage-diff flaky-python \
 	mutation mutation-diff audit package check clean fmt-staged \
 	precommit-install precommit-uninstall examples-generate examples-check \
-	release-setup site-build
+	release-setup site-build release-patch release-minor release-major
 
 install:
 	uv sync --locked --all-groups --all-packages
@@ -22,6 +22,15 @@ site-build:
 
 release-setup:
 	bash scripts/setup-release-publishing.sh
+
+release-patch:
+	bash scripts/release.sh patch
+
+release-minor:
+	bash scripts/release.sh minor
+
+release-major:
+	bash scripts/release.sh major
 
 tools:
 	QUALITY_GRAPH_TOOLS_BIN="$(TOOLS_BIN)" bash scripts/install-tools.sh

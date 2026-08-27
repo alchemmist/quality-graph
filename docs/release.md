@@ -39,11 +39,16 @@ PyPI token is used.
 
 Release procedure:
 
-1. merge a version PR with every local and pull-request check green;
 1. confirm all four Trusted Publishers and their four named environments are configured;
-1. create the immutable `vX.Y.Z` tag at the reviewed release commit;
+1. update local `main` so it exactly matches `origin/main` with a clean working tree;
+1. run `make release-patch`, `make release-minor`, or `make release-major`;
 1. wait for all PyPI publication jobs and the GitHub Release job;
 1. install the exact versions from PyPI in a clean environment and validate the Action from a
    separate repository.
+
+The release targets update all four workspace versions and `uv.lock`, run the complete local
+quality gate, create one `release vX.Y.Z` commit and annotated tag, then atomically push `main` and
+the tag. They stop before commit, tag, or push if the tree is dirty, local `main` differs from
+`origin/main`, workspace versions disagree, the tag exists, or any check fails.
 
 Do not create a moving Action tag. Consumers pin the release commit SHA.
