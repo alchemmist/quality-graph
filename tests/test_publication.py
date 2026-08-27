@@ -6,7 +6,7 @@ import zipfile
 
 import pytest
 
-from qg_github.comments import marker
+from qg_github.comments import marker, upsert_managed_comment
 from qg_github.compiler import compile_graph
 from qg_github.github import MemoryGitHubPort
 from qg_github.publication import (
@@ -141,7 +141,8 @@ def test_job_coordinator_merges_parallel_job_lifecycle_without_lost_updates() ->
     assert "| Lint | 🚀 in_progress |" in writes[1]
 
 
-def test_requested_event_watches_jobs_until_every_node_is_terminal() -> None:
+@pytest.mark.parametrize("action", ["requested", "in_progress"])
+def test_live_event_watches_jobs_until_every_node_is_terminal(action: str) -> None:
     port = MemoryGitHubPort()
     configure_publication(port)
     port.enqueue(
@@ -156,14 +157,10 @@ def test_requested_event_watches_jobs_until_every_node_is_terminal() -> None:
         },
     )
 
-    outcome = watch_workflow_run(port, event("requested"), sleep=lambda _: None)
+    outcome = watch_workflow_run(port, event(action), sleep=lambda _: None)
 
     assert outcome == PublicationOutcome(published=True, status=ResultStatus.IN_PROGRESS)
-    comment = next(
-        request for request in port.requests if request[0] == "POST" and "comments" in request[1]
-    )
-    assert "| Formatting | ✅ passed |" in comment[2]["body"]
-    assert "| Lint | ❌ failed |" in comment[2]["body"]
+    assert all("comments" not in request[1] for request in port.requests)
 
 
 def test_requested_event_polls_until_jobs_finish() -> None:
@@ -255,6 +252,54 @@ def test_job_coordinator_ignores_non_graph_jobs() -> None:
         )
         is False
     )
+
+
+def test_job_coordinator_does_not_overwrite_terminal_or_superseded_state() -> None:
+    terminal = MemoryGitHubPort()
+    terminal.enqueue(
+        "GET",
+        JOBS_PATH,
+        {"jobs": [{"name": "Formatting", "status": "completed", "conclusion": "success"}]},
+    )
+    node = (DashboardNode("format", "Formatting"),)
+    run = DashboardRun(10, 1, "a" * 40, "https://example.test/run/10")
+
+    assert publish_workflow_jobs(terminal, 42, node, run) is True
+    assert all("comments" not in request[1] for request in terminal.requests)
+
+    interleaved = MemoryGitHubPort()
+    interleaved.enqueue(
+        "GET",
+        JOBS_PATH,
+        {"jobs": [{"name": "Formatting", "status": "in_progress"}]},
+    )
+    comments = "/issues/42/comments?per_page=100&page=1"
+    existing = {
+        "id": 5,
+        "body": marker("dashboard") + "\nold",
+        "user": {"login": "github-actions[bot]"},
+    }
+    interleaved.enqueue("GET", comments, [existing])
+    interleaved.enqueue("PATCH", "/issues/comments/5", {"id": 5, "body": "final"})
+
+    def final_published() -> bool:
+        upsert_managed_comment(interleaved, 42, "dashboard", "FINAL")
+        return False
+
+    assert (
+        publish_workflow_jobs(
+            interleaved,
+            42,
+            node,
+            run,
+            is_current=final_published,
+        )
+        is True
+    )
+    writes = [request for request in interleaved.requests if request[0] == "PATCH"]
+    assert len(writes) == 1
+    assert "FINAL" in writes[0][2]["body"]
+    assert "in_progress" not in writes[0][2]["body"]
 
 
 @pytest.mark.parametrize(

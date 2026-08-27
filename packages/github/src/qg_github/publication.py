@@ -144,7 +144,7 @@ def watch_workflow_run(
 ) -> PublicationOutcome:
     """Serialize live dashboard updates from authoritative GitHub job state."""
     event = WorkflowRunEvent.from_value(event_value)
-    if event.event != "pull_request" or event.action != "requested":
+    if event.event != "pull_request" or event.action not in {"requested", "in_progress"}:
         return PublicationOutcome(published=False)
     number = event.pull_request or _resolve_pull_request(port, event.workflow_head_sha)
     if number is None:
@@ -158,7 +158,11 @@ def watch_workflow_run(
     nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
     _publish_check(port, pending_dashboard(graph, run))
-    while not publish_workflow_jobs(port, number, nodes, run):
+
+    def is_current() -> bool:
+        return _is_latest_run(port, event, number)
+
+    while not publish_workflow_jobs(port, number, nodes, run, is_current=is_current):
         sleep(poll_interval)
     return PublicationOutcome(published=True, status=ResultStatus.IN_PROGRESS)
 
@@ -168,6 +172,8 @@ def publish_workflow_jobs(
     number: int,
     nodes: tuple[DashboardNode, ...],
     run: DashboardRun,
+    *,
+    is_current: Callable[[], bool] = lambda: True,
 ) -> bool:
     """Merge authoritative job lifecycle into the single live dashboard."""
     by_title = {node.title: node.node_id for node in nodes}
@@ -183,6 +189,8 @@ def publish_workflow_jobs(
         statuses[node_id] = status
         terminal = terminal and status not in {ResultStatus.WAITING, ResultStatus.IN_PROGRESS}
     terminal = terminal and len(statuses) == len(nodes)
+    if terminal or not is_current():
+        return True
     existing = find_managed_comment(port, number, DASHBOARD_MARKER)
     previous_labels = parse_label_state(existing.body) if existing is not None else frozenset()
     model = live_dashboard(nodes, statuses, run, managed_labels=tuple(sorted(previous_labels)))
