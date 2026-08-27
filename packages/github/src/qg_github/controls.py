@@ -59,9 +59,17 @@ def control_states(body: str) -> dict[str, bool]:
     }
 
 
-def render_control(control: Control) -> str:
+def render_control(control: Control, *, show_commands: bool = False) -> str:
     """Render one reversible checkbox control."""
     state = "x" if control.checked else " "
     marker = control_marker(control)
-    target = html.escape(control.target)
-    return f"- [{state}] {control.kind.value}: `{target}` <!-- {marker} -->"
+    target = _code(control.target)
+    rendered = f"- [{state}] {control.kind.value}: `{target}` <!-- {marker} -->"
+    if not show_commands:
+        return rendered
+    apply, reverse = control_commands(control)
+    return f"{rendered}\n  - apply: `{_code(apply)}`\n  - reverse: `{_code(reverse)}`"
+
+
+def _code(value: str) -> str:
+    return html.escape(value).replace("`", "&#96;").replace("\n", "&#10;")

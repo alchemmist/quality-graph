@@ -47,6 +47,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Format check result
         if: always()
         uses: actions/upload-artifact@v7
@@ -93,6 +96,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Lint suppression gate result
         if: always()
         uses: actions/upload-artifact@v7
@@ -141,6 +147,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Python object annotation gate result
         if: always()
         uses: actions/upload-artifact@v7
@@ -189,6 +198,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Triple-quoted string style result
         if: always()
         uses: actions/upload-artifact@v7
@@ -237,6 +249,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Python no-comments policy result
         if: always()
         uses: actions/upload-artifact@v7
@@ -285,6 +300,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Lint result
         if: always()
         uses: actions/upload-artifact@v7
@@ -335,6 +353,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Type check result
         if: always()
         uses: actions/upload-artifact@v7
@@ -383,6 +404,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Static analysis result
         if: always()
         uses: actions/upload-artifact@v7
@@ -432,6 +456,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Time bomb guardrail result
         if: always()
         uses: actions/upload-artifact@v7
@@ -480,6 +507,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Unit tests result
         if: always()
         uses: actions/upload-artifact@v7
@@ -528,6 +558,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Integration tests result
         if: always()
         uses: actions/upload-artifact@v7
@@ -576,6 +609,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Coverage and diff coverage result
         if: always()
         uses: actions/upload-artifact@v7
@@ -625,6 +661,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Changed Python flaky-test detection result
         if: always()
         uses: actions/upload-artifact@v7
@@ -673,6 +712,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Changed decision mutation gate result
         if: always()
         uses: actions/upload-artifact@v7
@@ -721,6 +763,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Dependency and secret audit result
         if: always()
         uses: actions/upload-artifact@v7
@@ -769,6 +814,9 @@ jobs:
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
           graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
       - name: Upload Package result
         if: always()
         uses: actions/upload-artifact@v7

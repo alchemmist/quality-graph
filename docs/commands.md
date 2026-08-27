@@ -22,3 +22,8 @@ support exact inverse commands, survive reruns and line movement, and disappear 
 state when their finding, file, or node target no longer exists.
 
 Editing a hidden marker, a pull-request body, or ordinary Markdown cannot create approval.
+
+The dashboard and each Job Summary render controls from the same semantic control model and
+canonical command encoder. Job Summary controls are placed at the bottom under a collapsed **For
+repository administrators** section. If the summary limit omits actions, the complete semantic
+control set remains available in the uploaded result artifact.

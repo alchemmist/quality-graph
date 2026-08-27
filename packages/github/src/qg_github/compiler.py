@@ -266,6 +266,9 @@ def _execution_job(
             "report-path": report_path,
             "command-outcome": "${{ steps.quality-command.outcome }}",
             "graph-digest": graph_digest,
+            "approval-findings": str(node.policy.approvals.findings).lower(),
+            "approval-files": str(node.policy.approvals.files).lower(),
+            "approval-node": str(node.policy.approvals.node).lower(),
         },
     }
     upload: dict[str, JsonValue] = {

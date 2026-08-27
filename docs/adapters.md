@@ -16,6 +16,11 @@ results:
 
 Identity and provenance must match the declared node and current workflow attempt.
 
+Native producers own domain data: custom `summary` Markdown, metrics, findings, annotations,
+diagnostics, and notes. They must not construct the complete Job Summary, stable finding labels, or
+`/qg` commands. Quality Graph replaces report-supplied controls with semantic controls derived from
+the findings and compiled node approval policy, then composes the provider presentation.
+
 ## SARIF
 
 ```yaml

@@ -23,6 +23,9 @@ def environment(tmp_path: Path, *, outcome: str = "success") -> dict[str, str]:
         "QG_REPORT_PATH": "",
         "QG_COMMAND_OUTCOME": outcome,
         "QG_GRAPH_DIGEST": "b" * 64,
+        "QG_APPROVAL_FINDINGS": "false",
+        "QG_APPROVAL_FILES": "false",
+        "QG_APPROVAL_NODE": "false",
         "GITHUB_WORKSPACE": str(tmp_path),
         "GITHUB_REPOSITORY": "owner/repository",
         "GITHUB_SHA": "a" * 40,
@@ -87,6 +90,19 @@ def test_collector_reads_sarif_junit_and_native_reports(tmp_path: Path) -> None:
         replace(request, adapter=AdapterKind.NATIVE, report_path="result.json")
     )
     assert collected_native == native_result
+
+
+def test_collector_replaces_native_controls_with_graph_policy_controls(tmp_path: Path) -> None:
+    values = environment(tmp_path)
+    values["QG_APPROVAL_NODE"] = "true"
+    request = CollectionRequest.from_environment(values, event())
+    native_result = collect(request)
+    native = tmp_path / "result.json"
+    native.write_text(native_result.to_json().replace('"target": "lint"', '"target": "forged"'))
+
+    collected = collect(replace(request, adapter=AdapterKind.NATIVE, report_path="result.json"))
+
+    assert tuple(control.target for control in collected.controls) == ("lint",)
 
 
 def test_runtime_main_executes_collect_operation(

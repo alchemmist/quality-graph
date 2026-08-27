@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 from typing import TYPE_CHECKING
 
+from qg_github.controls import render_control
 from quality_graph_core.result import Finding, Result, ResultStatus
 
 if TYPE_CHECKING:
@@ -45,7 +46,8 @@ def render_job_summary(result: Result) -> str:
     if result.notes:
         lines.extend(("", "### Notes", ""))
         lines.extend(f"- {html.escape(note)}" for note in result.notes)
-    return _bounded("\n".join(lines).strip() + "\n")
+    body = "\n".join(lines).strip() + "\n"
+    return _bounded_with_controls(body, result)
 
 
 def append_job_summary(path: Path, result: Result) -> None:
@@ -61,8 +63,9 @@ def _finding_line(finding: Finding) -> str:
         location = f" — `{html.escape(finding.location.path)}:{finding.location.start_line}`"
     rule = f" `{html.escape(finding.rule_id)}`" if finding.rule_id else ""
     severity = html.escape(finding.severity.value)
+    finding_id = html.escape(finding.id)
     message = html.escape(finding.message)
-    return f"- **{severity}**{rule}: {message}{location}"
+    return f"- `{finding_id}` — **{severity}**{rule}: {message}{location}"
 
 
 def _status_icon(status: ResultStatus) -> str:
@@ -84,13 +87,44 @@ def _code(value: str) -> str:
     return value.replace("```", "` ` `")
 
 
-def _bounded(value: str) -> str:
-    if len(value) <= MAX_JOB_SUMMARY_CHARACTERS:
+def _bounded_with_controls(body: str, result: Result) -> str:
+    if not result.controls:
+        return _bounded(body, MAX_JOB_SUMMARY_CHARACTERS)
+    minimum = _control_section((), len(result.controls))
+    bounded_body = _bounded(body, MAX_JOB_SUMMARY_CHARACTERS - len(minimum) - 2)
+    rendered: list[str] = []
+    for control in result.controls:
+        candidate = [*rendered, render_control(control, show_commands=True)]
+        omitted = len(result.controls) - len(candidate)
+        section = _control_section(candidate, omitted)
+        if len(f"{bounded_body.rstrip()}\n\n{section}") > MAX_JOB_SUMMARY_CHARACTERS:
+            break
+        rendered = candidate
+    omitted = len(result.controls) - len(rendered)
+    return f"{bounded_body.rstrip()}\n\n{_control_section(rendered, omitted)}"
+
+
+def _control_section(controls: list[str] | tuple[str, ...], omitted: int) -> str:
+    lines = ["<details><summary>For repository administrators</summary>", ""]
+    lines.extend(controls)
+    if omitted:
+        lines.extend(
+            (
+                "",
+                f"_{omitted} additional actions are available in the result artifact._",
+            )
+        )
+    lines.extend(("", "</details>"))
+    return "\n".join(lines).strip() + "\n"
+
+
+def _bounded(value: str, maximum: int) -> str:
+    if len(value) <= maximum:
         return value
-    omitted = len(value) - MAX_JOB_SUMMARY_CHARACTERS
+    omitted = len(value) - maximum
     while True:
         notice = f"\n\n_Job Summary truncated; {omitted} characters omitted._\n"
-        prefix = MAX_JOB_SUMMARY_CHARACTERS - len(notice)
+        prefix = maximum - len(notice)
         updated = len(value) - prefix
         if updated == omitted:
             return value[:prefix] + notice

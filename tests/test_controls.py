@@ -35,6 +35,13 @@ def test_control_renderer_and_state_parser_share_canonical_marker() -> None:
     assert rendered.startswith("- [x] finding: `finding`")
     assert control_states(rendered) == {control_marker(control): True}
 
+    escaped = render_control(Control(ControlKind.FILE, "src/`unsafe`\nfile.py"))
+    assert "`src/&#96;unsafe&#96;&#10;file.py`" in escaped
+
+    commands = render_control(control, show_commands=True)
+    assert "apply: `/qg ignore finding`" in commands
+    assert "reverse: `/qg remove-ignore finding`" in commands
+
 
 def test_control_decoder_rejects_malformed_payloads() -> None:
     assert decode_control_marker("quality-graph-control:invalid") is None

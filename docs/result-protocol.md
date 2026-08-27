@@ -6,7 +6,7 @@ Schema is [`schemas/result-v0.schema.json`](../schemas/result-v0.schema.json).
 Required result data includes:
 
 - `schemaVersion`, `nodeId`, `title`, `status`, and optional `failureKind`;
-- Markdown `summary` and ordered string metrics;
+- producer-owned Markdown `summary` body and ordered string metrics;
 - stable findings and safe repository-relative source annotations;
 - structured diagnostics, semantic approval controls, and notes;
 - repository, pull request, head SHA, run, attempt, and graph-digest provenance.
@@ -30,3 +30,13 @@ are mandatory. Serialization is UTF-8, sorted, indented JSON with one final newl
 
 The protocol rejects unknown fields, duplicate finding IDs, absolute or traversal paths,
 invalid line ranges, oversized collections, and inconsistent status/failure combinations.
+
+`summary` is custom body content, not a complete GitHub Job Summary. Producers may use it for
+explanatory Markdown, custom tables, metrics context, and domain-specific notes. The GitHub
+provider owns the result anchor, status and title, standard metrics, findings with stable IDs and
+source locations, diagnostics, notes, size bounds, and administrator controls.
+
+Controls in collected artifacts are framework-owned derived state. The execution runtime replaces
+any controls supplied by a native report with finding-, file-, and node-level controls allowed by
+the compiled graph policy. Their checkbox markers and canonical apply and reverse `/qg` commands
+are rendered centrally; producer Markdown is never an authorization source.
