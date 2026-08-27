@@ -1,0 +1,29 @@
+site_name: Quality Graph
+site_description: Quality infrastructure for GitHub Actions
+site_url: https://alchemmist.github.io/quality-graph/
+repo_url: https://github.com/alchemmist/quality-graph
+docs_dir: docs
+site_dir: site
+exclude_docs: |
+  design-prototype/
+theme:
+  name: null
+  custom_dir: site-theme
+nav:
+  - Home: index.md
+  - Start here:
+      - Installation: installation.md
+      - Quickstart: quickstart.md
+      - Migration: migration.md
+  - Reference:
+      - Configuration: configuration.md
+      - Result protocol: result-protocol.md
+      - Result adapters: adapters.md
+      - Security: security.md
+      - Commands: commands.md
+      - Compatibility: compatibility.md
+  - Contributing:
+      - Provider authoring: provider-authoring.md
+      - Monori parity: monori-parity.md
+      - Release: release.md
+      - Troubleshooting: troubleshooting.md

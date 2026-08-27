@@ -12,10 +12,13 @@ MARKDOWN_SOURCES := README.md $(wildcard docs/*.md packages/*/README.md apps/*/R
 	python-time-bombs python-no-comments coverage-diff flaky-python \
 	mutation mutation-diff audit package check clean fmt-staged \
 	precommit-install precommit-uninstall examples-generate examples-check \
-	release-setup
+	release-setup site-build
 
 install:
 	uv sync --locked --all-groups --all-packages
+
+site-build:
+	uv run --locked --all-packages mkdocs build --strict
 
 release-setup:
 	bash scripts/setup-release-publishing.sh

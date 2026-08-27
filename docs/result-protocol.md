@@ -1,7 +1,7 @@
 # Result protocol
 
 Every completed node publishes one deterministic Quality Graph Result. The provisional JSON
-Schema is [`schemas/result-v0.schema.json`](../schemas/result-v0.schema.json).
+Schema is [`schemas/result-v0.schema.json`](https://github.com/alchemmist/quality-graph/blob/main/schemas/result-v0.schema.json).
 
 Required result data includes:
 
