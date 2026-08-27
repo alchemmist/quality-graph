@@ -1,7 +1,7 @@
-<h1>
-  <img src="docs/assets/quality-graph-eye.svg" width="72" alt="Quality Graph logo" align="center">
+<h2>
+  <img src="docs/assets/quality-graph-eye.svg" width="52" alt="Quality Graph logo" align="middle">
   Quality Graph
-</h1>
+</h2>
 
 [![CI](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml/badge.svg?branch=main)](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml)
 [![Documentation](https://github.com/alchemmist/quality-graph/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/alchemmist/quality-graph/actions/workflows/pages.yml)
