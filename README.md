@@ -1,11 +1,6 @@
 <h2><img src="docs/assets/quality-graph-eye-inline.svg" width="72" alt="Quality Graph logo" align="absmiddle"> Quality Graph</h2>
 
-[![CI](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml/badge.svg?branch=main)](https://github.com/alchemmist/quality-graph/actions/workflows/quality-graph.yml)
-[![Documentation](https://github.com/alchemmist/quality-graph/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/alchemmist/quality-graph/actions/workflows/pages.yml)
-[![PyPI](https://img.shields.io/pypi/v/quality-graph-cli)](https://pypi.org/project/quality-graph-cli/)
-[![License](https://img.shields.io/github/license/alchemmist/quality-graph)](LICENSE)
-
-[Website](https://alchemmist.github.io/quality-graph/)
+[Docs](https://alchemmist.github.io/quality-graph/)
 
 Quality Graph turns a small repository-owned declaration into native GitHub Actions
 jobs and a complete pull-request quality experience. Checks remain ordinary commands
