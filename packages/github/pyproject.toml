@@ -16,6 +16,10 @@ dependencies = [
   "quality-graph-core==0.1.4",
 ]
 
+[project.urls]
+Homepage = "https://alchemmist.github.io/quality-graph/"
+Documentation = "https://alchemmist.github.io/quality-graph/"
+
 [project.entry-points."qg.providers"]
 github = "qg_github:provider"
 
