@@ -22,15 +22,15 @@ from qg_github.publication import (
     watch_workflow_run,
 )
 from quality_graph_core.graph import Graph
-from quality_graph_core.result import Provenance, Result, ResultStatus
+from quality_graph_core.result import JsonValue, Provenance, Result, ResultStatus
 from tests.test_graph import GRAPH
 
 RUNS_PATH = "/actions/workflows/quality-graph.yml/runs?event=pull_request&per_page=100&page=1"
 JOBS_PATH = "/actions/runs/10/jobs?filter=latest&per_page=100&page=1"
 
 
-def event(action: str = "in_progress", *, pull: bool = True) -> dict[str, object]:
-    pulls: list[object] = []
+def event(action: str = "in_progress", *, pull: bool = True) -> dict[str, JsonValue]:
+    pulls: list[JsonValue] = []
     if pull:
         pulls.append({"number": 42, "head": {"sha": "a" * 40}})
     return {
@@ -214,7 +214,7 @@ def test_requested_event_polls_until_jobs_finish() -> None:
     ],
 )
 def test_workflow_job_status_maps_github_lifecycle(
-    job: dict[str, object], expected: ResultStatus
+    job: dict[str, JsonValue], expected: ResultStatus
 ) -> None:
     assert _workflow_job_status(job) is expected
 
@@ -264,7 +264,7 @@ def test_job_coordinator_ignores_non_graph_jobs() -> None:
         event("requested") | {"workflow_run": {**event()["workflow_run"], "event": "push"}},
     ],
 )
-def test_watcher_ignores_non_requested_pull_runs(event_value: dict[str, object]) -> None:
+def test_watcher_ignores_non_requested_pull_runs(event_value: dict[str, JsonValue]) -> None:
     port = MemoryGitHubPort()
 
     assert watch_workflow_run(port, event_value).published is False
