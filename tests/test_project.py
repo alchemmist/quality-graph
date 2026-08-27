@@ -45,28 +45,24 @@ def test_generate_manages_prettier_ignore_without_replacing_user_rules(tmp_path:
     project.generate()
 
     assert prettier_ignore.read_text() == first
-    assert (
-        first
-        == """dist
-
-# Quality Graph generated files (managed by qg)
-.github/workflows/quality-graph.yml
-.github/workflows/quality-graph-publish.yml
-.quality-graph/manifest.json
-# End Quality Graph generated files
-"""
+    assert first == (
+        "dist\n\n"
+        "# Quality Graph generated files (managed by qg)\n"
+        ".github/workflows/quality-graph.yml\n"
+        ".github/workflows/quality-graph-publish.yml\n"
+        ".quality-graph/manifest.json\n"
+        "# End Quality Graph generated files\n"
     )
 
 
 def test_generate_replaces_its_existing_prettier_block_in_place(tmp_path: Path) -> None:
     prettier_ignore = tmp_path / ".prettierignore"
     prettier_ignore.write_text(
-        """before
-# Quality Graph generated files (managed by qg)
-obsolete.json
-# End Quality Graph generated files
-after
-"""
+        "before\n"
+        "# Quality Graph generated files (managed by qg)\n"
+        "obsolete.json\n"
+        "# End Quality Graph generated files\n"
+        "after\n"
     )
 
     Project.initialize(tmp_path, RUNTIME).generate()

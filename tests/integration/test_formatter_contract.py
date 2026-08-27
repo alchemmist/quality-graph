@@ -22,6 +22,7 @@ def test_prettier_can_format_fresh_project_without_staling_artifacts(tmp_path: P
         check=True,
         capture_output=True,
         text=True,
+        timeout=60,
     )
 
     assert project.validate().current

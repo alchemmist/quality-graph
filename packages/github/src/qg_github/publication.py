@@ -110,7 +110,7 @@ def publish_workflow_run(
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
     effective_results: Mapping[str, Result] | None = None
     if event.action in {"requested", "in_progress"}:
-        model = pending_dashboard(graph, run)
+        model = pending_dashboard(graph, run, started=event.action == "in_progress")
     elif event.action == "completed":
         model, effective_results = _completed_dashboard(
             port,
@@ -156,7 +156,6 @@ def _completed_dashboard(
     )
     try:
         results = download_results(port, expectation)
-        _require_complete_results(results, expectation.node_ids)
     except ArtifactError as error:
         pending = pending_dashboard(graph, run)
         return (
@@ -164,22 +163,22 @@ def _completed_dashboard(
                 pending,
                 status=ResultStatus.FAILED,
                 message=f"The final dashboard could not be assembled: {error}",
+                rows=tuple(replace(row, status=ResultStatus.FAILED) for row in pending.rows),
             ),
             None,
         )
     approvals = approval_ledger(port, pull.number)
     effective = effective_graph(graph, results, approvals)
-    return final_dashboard(graph, effective.results, run), effective.results
-
-
-def _require_complete_results(
-    results: Mapping[str, object],
-    node_ids: frozenset[str],
-) -> None:
-    missing = node_ids - results.keys()
+    model = final_dashboard(graph, effective.results, run)
+    missing = expectation.node_ids - results.keys()
     if missing:
-        message = f"missing result artifacts for nodes: {', '.join(sorted(missing))}"
-        raise ArtifactError(message)
+        model = replace(
+            model,
+            status=ResultStatus.FAILED,
+            message=f"Missing result artifacts for nodes: {', '.join(sorted(missing))}.",
+        )
+        return model, None
+    return model, effective.results
 
 
 def _pull_request(port: GitHubPort, number: int) -> PullRequestState:
