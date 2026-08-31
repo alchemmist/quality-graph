@@ -249,6 +249,7 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
             "unknown configuration",
         ),
         (GRAPH.replace("default-branch: main", "default-branch: -invalid"), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: '!negative'"), "default branch"),
         (GRAPH.replace("default-branch: main", "default-branch: '@'"), "default branch"),
         (GRAPH.replace("default-branch: main", "default-branch: HEAD"), "default branch"),
         (GRAPH.replace("default-branch: main", "default-branch: true"), "non-empty string"),

@@ -104,7 +104,7 @@ def _default_branch(value: JsonValue) -> str:
     parts = branch.split("/")
     invalid = (
         branch in {"@", "HEAD"}
-        or branch.startswith("-")
+        or branch.startswith(("-", "!"))
         or branch.endswith(("/", "."))
         or "//" in branch
         or ".." in branch
