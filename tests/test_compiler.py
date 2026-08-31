@@ -130,7 +130,7 @@ def test_legacy_declaration_defaults_to_main_branch() -> None:
 
     assert execution["on"]["pull_request"]["branches"] == ["main"]
     assert execution["on"]["push"]["branches"] == ["main"]
-    assert manifest["defaultBranch"] == "main"
+    assert "defaultBranch" not in manifest
 
 
 @pytest.mark.parametrize("branch", ["x", "x" * 255])

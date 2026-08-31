@@ -32,7 +32,8 @@ for example `main`, `trunk`, or `release/stable`.
 
 `qg init --default-branch <name>` writes the value explicitly without querying GitHub. Existing
 declarations that omit it retain the graph-v0 `main` behavior; add the field and regenerate to make
-the contract visible and to support a non-`main` repository.
+the contract visible and to support a non-`main` repository. Omitted legacy values also preserve
+their existing manifest and graph digest, so migration does not invalidate in-flight artifacts.
 
 ## Profiles
 

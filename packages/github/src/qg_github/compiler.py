@@ -171,11 +171,10 @@ def _manifest_value(
     default_branch: str,
 ) -> dict[str, JsonValue]:
     profiles = graph.expanded_profiles()
-    return {
+    value: dict[str, JsonValue] = {
         "manifestVersion": 0,
         "graphVersion": graph.version,
         "provider": graph.provider.name,
-        "defaultBranch": default_branch,
         "resultSchemaVersion": 0,
         "runtime": {"action": runtime_action},
         "profiles": {name: _profile_value(profile) for name, profile in profiles.items()},
@@ -183,6 +182,9 @@ def _manifest_value(
         "labels": _labels_value(graph),
         "administration": {"roles": list(graph.administrator_roles)},
     }
+    if "default-branch" in graph.provider.values:
+        value["defaultBranch"] = default_branch
+    return value
 
 
 def _profile_value(profile: Profile) -> dict[str, JsonValue]:
