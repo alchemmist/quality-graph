@@ -103,7 +103,7 @@ def _default_branch(value: JsonValue) -> str:
         raise ValueError(message)
     parts = branch.split("/")
     invalid = (
-        branch == "@"
+        branch in {"@", "HEAD"}
         or branch.startswith("-")
         or branch.endswith(("/", "."))
         or "//" in branch

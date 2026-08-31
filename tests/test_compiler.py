@@ -133,6 +133,21 @@ def test_legacy_declaration_defaults_to_main_branch() -> None:
     assert manifest["defaultBranch"] == "main"
 
 
+@pytest.mark.parametrize("branch", ["x", "x" * 255])
+def test_default_branch_accepts_boundary_lengths(branch: str) -> None:
+    source = GRAPH.replace("default-branch: main", f"default-branch: {branch}")
+
+    manifest = json.loads(
+        next(
+            item.content
+            for item in compile_graph(Graph.from_yaml(source)).files
+            if item.path == GRAPH_MANIFEST
+        )
+    )
+
+    assert manifest["defaultBranch"] == branch
+
+
 def test_publication_workflow_is_privileged_without_untrusted_checkout() -> None:
     value = workflow(PUBLICATION_WORKFLOW)
     publish = value["jobs"]["publish"]
@@ -234,12 +249,23 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
             "unknown configuration",
         ),
         (GRAPH.replace("default-branch: main", "default-branch: -invalid"), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: '@'"), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: HEAD"), "default branch"),
         (GRAPH.replace("default-branch: main", "default-branch: true"), "non-empty string"),
         (
             GRAPH.replace("default-branch: main", f"default-branch: {'x' * 256}"),
             "at most 255",
         ),
         (GRAPH.replace("default-branch: main", "default-branch: feature..x"), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: feature/"), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: feature."), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: feature//x"), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: 'feature@{x'"), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: .hidden"), "default branch"),
+        (
+            GRAPH.replace("default-branch: main", "default-branch: feature/.hidden"),
+            "default branch",
+        ),
         (GRAPH.replace("default-branch: main", "default-branch: feature.lock/x"), "default branch"),
         (
             GRAPH.replace(

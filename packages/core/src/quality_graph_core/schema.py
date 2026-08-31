@@ -198,6 +198,7 @@ def graph_schema_value() -> dict[str, JsonValue]:
         "properties": {
             "default-branch": _string_schema(minimum=1, maximum=255),
         },
+        "additionalProperties": True,
     }
     string_mapping: dict[str, JsonValue] = {
         "type": "object",
