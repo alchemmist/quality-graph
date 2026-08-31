@@ -24,6 +24,20 @@ def test_project_initializes_generates_and_validates_repository(tmp_path: Path) 
     assert report.problems == (f"stale generated file: {EXECUTION_WORKFLOW}",)
 
 
+def test_project_initializes_explicit_custom_default_branch(tmp_path: Path) -> None:
+    project = Project.initialize(tmp_path, RUNTIME, default_branch="trunk")
+
+    assert project.graph.provider.values["default-branch"] == "trunk"
+    assert '    default-branch: "trunk"\n' in (tmp_path / "quality-graph.yml").read_text()
+
+
+def test_project_rejects_invalid_default_branch_before_writing(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="default branch"):
+        Project.initialize(tmp_path, RUNTIME, default_branch="feature..invalid")
+
+    assert not (tmp_path / "quality-graph.yml").exists()
+
+
 def test_project_reports_every_missing_generated_file(tmp_path: Path) -> None:
     project = Project.initialize(tmp_path, RUNTIME, preset="internal")
 
@@ -109,6 +123,7 @@ def test_project_refuses_missing_or_existing_declaration(tmp_path: Path) -> None
         Project.initialize(tmp_path, RUNTIME)
 
     replaced = Project.initialize(tmp_path, RUNTIME, force=True)
+    assert replaced.graph.provider.values["default-branch"] == "main"
     assert replaced.graph.provider.values["runtime"] == {"action": RUNTIME}
 
 

@@ -4,10 +4,10 @@ name: Quality Graph
 'on':
   pull_request:
     branches:
-      - main
+      - trunk
   push:
     branches:
-      - main
+      - trunk
   workflow_dispatch: {}
 permissions:
   contents: read
@@ -43,7 +43,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4
+          graph-digest: d278c3f418d67b316abbdb255dd110633d31ff143970f274ea9eff82dca89580
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -89,7 +89,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4
+          graph-digest: d278c3f418d67b316abbdb255dd110633d31ff143970f274ea9eff82dca89580
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'

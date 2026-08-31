@@ -7,9 +7,10 @@ schema is [`schemas/graph-v0.schema.json`](https://github.com/alchemmist/quality
 
 - `version`: currently `0`.
 - `provider.name`: installed provider name; legacy declarations default to `github`.
-- `provider.configuration`: opaque provider-owned configuration. The GitHub provider requires
-  `runtime.action` as `owner/repository@<40-character-commit>` inside this object. An optional
-  `runtime.publisher-action` independently rolls the default-branch publisher forward.
+- `provider.configuration`: opaque provider-owned configuration. The GitHub provider supports an
+  explicit `default-branch` contract and requires `runtime.action` as
+  `owner/repository@<40-character-commit>` inside this object. An optional
+  `runtime.publisher-action` independently rolls the trusted publisher forward.
 - `profiles`: reusable execution environments; `default` is required.
 - `nodes`: ordered graph operations keyed by stable node ID.
 - `labels`: optional aggregate label management.
@@ -25,10 +26,13 @@ actions must use the same `owner/repository`; only their immutable commit pins m
 
 ## Default branch
 
-Graph version `0` supports repositories whose default branch is `main`. Generated execution
-workflows enforce this contract by filtering both `pull_request` and `push` events to `main`.
-Repositories using another default branch are not supported yet and must not rely on generated
-Quality Graph checks until branch selection becomes provider configuration.
+`provider.configuration.default-branch` selects the branch used by both generated `pull_request`
+and `push` event filters. Values follow Git branch-name constraints and may contain path segments,
+for example `main`, `trunk`, or `release/stable`.
+
+`qg init --default-branch <name>` writes the value explicitly without querying GitHub. Existing
+declarations that omit it retain the graph-v0 `main` behavior; add the field and regenerate to make
+the contract visible and to support a non-`main` repository.
 
 ## Profiles
 

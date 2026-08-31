@@ -60,12 +60,15 @@ profile and leave deployment, release, and credential-bearing workflows outside 
 
 ```bash
 uv run qg init \
+  --default-branch trunk \
   --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
 uv run qg generate
 uv run qg validate
 ```
 
 If a declaration was prepared manually, skip `init` and run `generate` directly.
+Replace `trunk` with the repository's actual default branch. Quality Graph does not query GitHub
+for this value.
 
 Generation also adds a compiler-owned block to `.prettierignore`. Commit that change, then run the
 repository formatter from its root. Existing ignore rules remain untouched. Repositories that

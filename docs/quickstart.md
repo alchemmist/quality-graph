@@ -16,6 +16,7 @@ The CLI and provider are released together and must use the same exact version.
 
 ```bash
 uv run qg init \
+  --default-branch main \
   --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
 ```
 
@@ -29,6 +30,7 @@ version: 0
 provider:
   name: github
   configuration:
+    default-branch: main
     runtime:
       action: alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
 

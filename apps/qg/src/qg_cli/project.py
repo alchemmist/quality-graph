@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Literal, Self
@@ -117,6 +118,7 @@ class Project:
         root: Path,
         runtime_action: str,
         *,
+        default_branch: str = "main",
         preset: Literal["oss", "internal"] = "oss",
         force: bool = False,
     ) -> Self:
@@ -126,17 +128,25 @@ class Project:
             message = f"Refusing to replace existing declaration: {configuration}"
             raise FileExistsError(message)
         provider = load_provider("github")
+        source = _starter_configuration(runtime_action, default_branch, preset)
+        graph = Graph.from_yaml(source)
+        provider.generate(graph)
         root.mkdir(parents=True, exist_ok=True)
-        configuration.write_text(_starter_configuration(runtime_action, preset))
-        return cls(root, Graph.from_yaml(configuration.read_text()), provider)
+        configuration.write_text(source)
+        return cls(root, graph, provider)
 
 
-def _starter_configuration(runtime_action: str, preset: Literal["oss", "internal"]) -> str:
+def _starter_configuration(
+    runtime_action: str,
+    default_branch: str,
+    preset: Literal["oss", "internal"],
+) -> str:
     runner = "ubuntu-latest" if preset == "oss" else "self-hosted"
     return f"""version: 0
 provider:
   name: github
   configuration:
+    default-branch: {json.dumps(default_branch)}
     runtime:
       action: {runtime_action}
 

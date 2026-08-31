@@ -89,6 +89,8 @@ def test_execution_workflow_preserves_native_jobs_and_dependencies() -> None:
 
     assert value["permissions"] == {"contents": "read"}
     assert set(value["on"]) == {"pull_request", "push", "workflow_dispatch"}
+    assert value["on"]["pull_request"]["branches"] == ["main"]
+    assert value["on"]["push"]["branches"] == ["main"]
     assert list(jobs) == ["format", "lint"]
     assert lint["needs"] == ["format"]
     assert lint["runs-on"] == "ubuntu-latest"
@@ -99,6 +101,36 @@ def test_execution_workflow_preserves_native_jobs_and_dependencies() -> None:
     assert lint["steps"][4]["uses"] == "actions/upload-artifact@v7"
     assert lint["steps"][4]["with"]["retention-days"] == 7
     assert lint["steps"][5]["run"] == 'exit "${EXIT_CODE:-2}"'
+
+
+def test_custom_default_branch_changes_workflow_manifest_and_digest() -> None:
+    source = GRAPH.replace("default-branch: main", "default-branch: release/stable")
+
+    original = compile_graph(Graph.from_yaml(GRAPH))
+    first = compile_graph(Graph.from_yaml(source))
+    second = compile_graph(Graph.from_yaml(source))
+    files = {str(item.path): item.content for item in first.files}
+    execution = yaml.safe_load(files[str(EXECUTION_WORKFLOW)])
+    manifest = json.loads(files[str(GRAPH_MANIFEST)])
+
+    assert first == second
+    assert first.graph_digest != original.graph_digest
+    assert execution["on"]["pull_request"]["branches"] == ["release/stable"]
+    assert execution["on"]["push"]["branches"] == ["release/stable"]
+    assert manifest["defaultBranch"] == "release/stable"
+
+
+def test_legacy_declaration_defaults_to_main_branch() -> None:
+    source = GRAPH.replace("    default-branch: main\n", "")
+
+    project = compile_graph(Graph.from_yaml(source))
+    files = {str(item.path): item.content for item in project.files}
+    execution = yaml.safe_load(files[str(EXECUTION_WORKFLOW)])
+    manifest = json.loads(files[str(GRAPH_MANIFEST)])
+
+    assert execution["on"]["pull_request"]["branches"] == ["main"]
+    assert execution["on"]["push"]["branches"] == ["main"]
+    assert manifest["defaultBranch"] == "main"
 
 
 def test_publication_workflow_is_privileged_without_untrusted_checkout() -> None:
@@ -201,9 +233,18 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
             GRAPH.replace("    runtime:\n", "    unknown: true\n    runtime:\n"),
             "unknown configuration",
         ),
+        (GRAPH.replace("default-branch: main", "default-branch: -invalid"), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: true"), "non-empty string"),
+        (
+            GRAPH.replace("default-branch: main", f"default-branch: {'x' * 256}"),
+            "at most 255",
+        ),
+        (GRAPH.replace("default-branch: main", "default-branch: feature..x"), "default branch"),
+        (GRAPH.replace("default-branch: main", "default-branch: feature.lock/x"), "default branch"),
         (
             GRAPH.replace(
-                f"  configuration:\n    runtime:\n      action: {RUNTIME}\n",
+                f"  configuration:\n    default-branch: main\n"
+                f"    runtime:\n      action: {RUNTIME}\n",
                 "  configuration: {}\n",
             ),
             "requires a runtime object",

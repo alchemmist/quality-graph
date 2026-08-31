@@ -6,7 +6,8 @@
       "maintain"
     ]
   },
-  "graphDigest": "3d4354298ece53839809dd5362cd32352e566f9a0e610511756d12bc776cd48a",
+  "defaultBranch": "main",
+  "graphDigest": "8dbcf9c15cddeeabe0b5e603f6ab6cde14ad1cde1d13317963afdfb128eea36b",
   "graphVersion": 0,
   "labels": {
     "enabled": true,

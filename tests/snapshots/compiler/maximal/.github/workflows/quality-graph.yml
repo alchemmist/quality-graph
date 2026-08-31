@@ -46,7 +46,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 90a0c6bcb7bdea647daf5b29261dd1d1906448944e91ba1cf2224256a167b1b1
+          graph-digest: b053460d4a8aa379abc0744a6523afa5784870e0fa21db73eda4d1b9e6d64e4e
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -103,7 +103,7 @@ jobs:
           adapter: sarif
           report-path: reports/lint.sarif
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 90a0c6bcb7bdea647daf5b29261dd1d1906448944e91ba1cf2224256a167b1b1
+          graph-digest: b053460d4a8aa379abc0744a6523afa5784870e0fa21db73eda4d1b9e6d64e4e
           approval-findings: 'false'
           approval-files: 'true'
           approval-node: 'true'

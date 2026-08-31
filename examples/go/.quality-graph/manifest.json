@@ -5,7 +5,8 @@
       "admin"
     ]
   },
-  "graphDigest": "6d1f2271f6d498b6b248dd3177cfad8d921f3e2f9271696487e7629039a5c9f4",
+  "defaultBranch": "trunk",
+  "graphDigest": "d278c3f418d67b316abbdb255dd110633d31ff143970f274ea9eff82dca89580",
   "graphVersion": 0,
   "labels": {
     "enabled": false

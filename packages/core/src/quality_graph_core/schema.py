@@ -193,6 +193,12 @@ def result_schema_json() -> str:
 def graph_schema_value() -> dict[str, JsonValue]:
     """Return the provisional graph declaration JSON Schema."""
     identifier = _string_schema(pattern=r"^[a-z][a-z0-9-]{0,62}$")
+    provider_configuration: dict[str, JsonValue] = {
+        "type": "object",
+        "properties": {
+            "default-branch": _string_schema(minimum=1, maximum=255),
+        },
+    }
     string_mapping: dict[str, JsonValue] = {
         "type": "object",
         "additionalProperties": {"type": "string"},
@@ -312,7 +318,7 @@ def graph_schema_value() -> dict[str, JsonValue]:
                     _object_schema(
                         {
                             "name": identifier,
-                            "configuration": {"type": "object"},
+                            "configuration": provider_configuration,
                         },
                         ("name",),
                     ),
