@@ -176,11 +176,19 @@ def publish_workflow_jobs(
     is_current: Callable[[], bool] = lambda: True,
 ) -> bool:
     """Merge authoritative job lifecycle into the single live dashboard."""
-    statuses = _workflow_node_statuses(port, nodes, run.id)
-    terminal = len(statuses) == len(nodes) and all(
-        status not in {ResultStatus.WAITING, ResultStatus.IN_PROGRESS}
-        for status in statuses.values()
-    )
+    by_title = {node.title: node.node_id for node in nodes}
+    statuses: dict[str, ResultStatus] = {}
+    terminal = True
+    for value in _workflow_jobs(port, run.id):
+        job = _object(value, "workflow job")
+        name = _string(job.get("name"), "workflow job name")
+        node_id = by_title.get(name)
+        if node_id is None:
+            continue
+        status = _workflow_job_status(job)
+        statuses[node_id] = status
+        terminal = terminal and status not in {ResultStatus.WAITING, ResultStatus.IN_PROGRESS}
+    terminal = terminal and len(statuses) == len(nodes)
     if terminal or not is_current():
         return True
     existing = find_managed_comment(port, number, DASHBOARD_MARKER)
@@ -207,23 +215,6 @@ def _workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:
         if len(values) < GITHUB_PAGE_SIZE:
             return tuple(jobs)
         page += 1
-
-
-def _workflow_node_statuses(
-    port: GitHubPort,
-    nodes: tuple[DashboardNode, ...],
-    run_id: int,
-) -> dict[str, ResultStatus]:
-    """Map declared nodes to authoritative GitHub workflow job statuses."""
-    by_title = {node.title: node.node_id for node in nodes}
-    statuses: dict[str, ResultStatus] = {}
-    for value in _workflow_jobs(port, run_id):
-        job = _object(value, "workflow job")
-        name = _string(job.get("name"), "workflow job name")
-        node_id = by_title.get(name)
-        if node_id is not None:
-            statuses[node_id] = _workflow_job_status(job)
-    return statuses
 
 
 def _workflow_job_status(job: Mapping[str, JsonValue]) -> ResultStatus:
@@ -263,14 +254,13 @@ def _completed_dashboard(
     try:
         results = download_results(port, expectation)
     except ArtifactError as error:
-        nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
-        statuses = _workflow_node_statuses(port, nodes, run.id)
-        fallback = live_dashboard(nodes, statuses, run)
+        pending = pending_dashboard(graph, run)
         return (
             replace(
-                fallback,
+                pending,
                 status=ResultStatus.FAILED,
                 message=f"The final dashboard could not be assembled: {error}",
+                rows=tuple(replace(row, status=ResultStatus.FAILED) for row in pending.rows),
             ),
             None,
         )

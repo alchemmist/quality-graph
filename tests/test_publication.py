@@ -66,8 +66,8 @@ def configure_publication(port: MemoryGitHubPort, *, comment_id: int = 5) -> Non
     port.enqueue("GET", "/issues/42/labels?per_page=100&page=1", [])
 
 
-def result_archive(node_id: str, title: str, *, graph_digest: str | None = None) -> bytes:
-    digest = graph_digest or compile_graph(Graph.from_yaml(GRAPH)).graph_digest
+def result_archive(node_id: str, title: str) -> bytes:
+    digest = compile_graph(Graph.from_yaml(GRAPH)).graph_digest
     result = Result(
         node_id,
         title,
@@ -410,38 +410,6 @@ def test_completed_event_surfaces_invalid_artifacts_as_failure() -> None:
     assert outcome.status is ResultStatus.FAILED
     check = next(request for request in port.requests if request[1] == "/check-runs")
     assert check[2]["conclusion"] == "failure"
-
-
-def test_completed_event_preserves_job_statuses_when_artifact_provenance_is_stale() -> None:
-    port = MemoryGitHubPort()
-    configure_publication(port)
-    stale = result_archive("format", "Formatting", graph_digest="f" * 64)
-    port.enqueue(
-        "GET",
-        "/actions/runs/10/artifacts?per_page=100&page=1",
-        {"artifacts": [artifact(1, "format", stale)]},
-    )
-    port.downloads["/actions/artifacts/1/zip"] = stale
-    port.enqueue(
-        "GET",
-        JOBS_PATH,
-        {
-            "jobs": [
-                {"name": "Formatting", "status": "completed", "conclusion": "success"},
-                {"name": "Lint", "status": "completed", "conclusion": "failure"},
-            ]
-        },
-    )
-
-    outcome = publish_workflow_run(port, event("completed"))
-
-    assert outcome.status is ResultStatus.FAILED
-    comment = next(
-        request for request in port.requests if request[0] == "POST" and "comments" in request[1]
-    )
-    assert "final dashboard could not be assembled" in comment[2]["body"]
-    assert "| Formatting | ✅ passed |" in comment[2]["body"]
-    assert "| Lint | ❌ failed |" in comment[2]["body"]
 
 
 def test_completed_event_preserves_partial_results_when_dependencies_skip() -> None:
