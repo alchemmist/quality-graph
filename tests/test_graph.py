@@ -66,6 +66,15 @@ administration:
   roles: [admin, maintain]
 """
 
+NONE_PROJECTION_GRAPH = (
+    GRAPH.replace(
+        "profiles:\n",
+        "execution:\n  pull-request:\n    dependencies: none\nprofiles:\n",
+    )
+    .replace("title: Formatting\n", "title: Formatting\n    events: [push]\n")
+    .replace("title: Lint\n", "title: Lint\n    events: [pull-request]\n")
+)
+
 MAXIMAL_GRAPH = (
     GRAPH.replace(
         "runner: ubuntu-latest",

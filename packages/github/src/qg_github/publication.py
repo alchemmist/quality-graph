@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, cast
 from qg_github.approvals import approval_ledger
 from qg_github.artifacts import ArtifactError, ArtifactExpectation, download_results
 from qg_github.comments import find_managed_comment, upsert_managed_comment
-from qg_github.compiler import compile_graph, event_projection
+from qg_github.compiler import compile_graph, project_graph
 from qg_github.dashboard import (
     DASHBOARD_MARKER,
     DashboardModel,
@@ -110,7 +110,7 @@ def publish_workflow_run(
         return PublicationOutcome(published=False)
     graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", pull.base_sha))
     compiled = compile_graph(graph)
-    graph = replace(graph, nodes=event_projection(graph, "pull-request").nodes)
+    graph = project_graph(graph, "pull-request")
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
     model, effective_results = _completed_dashboard(
         port,
@@ -156,7 +156,7 @@ def watch_workflow_run(
     if not _is_latest_run(port, event, number):
         return PublicationOutcome(published=False)
     graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", pull.base_sha))
-    graph = replace(graph, nodes=event_projection(graph, "pull-request").nodes)
+    graph = project_graph(graph, "pull-request")
     nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
     _publish_check(port, pending_dashboard(graph, run))

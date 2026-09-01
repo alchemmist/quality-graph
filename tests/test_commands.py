@@ -28,7 +28,7 @@ from quality_graph_core.result import (
     Severity,
     SourceLocation,
 )
-from tests.test_graph import GRAPH
+from tests.test_graph import GRAPH, NONE_PROJECTION_GRAPH
 
 RUNS_PATH = "/actions/workflows/quality-graph.yml/runs?event=pull_request&per_page=100&page=1"
 
@@ -42,8 +42,8 @@ def direct_event(body: str = "/qg ignore finding") -> dict[str, object]:
     }
 
 
-def result_archive(*, attempt: int = 1) -> bytes:
-    graph_digest = compile_graph(Graph.from_yaml(GRAPH)).graph_digest
+def result_archive(*, attempt: int = 1, source: str = GRAPH) -> bytes:
+    graph_digest = compile_graph(Graph.from_yaml(source)).graph_digest
     result = Result(
         "lint",
         "Lint",
@@ -70,20 +70,21 @@ def configure_context(
     *,
     permission: str = "admin",
     attempt: int = 1,
+    source: str = GRAPH,
 ) -> None:
     port.enqueue(
         "GET",
         "/pulls/42",
         {"head": {"sha": "a" * 40}, "base": {"sha": "d" * 40}},
     )
-    content = base64.b64encode(GRAPH.encode()).decode()
+    content = base64.b64encode(source.encode()).decode()
     port.enqueue("GET", f"/contents/quality-graph.yml?ref={'d' * 40}", {"content": content})
     port.enqueue(
         "GET",
         RUNS_PATH,
         {"workflow_runs": [{"id": 100, "run_attempt": 1, "pull_requests": [{"number": 42}]}]},
     )
-    archive = result_archive(attempt=attempt)
+    archive = result_archive(attempt=attempt, source=source)
     port.enqueue(
         "GET",
         "/actions/runs/100/artifacts?per_page=100&page=1",
@@ -280,6 +281,18 @@ def test_authorization_fails_closed_on_github_error() -> None:
     port.enqueue("POST", "/issues/comments/10/reactions", None)
 
     assert handle_command(port, direct_event()).authorized is False
+
+
+def test_command_context_accepts_none_projection_with_excluded_dependency() -> None:
+    port = MemoryGitHubPort()
+    configure_context(port, source=NONE_PROJECTION_GRAPH)
+    port.enqueue("POST", "/issues/comments/10/reactions", None, None)
+    port.enqueue("POST", "/issues/42/comments", {"id": 200})
+    port.enqueue("POST", "/actions/runs/100/rerun-failed-jobs", None)
+
+    outcome = handle_command(port, direct_event())
+
+    assert outcome.changed is True
 
 
 def test_command_context_rejects_missing_run_and_future_artifact_attempt() -> None:

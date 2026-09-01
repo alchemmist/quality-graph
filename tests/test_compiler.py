@@ -14,6 +14,7 @@ from qg_github.compiler import (
     PUSH_WORKFLOW,
     compile_graph,
     event_projection,
+    project_graph,
 )
 from quality_graph_core.graph import Graph
 from tests.test_graph import GRAPH, MAXIMAL_GRAPH, RUNTIME
@@ -277,13 +278,16 @@ def test_none_dependency_policy_allows_excluded_scheduling_dependencies() -> Non
         "title: Formatting\n    events: [pull-request]\n",
     )
 
-    project = compile_graph(Graph.from_yaml(source))
+    graph = Graph.from_yaml(source)
+    projected = project_graph(graph, "push")
+    project = compile_graph(graph)
     push = yaml.safe_load(
         next(item.content for item in project.files if item.path == PUSH_WORKFLOW)
     )
 
     assert list(push["jobs"]) == ["lint"]
     assert "needs" not in push["jobs"]["lint"]
+    assert projected.nodes[0].needs == ()
 
 
 def test_compiler_preserves_optional_step_job_and_label_fields() -> None:

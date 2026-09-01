@@ -5,12 +5,12 @@ from __future__ import annotations
 import base64
 import re
 import urllib.parse
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import StrEnum
 
 from qg_github.approvals import ApprovalRecord, append_approval_record
 from qg_github.artifacts import ArtifactExpectation, download_results
-from qg_github.compiler import compile_graph, event_projection
+from qg_github.compiler import compile_graph, project_graph
 from qg_github.controls import control_states, decode_control_marker
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
 from quality_graph_core.graph import Graph
@@ -187,7 +187,7 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
     base_sha = _string(base.get("sha"), "pull request base SHA")
     graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", base_sha))
     compiled = compile_graph(graph)
-    graph = replace(graph, nodes=event_projection(graph, "pull-request").nodes)
+    graph = project_graph(graph, "pull-request")
     run = _latest_run(port, number)
     run_id = _integer(run.get("id"), "workflow run id")
     attempt = _integer(run.get("run_attempt", 1), "workflow run attempt")

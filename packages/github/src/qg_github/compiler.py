@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, cast, override
 
@@ -135,6 +135,8 @@ def _event_projections(graph: Graph) -> tuple[EventProjection, ...]:
                         f"{', '.join(sorted(missing))}"
                     )
                     raise ValueError(message)
+        else:
+            nodes = tuple(replace(node, needs=()) for node in nodes)
         projections.append(EventProjection(event, nodes, dependency_policy))
     return tuple(projections)
 
@@ -146,6 +148,11 @@ def event_projection(graph: Graph, event: str) -> EventProjection:
             return projection
     message = f"GitHub provider does not support execution event: {event}"
     raise ValueError(message)
+
+
+def project_graph(graph: Graph, event: str) -> Graph:
+    """Return one dependency-normalized GitHub event graph."""
+    return replace(graph, nodes=event_projection(graph, event).nodes)
 
 
 def _default_branch(value: JsonValue) -> str:
@@ -357,9 +364,6 @@ def _execution_workflow(
         node.id: _execution_job(node, profiles[node.profile], runtime_action, digest)
         for node in projection.nodes
     }
-    if projection.dependencies is DependencyPolicy.NONE:
-        for job in jobs.values():
-            cast("dict[str, JsonValue]", job).pop("needs", None)
     trigger: dict[str, JsonValue]
     name: str
     if projection.event == "pull-request":

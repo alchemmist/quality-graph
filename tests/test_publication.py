@@ -23,7 +23,7 @@ from qg_github.publication import (
 )
 from quality_graph_core.graph import Graph
 from quality_graph_core.result import JsonValue, Provenance, Result, ResultStatus
-from tests.test_graph import GRAPH
+from tests.test_graph import GRAPH, NONE_PROJECTION_GRAPH
 
 RUNS_PATH = "/actions/workflows/quality-graph.yml/runs?event=pull_request&per_page=100&page=1"
 JOBS_PATH = "/actions/runs/10/jobs?filter=latest&per_page=100&page=1"
@@ -46,14 +46,19 @@ def event(action: str = "in_progress", *, pull: bool = True) -> dict[str, JsonVa
     }
 
 
-def configure_publication(port: MemoryGitHubPort, *, comment_id: int = 5) -> None:
+def configure_publication(
+    port: MemoryGitHubPort,
+    *,
+    comment_id: int = 5,
+    source: str = GRAPH,
+) -> None:
     port.enqueue(
         "GET",
         "/pulls/42",
         {"head": {"sha": "a" * 40}, "base": {"sha": "d" * 40}},
     )
     port.enqueue("GET", RUNS_PATH, {"workflow_runs": []})
-    content = base64.b64encode(GRAPH.encode()).decode()
+    content = base64.b64encode(source.encode()).decode()
     port.enqueue("GET", f"/contents/quality-graph.yml?ref={'d' * 40}", {"content": content})
     comments = "/issues/42/comments?per_page=100&page=1"
     port.enqueue("GET", comments, [])
@@ -66,8 +71,14 @@ def configure_publication(port: MemoryGitHubPort, *, comment_id: int = 5) -> Non
     port.enqueue("GET", "/issues/42/labels?per_page=100&page=1", [])
 
 
-def result_archive(node_id: str, title: str, *, graph_digest: str | None = None) -> bytes:
-    digest = graph_digest or compile_graph(Graph.from_yaml(GRAPH)).graph_digest
+def result_archive(
+    node_id: str,
+    title: str,
+    *,
+    graph_digest: str | None = None,
+    source: str = GRAPH,
+) -> bytes:
+    digest = graph_digest or compile_graph(Graph.from_yaml(source)).graph_digest
     result = Result(
         node_id,
         title,
@@ -398,6 +409,36 @@ def test_completed_event_downloads_results_and_publishes_success() -> None:
     assert outcome.status is ResultStatus.PASSED
     check = next(request for request in port.requests if request[1] == "/check-runs")
     assert check[2]["conclusion"] == "success"
+
+
+def test_completed_event_accepts_none_projection_with_excluded_dependency() -> None:
+    port = MemoryGitHubPort()
+    configure_publication(port, source=NONE_PROJECTION_GRAPH)
+    lint_archive = result_archive("lint", "Lint", source=NONE_PROJECTION_GRAPH)
+    port.enqueue(
+        "GET",
+        "/actions/runs/10/artifacts?per_page=100&page=1",
+        {"artifacts": [artifact(1, "lint", lint_archive)]},
+    )
+    port.downloads["/actions/artifacts/1/zip"] = lint_archive
+
+    outcome = publish_workflow_run(port, event("completed"))
+
+    assert outcome.status is ResultStatus.PASSED
+
+
+def test_watcher_accepts_none_projection_with_excluded_dependency() -> None:
+    port = MemoryGitHubPort()
+    configure_publication(port, source=NONE_PROJECTION_GRAPH)
+    port.enqueue(
+        "GET",
+        JOBS_PATH,
+        {"jobs": [{"name": "Lint", "status": "completed", "conclusion": "success"}]},
+    )
+
+    outcome = watch_workflow_run(port, event("in_progress"), sleep=lambda _: None)
+
+    assert outcome.status is ResultStatus.IN_PROGRESS
 
 
 def test_completed_event_surfaces_invalid_artifacts_as_failure() -> None:
