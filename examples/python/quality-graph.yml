@@ -7,6 +7,11 @@ provider:
     runtime:
       action: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
       publisher-action: alchemmist/quality-graph@9f813fbdcfbcd92b8cc0a272fb2c4f8ce23e1188
+execution:
+  pull-request:
+    dependencies: graph
+  push:
+    dependencies: none
 profiles:
   default:
     runner: ubuntu-latest
@@ -28,3 +33,8 @@ nodes:
     run: bash scripts/test.sh
     results:
       junit: reports/pytest.xml
+  diff:
+    title: Diff check
+    events: [pull-request]
+    needs: [test]
+    run: git diff --check origin/main...HEAD

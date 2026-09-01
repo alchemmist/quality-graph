@@ -168,6 +168,7 @@ def test_generated_files_command_prints_machine_readable_paths(
 
     assert capsys.readouterr().out.splitlines() == [
         ".github/workflows/quality-graph.yml",
+        ".github/workflows/quality-graph-push.yml",
         ".github/workflows/quality-graph-publish.yml",
         ".quality-graph/manifest.json",
     ]

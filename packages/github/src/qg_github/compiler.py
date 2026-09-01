@@ -5,12 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, cast, override
 
 import yaml
 
-from quality_graph_core.graph import Graph, LabelSpec, Node, Profile, Step
+from quality_graph_core.graph import DependencyPolicy, Graph, LabelSpec, Node, Profile, Step
 from quality_graph_core.provider import GeneratedFile, GeneratedProject
 
 if TYPE_CHECKING:
@@ -24,6 +25,7 @@ GENERATED_NOTICE = (
 )
 GENERATED_HEADER = f"# {GENERATED_NOTICE}\n---\n"
 EXECUTION_WORKFLOW = PurePosixPath(".github/workflows/quality-graph.yml")
+PUSH_WORKFLOW = PurePosixPath(".github/workflows/quality-graph-push.yml")
 PUBLICATION_WORKFLOW = PurePosixPath(".github/workflows/quality-graph-publish.yml")
 GRAPH_MANIFEST = PurePosixPath(".quality-graph/manifest.json")
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@v7"
@@ -46,6 +48,16 @@ PERMISSION_NAMES = {
 }
 INVALID_BRANCH_CHARACTER_RE = re.compile(r"[\x00-\x20\x7f ~^:?*\[\\]")
 MAX_BRANCH_NAME_LENGTH = 255
+SUPPORTED_EVENTS = ("pull-request", "push")
+
+
+@dataclass(frozen=True)
+class EventProjection:
+    """Carry one provider-validated event projection into workflow generation."""
+
+    event: str
+    nodes: tuple[Node, ...]
+    dependencies: DependencyPolicy
 
 
 class WorkflowDumper(yaml.SafeDumper):
@@ -93,7 +105,47 @@ def _validate_github_graph(graph: Graph) -> tuple[str, str, str]:
     if len(set(titles)) != len(titles):
         message = "GitHub dashboard requires unique node titles"
         raise ValueError(message)
+    _event_projections(graph)
     return action, publisher_action, default_branch
+
+
+def _event_projections(graph: Graph) -> tuple[EventProjection, ...]:
+    supported = set(SUPPORTED_EVENTS)
+    unknown = set(graph.execution) - supported
+    for node in graph.nodes:
+        unknown.update(set(node.events) - supported)
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        message = f"GitHub provider contains unsupported execution events: {names}"
+        raise ValueError(message)
+    projections: list[EventProjection] = []
+    for event in SUPPORTED_EVENTS:
+        nodes = tuple(node for node in graph.nodes if not node.events or event in node.events)
+        if not nodes:
+            message = f"GitHub {event} event projection must contain at least one node"
+            raise ValueError(message)
+        dependency_policy = graph.execution.get(event, DependencyPolicy.GRAPH)
+        if dependency_policy is DependencyPolicy.GRAPH:
+            selected = {node.id for node in nodes}
+            for node in nodes:
+                missing = set(node.needs) - selected
+                if missing:
+                    message = (
+                        f"GitHub {event} event projection excludes dependencies of {node.id}: "
+                        f"{', '.join(sorted(missing))}"
+                    )
+                    raise ValueError(message)
+        projections.append(EventProjection(event, nodes, dependency_policy))
+    return tuple(projections)
+
+
+def event_projection(graph: Graph, event: str) -> EventProjection:
+    """Return one validated GitHub event projection."""
+    for projection in _event_projections(graph):
+        if projection.event == event:
+            return projection
+    message = f"GitHub provider does not support execution event: {event}"
+    raise ValueError(message)
 
 
 def _default_branch(value: JsonValue) -> str:
@@ -147,6 +199,7 @@ def _validate_step(step: Step) -> None:
 def compile_graph(graph: Graph) -> GeneratedProject:
     """Compile one graph through the public declaration seam."""
     runtime_action, publisher_action, default_branch = _validate_github_graph(graph)
+    projections = {item.event: item for item in _event_projections(graph)}
     manifest = _manifest_value(graph, runtime_action, default_branch)
     digest = hashlib.sha256(_canonical_json(manifest).encode()).hexdigest()
     manifest["graphDigest"] = digest
@@ -154,7 +207,27 @@ def compile_graph(graph: Graph) -> GeneratedProject:
     files = (
         GeneratedFile(
             EXECUTION_WORKFLOW,
-            _yaml_file(_execution_workflow(graph, runtime_action, digest, default_branch)),
+            _yaml_file(
+                _execution_workflow(
+                    graph,
+                    projections["pull-request"],
+                    runtime_action,
+                    digest,
+                    default_branch,
+                )
+            ),
+        ),
+        GeneratedFile(
+            PUSH_WORKFLOW,
+            _yaml_file(
+                _execution_workflow(
+                    graph,
+                    projections["push"],
+                    runtime_action,
+                    digest,
+                    default_branch,
+                )
+            ),
         ),
         GeneratedFile(
             PUBLICATION_WORKFLOW,
@@ -184,6 +257,19 @@ def _manifest_value(
     }
     if "default-branch" in graph.provider.values:
         value["defaultBranch"] = default_branch
+    if graph.execution or any(node.events for node in graph.nodes):
+        value["execution"] = {
+            event: {
+                "dependencies": graph.execution.get(event, DependencyPolicy.GRAPH).value,
+            }
+            for event in SUPPORTED_EVENTS
+        }
+        effective_events = {node.id: list(node.events or SUPPORTED_EVENTS) for node in graph.nodes}
+        for node_value in cast("list[dict[str, JsonValue]]", value["nodes"]):
+            node_value["events"] = cast(
+                "JsonValue",
+                effective_events[cast("str", node_value["id"])],
+            )
     return value
 
 
@@ -261,6 +347,7 @@ def _label_value(label: LabelSpec) -> dict[str, JsonValue]:
 
 def _execution_workflow(
     graph: Graph,
+    projection: EventProjection,
     runtime_action: str,
     digest: str,
     default_branch: str,
@@ -268,15 +355,25 @@ def _execution_workflow(
     profiles = graph.expanded_profiles()
     jobs: dict[str, JsonValue] = {
         node.id: _execution_job(node, profiles[node.profile], runtime_action, digest)
-        for node in graph.nodes
+        for node in projection.nodes
     }
-    return {
-        "name": "Quality Graph",
-        "on": {
+    if projection.dependencies is DependencyPolicy.NONE:
+        for job in jobs.values():
+            cast("dict[str, JsonValue]", job).pop("needs", None)
+    trigger: dict[str, JsonValue]
+    name: str
+    if projection.event == "pull-request":
+        name = "Quality Graph"
+        trigger = {
             "pull_request": {"branches": [default_branch]},
-            "push": {"branches": [default_branch]},
             "workflow_dispatch": {},
-        },
+        }
+    else:
+        name = "Quality Graph (push)"
+        trigger = {"push": {"branches": [default_branch]}}
+    return {
+        "name": name,
+        "on": trigger,
         "permissions": {"contents": "read"},
         "concurrency": {
             "group": "quality-graph-${{ github.workflow }}-${{ github.ref }}",

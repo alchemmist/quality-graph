@@ -14,7 +14,7 @@ def test_project_initializes_generates_and_validates_repository(tmp_path: Path) 
     assert project.graph.nodes[0].id == "quality"
     assert project.validate().current is False
     generated = project.generate()
-    assert len(generated.files) == 3
+    assert len(generated.files) == 4
     assert project.validate().current is True
 
     workflow = tmp_path / EXECUTION_WORKFLOW
@@ -44,6 +44,7 @@ def test_project_reports_every_missing_generated_file(tmp_path: Path) -> None:
     assert project.graph.profiles[0].runner == "self-hosted"
     assert project.validate().problems == (
         "missing generated file: .github/workflows/quality-graph.yml",
+        "missing generated file: .github/workflows/quality-graph-push.yml",
         "missing generated file: .github/workflows/quality-graph-publish.yml",
         "missing generated file: .quality-graph/manifest.json",
     )
@@ -63,6 +64,7 @@ def test_generate_manages_prettier_ignore_without_replacing_user_rules(tmp_path:
         "dist\n\n"
         "# Quality Graph generated files (managed by qg)\n"
         ".github/workflows/quality-graph.yml\n"
+        ".github/workflows/quality-graph-push.yml\n"
         ".github/workflows/quality-graph-publish.yml\n"
         ".quality-graph/manifest.json\n"
         "# End Quality Graph generated files\n"
@@ -85,6 +87,7 @@ def test_generate_replaces_its_existing_prettier_block_in_place(tmp_path: Path) 
         "before",
         "# Quality Graph generated files (managed by qg)",
         ".github/workflows/quality-graph.yml",
+        ".github/workflows/quality-graph-push.yml",
         ".github/workflows/quality-graph-publish.yml",
         ".quality-graph/manifest.json",
         "# End Quality Graph generated files",
