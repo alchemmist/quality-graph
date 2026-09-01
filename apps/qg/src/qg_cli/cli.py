@@ -24,6 +24,7 @@ def parser() -> argparse.ArgumentParser:
     initialize = commands.add_parser("init", help="Create a starter Quality Graph declaration")
     initialize.add_argument("--root", default=".")
     initialize.add_argument("--runtime-action", required=True)
+    initialize.add_argument("--default-branch", default="main")
     initialize.add_argument("--preset", choices=("oss", "internal"), default="oss")
     initialize.add_argument("--force", action="store_true")
     generate = commands.add_parser("generate", help="Generate committed GitHub workflows")
@@ -79,6 +80,7 @@ def _project_command(args: argparse.Namespace) -> int:
         Project.initialize(
             Path(args.root),
             args.runtime_action,
+            default_branch=args.default_branch,
             preset=args.preset,
             force=args.force,
         )

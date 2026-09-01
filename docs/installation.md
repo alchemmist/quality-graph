@@ -11,6 +11,7 @@ Quality Graph version through the existing lockfile:
 ```bash
 uv add --dev quality-graph-cli==0.1.2 quality-graph-github==0.1.2
 uv run qg init \
+  --default-branch main \
   --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
 ```
 
@@ -32,9 +33,10 @@ convenient for evaluation and administration. Do not mix CLI and provider versio
 
 ## Initialize and generate
 
-`qg init` creates `quality-graph.yml`. Use `--preset internal` only to select a self-hosted
-starter runner; it does not grant credentials or write permissions. Existing declarations
-are preserved unless `--force` is explicit.
+`qg init` creates `quality-graph.yml`. `--default-branch` records the repository branch that
+receives pull requests and trusted pushes; it defaults to `main` and never queries GitHub. Use
+`--preset internal` only to select a self-hosted starter runner; it does not grant credentials or
+write permissions. Existing declarations are preserved unless `--force` is explicit.
 
 Generate and commit observable GitHub files:
 

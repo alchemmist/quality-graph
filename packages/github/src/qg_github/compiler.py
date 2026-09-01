@@ -44,6 +44,8 @@ PERMISSION_NAMES = {
     "security-events",
     "statuses",
 }
+INVALID_BRANCH_CHARACTER_RE = re.compile(r"[\x00-\x20\x7f ~^:?*\[\\]")
+MAX_BRANCH_NAME_LENGTH = 255
 
 
 class WorkflowDumper(yaml.SafeDumper):
@@ -60,11 +62,11 @@ class WorkflowDumper(yaml.SafeDumper):
         super().increase_indent(flow, indentless=False)
 
 
-def _validate_github_graph(graph: Graph) -> tuple[str, str]:
+def _validate_github_graph(graph: Graph) -> tuple[str, str, str]:
     if graph.provider.name != "github":
         message = f"GitHub provider cannot compile provider '{graph.provider.name}'"
         raise ValueError(message)
-    unknown = graph.provider.values.keys() - {"runtime"}
+    unknown = graph.provider.values.keys() - {"default-branch", "runtime"}
     if unknown:
         message = f"GitHub provider contains unknown configuration: {', '.join(sorted(unknown))}"
         raise ValueError(message)
@@ -77,6 +79,7 @@ def _validate_github_graph(graph: Graph) -> tuple[str, str]:
         raise ValueError(message)
     action = _runtime_action(runtime.get("action"), "runtime")
     publisher_action = _runtime_action(runtime.get("publisher-action", action), "publisher")
+    default_branch = _default_branch(graph.provider.values.get("default-branch"))
     if publisher_action.partition("@")[0] != action.partition("@")[0]:
         message = "GitHub publisher action must use the runtime action repository"
         raise ValueError(message)
@@ -90,7 +93,29 @@ def _validate_github_graph(graph: Graph) -> tuple[str, str]:
     if len(set(titles)) != len(titles):
         message = "GitHub dashboard requires unique node titles"
         raise ValueError(message)
-    return action, publisher_action
+    return action, publisher_action, default_branch
+
+
+def _default_branch(value: JsonValue) -> str:
+    branch = "main" if value is None else value
+    if not isinstance(branch, str) or not 1 <= len(branch) <= MAX_BRANCH_NAME_LENGTH:
+        message = "GitHub default branch must be a non-empty string of at most 255 characters"
+        raise ValueError(message)
+    parts = branch.split("/")
+    invalid = (
+        branch in {"@", "HEAD"}
+        or branch.startswith(("-", "!"))
+        or branch.endswith(("/", "."))
+        or "//" in branch
+        or ".." in branch
+        or "@{" in branch
+        or INVALID_BRANCH_CHARACTER_RE.search(branch) is not None
+        or any(not part or part.startswith(".") or part.endswith(".lock") for part in parts)
+    )
+    if invalid:
+        message = f"GitHub default branch is invalid: {branch}"
+        raise ValueError(message)
+    return branch
 
 
 def _runtime_action(value: JsonValue, context: str) -> str:
@@ -121,15 +146,15 @@ def _validate_step(step: Step) -> None:
 
 def compile_graph(graph: Graph) -> GeneratedProject:
     """Compile one graph through the public declaration seam."""
-    runtime_action, publisher_action = _validate_github_graph(graph)
-    manifest = _manifest_value(graph, runtime_action)
+    runtime_action, publisher_action, default_branch = _validate_github_graph(graph)
+    manifest = _manifest_value(graph, runtime_action, default_branch)
     digest = hashlib.sha256(_canonical_json(manifest).encode()).hexdigest()
     manifest["graphDigest"] = digest
     manifest["_generated"] = GENERATED_NOTICE
     files = (
         GeneratedFile(
             EXECUTION_WORKFLOW,
-            _yaml_file(_execution_workflow(graph, runtime_action, digest)),
+            _yaml_file(_execution_workflow(graph, runtime_action, digest, default_branch)),
         ),
         GeneratedFile(
             PUBLICATION_WORKFLOW,
@@ -140,9 +165,13 @@ def compile_graph(graph: Graph) -> GeneratedProject:
     return GeneratedProject(digest, files)
 
 
-def _manifest_value(graph: Graph, runtime_action: str) -> dict[str, JsonValue]:
+def _manifest_value(
+    graph: Graph,
+    runtime_action: str,
+    default_branch: str,
+) -> dict[str, JsonValue]:
     profiles = graph.expanded_profiles()
-    return {
+    value: dict[str, JsonValue] = {
         "manifestVersion": 0,
         "graphVersion": graph.version,
         "provider": graph.provider.name,
@@ -153,6 +182,9 @@ def _manifest_value(graph: Graph, runtime_action: str) -> dict[str, JsonValue]:
         "labels": _labels_value(graph),
         "administration": {"roles": list(graph.administrator_roles)},
     }
+    if "default-branch" in graph.provider.values:
+        value["defaultBranch"] = default_branch
+    return value
 
 
 def _profile_value(profile: Profile) -> dict[str, JsonValue]:
@@ -231,6 +263,7 @@ def _execution_workflow(
     graph: Graph,
     runtime_action: str,
     digest: str,
+    default_branch: str,
 ) -> dict[str, JsonValue]:
     profiles = graph.expanded_profiles()
     jobs: dict[str, JsonValue] = {
@@ -240,8 +273,8 @@ def _execution_workflow(
     return {
         "name": "Quality Graph",
         "on": {
-            "pull_request": {"branches": ["main"]},
-            "push": {"branches": ["main"]},
+            "pull_request": {"branches": [default_branch]},
+            "push": {"branches": [default_branch]},
             "workflow_dispatch": {},
         },
         "permissions": {"contents": "read"},

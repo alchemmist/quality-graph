@@ -41,7 +41,7 @@ jobs:
           adapter: sarif
           report-path: reports/ruff.sarif
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 08ee6b137059bff8cf2a6bf1d874e35d6b7e2d937f5abb136ac69fd1d2b04404
+          graph-digest: 8a81b77727b1de937d83f7a1717f71b44a3f7ee3a15b98d2539dc564899c265c
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -85,7 +85,7 @@ jobs:
           adapter: junit
           report-path: reports/pytest.xml
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 08ee6b137059bff8cf2a6bf1d874e35d6b7e2d937f5abb136ac69fd1d2b04404
+          graph-digest: 8a81b77727b1de937d83f7a1717f71b44a3f7ee3a15b98d2539dc564899c265c
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'

@@ -389,6 +389,14 @@
           "additionalProperties": false,
           "properties": {
             "configuration": {
+              "additionalProperties": true,
+              "properties": {
+                "default-branch": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
               "type": "object"
             },
             "name": {

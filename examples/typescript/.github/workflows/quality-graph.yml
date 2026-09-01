@@ -44,7 +44,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 42649c77a8347a9e99b2dc75632ee42da18134d878cb90923ae749b523688b6e
+          graph-digest: cd75773acbe5861d7273f6da0dc696c62aa1459dd312ee472b709eec0b0e3f77
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -91,7 +91,7 @@ jobs:
           adapter: junit
           report-path: reports/vitest.xml
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 42649c77a8347a9e99b2dc75632ee42da18134d878cb90923ae749b523688b6e
+          graph-digest: cd75773acbe5861d7273f6da0dc696c62aa1459dd312ee472b709eec0b0e3f77
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'

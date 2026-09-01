@@ -22,6 +22,7 @@ GRAPH = f"""version: 0
 provider:
   name: github
   configuration:
+    default-branch: main
     runtime:
       action: {RUNTIME}
 profiles:
@@ -100,6 +101,7 @@ def test_graph_loads_profiles_nodes_policies_and_labels() -> None:
 
     assert graph.version == 0
     assert graph.provider.name == "github"
+    assert graph.provider.values["default-branch"] == "main"
     assert graph.provider.values["runtime"] == {"action": RUNTIME}
     assert graph.node_order() == ("format", "lint")
     assert graph.nodes[1].result.kind is AdapterKind.SARIF
@@ -113,7 +115,8 @@ def test_graph_loads_profiles_nodes_policies_and_labels() -> None:
 
 def test_graph_defaults_to_github_provider_for_legacy_declarations() -> None:
     provider = (
-        f"provider:\n  name: github\n  configuration:\n    runtime:\n      action: {RUNTIME}\n"
+        f"provider:\n  name: github\n  configuration:\n    default-branch: main\n"
+        f"    runtime:\n      action: {RUNTIME}\n"
     )
     legacy = GRAPH.replace(provider, f"runtime:\n  action: {RUNTIME}\n")
     graph = Graph.from_yaml(legacy)

@@ -137,6 +137,26 @@ def test_project_commands_initialize_generate_and_validate(
     assert main(["validate", "--root", str(tmp_path)]) == 0
 
 
+def test_init_accepts_explicit_default_branch(tmp_path: Path) -> None:
+    runtime = "alchemmist/quality-graph@" + "a" * 40
+
+    assert (
+        main(
+            [
+                "init",
+                "--root",
+                str(tmp_path),
+                "--runtime-action",
+                runtime,
+                "--default-branch",
+                "trunk",
+            ]
+        )
+        == 0
+    )
+    assert '    default-branch: "trunk"\n' in (tmp_path / "quality-graph.yml").read_text()
+
+
 def test_generated_files_command_prints_machine_readable_paths(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

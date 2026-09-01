@@ -3,6 +3,7 @@ version: 0
 provider:
   name: github
   configuration:
+    default-branch: main
     runtime:
       action: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
       publisher-action: alchemmist/quality-graph@9f813fbdcfbcd92b8cc0a272fb2c4f8ce23e1188

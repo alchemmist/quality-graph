@@ -30,3 +30,7 @@ def test_graph_schema_is_deterministic_and_describes_declaration_contract() -> N
     assert schema["properties"]["version"] == {"const": 0}
     assert schema["properties"]["profiles"]["required"] == ["default"]
     assert schema["$defs"]["node"]["oneOf"] == schema["$defs"]["step"]["oneOf"]
+    provider = schema["properties"]["provider"]["oneOf"][1]
+    configuration = provider["properties"]["configuration"]
+    assert configuration["properties"]["default-branch"]["minLength"] == 1
+    assert configuration["additionalProperties"] is True

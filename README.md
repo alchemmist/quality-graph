@@ -17,6 +17,7 @@ version: 0
 provider:
   name: github
   configuration:
+    default-branch: main
     runtime:
       action: alchemmist/quality-graph@<exact-commit-sha>
 
