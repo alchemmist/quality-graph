@@ -14,7 +14,7 @@
       "dependencies": "none"
     }
   },
-  "graphDigest": "97778f9bc023e4108190a964639c8e2aff274d00644cc0e9bbe1d31b9cfb01a2",
+  "graphDigest": "4b46ee1900ad7fdb9a250d045244bc46716d019ed23b511db35ab70d13174896",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -123,6 +123,7 @@
         {
           "uses": "actions/checkout@v7",
           "with": {
+            "fetch-depth": "0",
             "persist-credentials": "false"
           }
         },
