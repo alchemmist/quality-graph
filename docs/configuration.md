@@ -1,6 +1,6 @@
 # Configuration reference
 
-The human-edited source of truth is `quality-graph.yml`. The provisional machine-readable
+The human-edited source of truth is `qg.yaml`. The provisional machine-readable
 schema is [`schemas/graph-v0.schema.json`](https://github.com/alchemmist/quality-graph/blob/main/schemas/graph-v0.schema.json).
 
 ## Top-level fields

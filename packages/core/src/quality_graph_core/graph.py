@@ -291,11 +291,11 @@ class Graph:
         """Load and validate a graph declaration from YAML."""
         node = yaml.compose(source, Loader=yaml.SafeLoader)
         if node is None:
-            message = "quality-graph.yml must not be empty"
+            message = "qg.yaml must not be empty"
             raise ValueError(message)
         _reject_duplicate_yaml_keys(node)
-        value = _narrow_yaml(cast("object", yaml.safe_load(source)), "quality-graph.yml")
-        return _parse_graph(_object(value, "quality-graph.yml"))
+        value = _narrow_yaml(cast("object", yaml.safe_load(source)), "qg.yaml")
+        return _parse_graph(_object(value, "qg.yaml"))
 
 
 # pragma: no mutate start

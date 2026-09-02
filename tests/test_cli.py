@@ -154,7 +154,7 @@ def test_init_accepts_explicit_default_branch(tmp_path: Path) -> None:
         )
         == 0
     )
-    assert '    default-branch: "trunk"\n' in (tmp_path / "quality-graph.yml").read_text()
+    assert '    default-branch: "trunk"\n' in (tmp_path / "qg.yaml").read_text()
 
 
 def test_generated_files_command_prints_machine_readable_paths(

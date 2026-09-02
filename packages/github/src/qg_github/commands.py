@@ -185,7 +185,7 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
     base = _object(pull.get("base"), "pull request base")
     head_sha = _string(head.get("sha"), "pull request head SHA")
     base_sha = _string(base.get("sha"), "pull request base SHA")
-    graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", base_sha))
+    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", base_sha))
     compiled = compile_graph(graph)
     graph = project_graph(graph, "pull-request")
     run = _latest_run(port, number)

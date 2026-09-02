@@ -64,7 +64,7 @@ The test command must create the declared report. Omit `results` when exit statu
 ```bash
 uv run qg generate
 uv run qg validate
-git diff -- quality-graph.yml .github/workflows .quality-graph/manifest.json
+git diff -- qg.yaml .github/workflows .quality-graph/manifest.json
 ```
 
 Generation writes two workflows and one expanded manifest. Review commands, third-party Actions,
@@ -73,7 +73,7 @@ permissions, dependencies, and the exact runtime SHA before committing.
 ## 4. Commit the complete source/output set
 
 ```bash
-git add pyproject.toml uv.lock quality-graph.yml .github/workflows .quality-graph
+git add pyproject.toml uv.lock qg.yaml .github/workflows .quality-graph
 git commit -m "add quality graph"
 ```
 

@@ -28,14 +28,14 @@ def test_project_initializes_explicit_custom_default_branch(tmp_path: Path) -> N
     project = Project.initialize(tmp_path, RUNTIME, default_branch="trunk")
 
     assert project.graph.provider.values["default-branch"] == "trunk"
-    assert '    default-branch: "trunk"\n' in (tmp_path / "quality-graph.yml").read_text()
+    assert '    default-branch: "trunk"\n' in (tmp_path / "qg.yaml").read_text()
 
 
 def test_project_rejects_invalid_default_branch_before_writing(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="default branch"):
         Project.initialize(tmp_path, RUNTIME, default_branch="feature..invalid")
 
-    assert not (tmp_path / "quality-graph.yml").exists()
+    assert not (tmp_path / "qg.yaml").exists()
 
 
 def test_project_reports_every_missing_generated_file(tmp_path: Path) -> None:
@@ -130,6 +130,45 @@ def test_project_refuses_missing_or_existing_declaration(tmp_path: Path) -> None
     assert replaced.graph.provider.values["runtime"] == {"action": RUNTIME}
 
 
+def test_project_rejects_legacy_declaration_with_migration_instruction(tmp_path: Path) -> None:
+    legacy = tmp_path / "quality-graph.yml"
+    legacy.write_text("version: 0\n")
+
+    with pytest.raises(
+        FileNotFoundError,
+        match=r"git mv quality-graph\.yml qg\.yaml",
+    ):
+        Project.open(tmp_path)
+    with pytest.raises(FileNotFoundError, match="no longer supported"):
+        Project.initialize(tmp_path, RUNTIME, force=True)
+
+    assert not (tmp_path / "qg.yaml").exists()
+
+
+def test_project_rejects_canonical_and_legacy_declarations(tmp_path: Path) -> None:
+    (tmp_path / "qg.yaml").write_text("version: 0\n")
+    legacy = tmp_path / "quality-graph.yml"
+    legacy.write_text("version: 0\n")
+
+    with pytest.raises(FileExistsError, match=r"remove quality-graph\.yml"):
+        Project.open(tmp_path)
+    with pytest.raises(FileExistsError, match=r"remove quality-graph\.yml"):
+        Project.initialize(tmp_path, RUNTIME, force=True)
+
+    assert legacy.exists()
+
+
+def test_project_rejects_dangling_legacy_symlink(tmp_path: Path) -> None:
+    legacy = tmp_path / "quality-graph.yml"
+    legacy.symlink_to(tmp_path / "missing.yml")
+
+    with pytest.raises(FileNotFoundError, match="no longer supported"):
+        Project.initialize(tmp_path, RUNTIME, force=True)
+
+    assert legacy.is_symlink()
+    assert not (tmp_path / "qg.yaml").exists()
+
+
 def test_project_does_not_write_when_default_provider_is_missing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -143,4 +182,4 @@ def test_project_does_not_write_when_default_provider_is_missing(
     with pytest.raises(ValueError, match="provider missing"):
         Project.initialize(tmp_path, RUNTIME)
 
-    assert not (tmp_path / "quality-graph.yml").exists()
+    assert not (tmp_path / "qg.yaml").exists()

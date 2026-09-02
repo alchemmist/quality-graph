@@ -78,7 +78,7 @@ def configure_context(
         {"head": {"sha": "a" * 40}, "base": {"sha": "d" * 40}},
     )
     content = base64.b64encode(source.encode()).decode()
-    port.enqueue("GET", f"/contents/quality-graph.yml?ref={'d' * 40}", {"content": content})
+    port.enqueue("GET", f"/contents/qg.yaml?ref={'d' * 40}", {"content": content})
     port.enqueue(
         "GET",
         RUNS_PATH,
@@ -305,7 +305,7 @@ def test_command_context_rejects_missing_run_and_future_artifact_attempt() -> No
     content = base64.b64encode(GRAPH.encode()).decode()
     missing.enqueue(
         "GET",
-        f"/contents/quality-graph.yml?ref={'d' * 40}",
+        f"/contents/qg.yaml?ref={'d' * 40}",
         {"content": content},
     )
     missing.enqueue("GET", RUNS_PATH, {"workflow_runs": []})
@@ -320,7 +320,7 @@ def test_command_context_rejects_missing_run_and_future_artifact_attempt() -> No
     )
     malformed.enqueue(
         "GET",
-        f"/contents/quality-graph.yml?ref={'d' * 40}",
+        f"/contents/qg.yaml?ref={'d' * 40}",
         {"content": content},
     )
     malformed.enqueue("GET", RUNS_PATH, {"workflow_runs": {}})
