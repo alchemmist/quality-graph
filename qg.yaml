@@ -80,28 +80,22 @@ nodes:
     needs: [analyze]
     run: make python-time-bombs
 
-  test-unit:
-    title: Unit tests
+  test-fast:
+    title: Fast tests
     profile: python
     needs: [time-bombs]
-    run: make test-unit
+    run: make t-fast
 
-  test-integration:
-    title: Integration tests
+  test-medium:
+    title: Medium tests
     profile: python
     needs: [time-bombs]
-    run: make test-integration
-
-  test-integration-docker:
-    title: Docker integration tests
-    profile: python
-    needs: [test-integration]
-    run: make test-integration-docker
+    run: make t-medium
 
   coverage:
     title: Coverage and diff coverage
     profile: python
-    needs: [test-unit, test-integration-docker]
+    needs: [test-fast, test-medium]
     run: make coverage-diff
 
   flaky-python:

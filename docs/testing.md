@@ -7,16 +7,17 @@ implementation:
 - an in-process `ThreadingHTTPServer` used by the default integration suite;
 - a Docker service used to verify process isolation and base-URL configuration.
 
-Run the fast in-process suite:
+Run the fast suite:
 
 ```bash
-make test-integration
+make t-fast
 ```
 
-Run the same fixture-driven scenarios against Docker:
+Run the medium suite, which executes integration scenarios first in-process and then against the
+Docker adapter:
 
 ```bash
-make test-integration-docker
+make t-medium
 ```
 
 Set `QG_FAKE_GITHUB_PORT` when port `18080` is unavailable.
@@ -31,7 +32,7 @@ Tests use three operations:
 
 The fixture selects the Docker adapter when `QG_FAKE_GITHUB_URL` is set. Tests must interact with
 GitHub through `HttpGitHubPort`; direct state access is reserved for constructing legacy in-process
-fixtures and is not available in Docker runs.
+fixtures and is not available in Docker runs. A slow lane is intentionally not defined yet.
 
 The fake models pull requests, commit associations, changed files, comparisons, repository
 contents, comments, reactions, labels, permissions, workflow runs and jobs, artifacts, check runs,

@@ -43,7 +43,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -92,7 +92,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -143,7 +143,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -194,7 +194,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -245,7 +245,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -296,7 +296,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -349,7 +349,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -400,7 +400,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -452,7 +452,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -472,8 +472,8 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - analyze
-  test-unit:
-    name: Unit tests
+  test-fast:
+    name: Fast tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -488,34 +488,34 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make test-unit
-        name: Run Unit tests
+      - run: make t-fast
+        name: Run Fast tests
         id: quality-command
         continue-on-error: true
-      - name: Collect Unit tests result
+      - name: Collect Fast tests result
         id: quality-result
         if: always()
         uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
         with:
           operation: collect
-          node-id: test-unit
-          title: Unit tests
+          node-id: test-fast
+          title: Fast tests
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
-      - name: Upload Unit tests result
+      - name: Upload Fast tests result
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: quality-result-test-unit-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/quality-graph/test-unit.json
+          name: quality-result-test-fast-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/test-fast.json
           if-no-files-found: error
           retention-days: 7
-      - name: Enforce Unit tests result
+      - name: Enforce Fast tests result
         if: always()
         shell: bash
         env:
@@ -523,8 +523,8 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - time-bombs
-  test-integration:
-    name: Integration tests
+  test-medium:
+    name: Medium tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -539,34 +539,34 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make test-integration
-        name: Run Integration tests
+      - run: make t-medium
+        name: Run Medium tests
         id: quality-command
         continue-on-error: true
-      - name: Collect Integration tests result
+      - name: Collect Medium tests result
         id: quality-result
         if: always()
         uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
         with:
           operation: collect
-          node-id: test-integration
-          title: Integration tests
+          node-id: test-medium
+          title: Medium tests
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
-      - name: Upload Integration tests result
+      - name: Upload Medium tests result
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: quality-result-test-integration-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/quality-graph/test-integration.json
+          name: quality-result-test-medium-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/test-medium.json
           if-no-files-found: error
           retention-days: 7
-      - name: Enforce Integration tests result
+      - name: Enforce Medium tests result
         if: always()
         shell: bash
         env:
@@ -574,57 +574,6 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - time-bombs
-  test-integration-docker:
-    name: Docker integration tests
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: 'false'
-          fetch-depth: '0'
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: 'true'
-          cache-dependency-glob: uv.lock
-      - name: Install locked dependencies
-        run: uv sync --locked --all-groups --all-packages
-      - run: make test-integration-docker
-        name: Run Docker integration tests
-        id: quality-command
-        continue-on-error: true
-      - name: Collect Docker integration tests result
-        id: quality-result
-        if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
-        with:
-          operation: collect
-          node-id: test-integration-docker
-          title: Docker integration tests
-          adapter: exit-code
-          report-path: ''
-          command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
-          approval-findings: 'true'
-          approval-files: 'false'
-          approval-node: 'false'
-      - name: Upload Docker integration tests result
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: quality-result-test-integration-docker-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/quality-graph/test-integration-docker.json
-          if-no-files-found: error
-          retention-days: 7
-      - name: Enforce Docker integration tests result
-        if: always()
-        shell: bash
-        env:
-          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
-        run: exit "${EXIT_CODE:-2}"
-    needs:
-      - test-integration
   coverage:
     name: Coverage and diff coverage
     runs-on: ubuntu-latest
@@ -656,7 +605,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -675,8 +624,8 @@ jobs:
           EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
         run: exit "${EXIT_CODE:-2}"
     needs:
-      - test-unit
-      - test-integration-docker
+      - test-fast
+      - test-medium
   flaky-python:
     name: Changed Python flaky-test detection
     runs-on: ubuntu-latest
@@ -708,7 +657,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -759,7 +708,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -810,7 +759,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -861,7 +810,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b
+          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'

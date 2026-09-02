@@ -5,7 +5,7 @@
       "admin"
     ]
   },
-  "graphDigest": "8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b",
+  "graphDigest": "e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -249,7 +249,7 @@
     },
     {
       "env": {},
-      "id": "test-unit",
+      "id": "test-fast",
       "needs": [
         "time-bombs"
       ],
@@ -269,13 +269,13 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make test-unit"
+        "run": "make t-fast"
       },
-      "title": "Unit tests"
+      "title": "Fast tests"
     },
     {
       "env": {},
-      "id": "test-integration",
+      "id": "test-medium",
       "needs": [
         "time-bombs"
       ],
@@ -295,42 +295,16 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make test-integration"
+        "run": "make t-medium"
       },
-      "title": "Integration tests"
-    },
-    {
-      "env": {},
-      "id": "test-integration-docker",
-      "needs": [
-        "test-integration"
-      ],
-      "policy": {
-        "approvals": {
-          "files": false,
-          "findings": true,
-          "node": false
-        },
-        "blocking": true,
-        "blockingSeverities": [
-          "error"
-        ]
-      },
-      "profile": "python",
-      "result": {
-        "adapter": "exit-code"
-      },
-      "step": {
-        "run": "make test-integration-docker"
-      },
-      "title": "Docker integration tests"
+      "title": "Medium tests"
     },
     {
       "env": {},
       "id": "coverage",
       "needs": [
-        "test-unit",
-        "test-integration-docker"
+        "test-fast",
+        "test-medium"
       ],
       "policy": {
         "approvals": {
