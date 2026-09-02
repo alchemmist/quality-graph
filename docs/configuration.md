@@ -10,7 +10,9 @@ schema is [`schemas/graph-v0.schema.json`](https://github.com/alchemmist/quality
 - `provider.configuration`: opaque provider-owned configuration. The GitHub provider supports an
   explicit `default-branch` contract and requires `runtime.action` as
   `owner/repository@<40-character-commit>` inside this object. An optional
-  `runtime.publisher-action` independently rolls the trusted publisher forward.
+  `runtime.publisher-action` independently rolls the trusted publisher forward. Set the optional
+  `runtime.upload-artifact-action` to an immutable `owner/repository@<40-character-commit>` ref when
+  repository policy prohibits mutable action tags.
 - `execution`: optional dependency policies keyed by provider-recognized execution event.
 - `profiles`: reusable execution environments; `default` is required.
 - `nodes`: ordered graph operations keyed by stable node ID.
@@ -24,6 +26,21 @@ Unknown fields fail closed.
 out pull-request code. It does not change execution provenance, which permits a reviewed publisher
 upgrade to land without invalidating artifacts produced by the existing execution runtime. Both
 actions must use the same `owner/repository`; only their immutable commit pins may differ.
+
+The compiler uses `actions/upload-artifact@v7` by default for compatibility. Repositories that
+require every action to be immutable can pin the compiler-owned upload step explicitly:
+
+```yaml
+provider:
+  name: github
+  configuration:
+    runtime:
+      action: alchemmist/quality-graph@0123456789abcdef0123456789abcdef01234567
+      upload-artifact-action: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+```
+
+Changing `runtime.upload-artifact-action` changes the graph digest and regenerates both execution
+workflows. The publisher workflow does not execute the upload action.
 
 ## Default branch
 

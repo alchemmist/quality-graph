@@ -194,6 +194,25 @@ def test_publisher_runtime_can_roll_forward_without_changing_execution_provenanc
     assert publisher not in files[str(PUSH_WORKFLOW)]
 
 
+def test_upload_artifact_action_accepts_an_immutable_override() -> None:
+    upload_artifact = "actions/upload-artifact@" + "c" * 40
+    source = GRAPH.replace(
+        f"      action: {RUNTIME}",
+        f"      action: {RUNTIME}\n      upload-artifact-action: {upload_artifact}",
+    )
+    original = compile_graph(Graph.from_yaml(GRAPH))
+    updated = compile_graph(Graph.from_yaml(source))
+    files = {str(item.path): item.content for item in updated.files}
+    execution = yaml.safe_load(files[str(EXECUTION_WORKFLOW)])
+    push = yaml.safe_load(files[str(PUSH_WORKFLOW)])
+    manifest = json.loads(files[str(GRAPH_MANIFEST)])
+
+    assert updated.graph_digest != original.graph_digest
+    assert execution["jobs"]["lint"]["steps"][4]["uses"] == upload_artifact
+    assert push["jobs"]["lint"]["steps"][4]["uses"] == upload_artifact
+    assert manifest["runtime"]["uploadArtifactAction"] == upload_artifact
+
+
 def test_event_projections_select_nodes_and_parallelize_push() -> None:
     source = GRAPH.replace(
         "profiles:\n",
@@ -338,6 +357,14 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
                 f"      action: {RUNTIME}\n      publisher-action: mutable",
             ),
             "publisher action",
+        ),
+        (
+            GRAPH.replace(
+                f"      action: {RUNTIME}",
+                f"      action: {RUNTIME}\n"
+                "      upload-artifact-action: actions/upload-artifact@v7",
+            ),
+            "upload artifact action must use owner/repository@40-character-commit",
         ),
         (
             GRAPH.replace(
