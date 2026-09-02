@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quality-graph-cli"
-version = "0.1.6"
+version = "0.1.7"
 description = "Provider-driven Quality Graph command-line application"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
-dependencies = ["quality-graph-core==0.1.6"]
+dependencies = ["quality-graph-core==0.1.7"]
 
 [project.urls]
 Homepage = "https://alchemmist.github.io/quality-graph/"
