@@ -25,6 +25,7 @@ nav:
       - Compatibility: compatibility.md
   - Contributing:
       - Provider authoring: provider-authoring.md
+      - Integration testing: testing.md
       - Monori parity: monori-parity.md
       - Release: release.md
       - Troubleshooting: troubleshooting.md

@@ -5,7 +5,7 @@
       "admin"
     ]
   },
-  "graphDigest": "e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3",
+  "graphDigest": "8080653301d6f4e350157fa90b20071b18ff3990376d72a604285edaad94cc1b",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -301,10 +301,36 @@
     },
     {
       "env": {},
+      "id": "test-integration-docker",
+      "needs": [
+        "test-integration"
+      ],
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make test-integration-docker"
+      },
+      "title": "Docker integration tests"
+    },
+    {
+      "env": {},
       "id": "coverage",
       "needs": [
         "test-unit",
-        "test-integration"
+        "test-integration-docker"
       ],
       "policy": {
         "approvals": {

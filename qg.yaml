@@ -92,10 +92,16 @@ nodes:
     needs: [time-bombs]
     run: make test-integration
 
+  test-integration-docker:
+    title: Docker integration tests
+    profile: python
+    needs: [test-integration]
+    run: make test-integration-docker
+
   coverage:
     title: Coverage and diff coverage
     profile: python
-    needs: [test-unit, test-integration]
+    needs: [test-unit, test-integration-docker]
     run: make coverage-diff
 
   flaky-python:

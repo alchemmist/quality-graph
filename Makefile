@@ -8,6 +8,7 @@ MARKDOWN_SOURCES := README.md CONTEXT.md $(wildcard docs/*.md packages/*/README.
 
 .PHONY: install tools schemas schemas-check graph-generate graph-validate \
 	fmt fmt-check lint type analyze test test-unit test-integration coverage \
+	test-integration-docker \
 	python-suppressions python-object-annotations python-triple-quotes \
 	python-time-bombs python-no-comments coverage-diff flaky-python \
 	mutation mutation-diff audit package check clean fmt-staged \
@@ -138,6 +139,16 @@ test-unit:
 
 test-integration:
 	uv run --locked --all-packages --group test pytest -q -m integration
+
+test-integration-docker:
+	@compose="tests/integration/docker-compose.yml"; status=0; \
+	docker compose -f "$$compose" up -d --build --wait || status=$$?; \
+	if [ "$$status" -eq 0 ]; then \
+		QG_FAKE_GITHUB_URL="http://127.0.0.1:$${QG_FAKE_GITHUB_PORT:-18080}" \
+			uv run --locked --all-packages --group test pytest -q -m integration || status=$$?; \
+	fi; \
+	docker compose -f "$$compose" down; \
+	exit "$$status"
 
 coverage:
 	uv run --locked --all-packages --group test pytest -q --cov=quality_graph_core \

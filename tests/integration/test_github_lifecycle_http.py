@@ -1,6 +1,7 @@
 import hashlib
 import io
 import zipfile
+from typing import cast
 
 import pytest
 
@@ -106,17 +107,23 @@ def test_full_publication_and_command_lifecycle_over_real_http() -> None:
     with server as observable:
         publication = publish_workflow_run(port, workflow_event())
         command = handle_command(port, command_event())
+        observed = observable.snapshot()
 
     assert publication.status is ResultStatus.FAILED
     assert command.authorized is True
     assert command.changed is True
-    assert len(observable.comments) == 2
-    assert "## ❌ Quality Graph" in observable.comments[0]["body"]
-    assert "quality-graph:approval" in observable.comments[1]["body"]
-    assert observable.checks[-1]["conclusion"] == "failure"
-    assert observable.labels == {"quality:failed", "quality:lint"}
-    assert observable.reruns == [10]
-    assert observable.reactions == [(10, "eyes"), (10, "hooray")]
+    comments = cast("list[dict[str, object]]", observed["comments"])
+    checks = cast("list[dict[str, object]]", observed["checks"])
+    labels = cast("list[dict[str, object]]", observed["labels"])
+    reactions = cast("list[dict[str, object]]", observed["reactions"])
+    assert len(comments) == 2
+    assert "## ❌ Quality Graph" in cast("str", comments[0]["body"])
+    assert "quality-graph:approval" in cast("str", comments[1]["body"])
+    assert checks[-1]["conclusion"] == "failure"
+    assert {label["name"] for label in labels} == {"quality:lint"}
+    assert observed["issue_labels"] == {"42": ["quality:failed", "quality:lint"]}
+    assert observed["reruns"] == [10]
+    assert [reaction["content"] for reaction in reactions] == ["eyes", "hooray"]
 
 
 def test_live_and_completed_events_finalize_one_check_over_real_http() -> None:
@@ -146,10 +153,114 @@ def test_live_and_completed_events_finalize_one_check_over_real_http() -> None:
             sleep=lambda _: None,
         )
         completed = publish_workflow_run(port, workflow_event())
+        observed = observable.snapshot()
 
     assert live.status is ResultStatus.FAILED
     assert completed.status is ResultStatus.FAILED
-    assert len(observable.checks) == 1
-    assert observable.checks[0]["status"] == "completed"
-    assert observable.checks[0]["conclusion"] == "failure"
-    assert "waiting" not in observable.comments[0]["body"]
+    checks = cast("list[dict[str, object]]", observed["checks"])
+    comments = cast("list[dict[str, object]]", observed["comments"])
+    assert len(checks) == 1
+    assert checks[0]["status"] == "completed"
+    assert checks[0]["conclusion"] == "failure"
+    assert "waiting" not in cast("str", comments[0]["body"])
+
+
+def test_live_watcher_avoids_noop_patches_and_stays_within_request_budget() -> None:
+    selected = state()
+    selected.job_snapshots.extend(
+        [
+            [
+                {"name": "Formatting", "status": "in_progress"},
+                {"name": "Lint", "status": "queued"},
+            ],
+            [
+                {"name": "Formatting", "status": "in_progress"},
+                {"name": "Lint", "status": "queued"},
+            ],
+            [
+                {"name": "Formatting", "status": "completed", "conclusion": "success"},
+                {"name": "Lint", "status": "completed", "conclusion": "failure"},
+            ],
+        ]
+    )
+    server = FakeGitHubServer(selected)
+    port = HttpGitHubPort("owner/repository", "token", base_url=server.base_url)
+
+    with server as observable:
+        outcome = watch_workflow_run(
+            port,
+            workflow_event() | {"action": "requested"},
+            sleep=lambda _: None,
+        )
+        observed = observable.snapshot()
+
+    assert outcome.status is ResultStatus.FAILED
+    requests = cast("list[dict[str, object]]", observed["requests"])
+    job_reads = [request for request in requests if "/actions/runs/10/jobs" in str(request["path"])]
+    comment_patches = [
+        request
+        for request in requests
+        if request["method"] == "PATCH" and "/issues/comments/" in str(request["path"])
+    ]
+    assert len(job_reads) == 3
+    assert len(comment_patches) == 1
+
+
+def test_stale_and_superseded_events_cannot_publish_over_http() -> None:
+    stale = state()
+    stale.pulls[42]["head"] = {"sha": "e" * 40}
+    stale_server = FakeGitHubServer(stale)
+    stale_port = HttpGitHubPort("owner/repository", "token", base_url=stale_server.base_url)
+
+    with stale_server as observable:
+        stale_outcome = publish_workflow_run(stale_port, workflow_event())
+        stale_state = observable.snapshot()
+
+    superseded = state()
+    superseded.workflow_runs = [{"id": 11, "run_attempt": 1, "pull_requests": [{"number": 42}]}]
+    superseded_server = FakeGitHubServer(superseded)
+    superseded_port = HttpGitHubPort(
+        "owner/repository",
+        "token",
+        base_url=superseded_server.base_url,
+    )
+
+    with superseded_server as observable:
+        superseded_outcome = publish_workflow_run(superseded_port, workflow_event())
+        superseded_state = observable.snapshot()
+
+    assert stale_outcome.published is False
+    assert superseded_outcome.published is False
+    assert stale_state["comments"] == stale_state["checks"] == []
+    assert superseded_state["comments"] == superseded_state["checks"] == []
+
+
+def test_invalid_artifacts_publish_terminal_failure_from_job_state_over_http() -> None:
+    selected = state()
+    selected.run_artifacts[10] = [
+        {
+            "id": 1,
+            "name": "quality-result-lint-1",
+            "size_in_bytes": 0,
+            "digest": "sha256:" + "0" * 64,
+            "expired": True,
+        }
+    ]
+    selected.workflow_jobs[10] = [
+        {"name": "Formatting", "status": "completed", "conclusion": "success"},
+        {"name": "Lint", "status": "completed", "conclusion": "failure"},
+    ]
+    server = FakeGitHubServer(selected)
+    port = HttpGitHubPort("owner/repository", "token", base_url=server.base_url)
+
+    with server as observable:
+        outcome = publish_workflow_run(port, workflow_event())
+        observed = observable.snapshot()
+
+    assert outcome.status is ResultStatus.FAILED
+    comments = cast("list[dict[str, object]]", observed["comments"])
+    checks = cast("list[dict[str, object]]", observed["checks"])
+    assert "could not be assembled" in cast("str", comments[0]["body"])
+    assert "Formatting | ✅ passed" in cast("str", comments[0]["body"])
+    assert checks[0]["status"] == "completed"
+    assert checks[0]["conclusion"] == "failure"
