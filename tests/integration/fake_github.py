@@ -27,6 +27,7 @@ class FakeGitHubState:
     downloads: dict[int, bytes]
     comments: list[dict[str, JsonValue]] = field(default_factory=list)
     checks: list[dict[str, JsonValue]] = field(default_factory=list)
+    job_snapshots: list[list[dict[str, JsonValue]]] = field(default_factory=list)
     labels: set[str] = field(default_factory=set)
     repository_labels: dict[str, dict[str, JsonValue]] = field(default_factory=dict)
     reactions: list[tuple[int, str]] = field(default_factory=list)
@@ -49,6 +50,8 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
             self._json({"content": base64.b64encode(self.state.graph.encode()).decode()})
         elif path.startswith("/actions/"):
             self._get_actions(path)
+        elif path.startswith(f"/commits/{'a' * 40}/check-runs"):
+            self._json({"total_count": len(self.state.checks), "check_runs": self.state.checks})
         elif path.startswith("/issues/42/comments"):
             self._json(self.state.comments)
         elif path.startswith("/issues/42/labels"):
@@ -68,8 +71,9 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
         if path == "/issues/42/comments":
             self._create_comment(payload)
         elif path == "/check-runs":
-            self.state.checks.append(payload)
-            self._json({"id": len(self.state.checks)}, status=HTTPStatus.CREATED)
+            check = payload | {"id": len(self.state.checks) + 1}
+            self.state.checks.append(check)
+            self._json(check, status=HTTPStatus.CREATED)
         elif path == "/issues/42/labels":
             labels = cast("list[JsonValue]", payload["labels"])
             self.state.labels.update(cast("str", label) for label in labels)
@@ -98,6 +102,11 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
             comment = next(item for item in self.state.comments if item["id"] == comment_id)
             comment["body"] = payload["body"]
             self._json(comment)
+        elif path.startswith("/check-runs/"):
+            check_id = int(path.split("/")[2])
+            check = next(item for item in self.state.checks if item["id"] == check_id)
+            check.update(payload)
+            self._json(check)
         else:
             self._unknown("PATCH", path)
 
@@ -123,6 +132,10 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
             )
         elif path.startswith("/actions/runs/10/artifacts"):
             self._json({"artifacts": self.state.artifacts})
+        elif path.startswith("/actions/runs/10/jobs"):
+            snapshots = self.state.job_snapshots
+            jobs = snapshots.pop(0) if len(snapshots) > 1 else snapshots[0]
+            self._json({"total_count": len(jobs), "jobs": jobs})
         elif path.startswith("/actions/artifacts/") and path.endswith("/zip"):
             artifact_id = int(path.split("/")[3])
             self._bytes(self.state.downloads[artifact_id])

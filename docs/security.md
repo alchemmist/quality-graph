@@ -13,8 +13,10 @@ request, head SHA, run, attempt, and graph digest before JSON parsing.
 
 One publisher invocation owns the live dashboard for the complete workflow run. It polls
 authoritative GitHub job state and merges every node by its stable graph identity, so parallel
-jobs cannot overwrite each other's lifecycle. The completed event shares the same concurrency
-group and publishes artifact-derived final state only after the live watcher exits.
+jobs cannot overwrite each other's lifecycle. The watcher finalizes artifact-derived state when
+all declared jobs are terminal, while the completed event shares the same concurrency group and
+independently repairs the final state. Both paths update the same check run through its stable
+workflow-run identity.
 
 Governance configuration always comes from the pull request base SHA. A pull request may
 propose graph changes for review, but proposed roles, labels, and controls do not receive

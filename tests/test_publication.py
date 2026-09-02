@@ -51,6 +51,7 @@ def configure_publication(
     *,
     comment_id: int = 5,
     source: str = GRAPH,
+    check_runs: list[JsonValue] | None = None,
 ) -> None:
     port.enqueue(
         "GET",
@@ -67,6 +68,10 @@ def configure_publication(
         "/issues/42/comments",
         {"id": comment_id, "body": marker("dashboard") + "\nbody"},
     )
+    checks_path = (
+        f"/commits/{'a' * 40}/check-runs?check_name=Quality%20Graph&filter=all&per_page=100"
+    )
+    port.enqueue("GET", checks_path, {"check_runs": check_runs or []})
     port.enqueue("POST", "/check-runs", {"id": 100})
     port.enqueue("GET", "/issues/42/labels?per_page=100&page=1", [])
 
@@ -152,10 +157,28 @@ def test_job_coordinator_merges_parallel_job_lifecycle_without_lost_updates() ->
     assert "| Lint | 🚀 in_progress |" in writes[1]
 
 
-@pytest.mark.parametrize("action", ["requested", "in_progress"])
-def test_live_event_watches_jobs_until_every_node_is_terminal(action: str) -> None:
+def test_requested_event_finalizes_after_every_node_is_terminal() -> None:
     port = MemoryGitHubPort()
     configure_publication(port)
+    format_archive = result_archive("format", "Formatting")
+    lint_archive = result_archive("lint", "Lint")
+    artifacts_path = "/actions/runs/10/artifacts?per_page=100&page=1"
+    port.enqueue(
+        "GET",
+        artifacts_path,
+        {
+            "artifacts": [
+                artifact(1, "format", format_archive),
+                artifact(2, "lint", lint_archive),
+            ]
+        },
+    )
+    port.downloads.update(
+        {
+            "/actions/artifacts/1/zip": format_archive,
+            "/actions/artifacts/2/zip": lint_archive,
+        }
+    )
     port.enqueue(
         "GET",
         JOBS_PATH,
@@ -163,15 +186,21 @@ def test_live_event_watches_jobs_until_every_node_is_terminal(action: str) -> No
             "total_count": 2,
             "jobs": [
                 {"name": "Formatting", "status": "completed", "conclusion": "success"},
-                {"name": "Lint", "status": "completed", "conclusion": "failure"},
+                {"name": "Lint", "status": "completed", "conclusion": "success"},
             ],
         },
     )
 
-    outcome = watch_workflow_run(port, event(action), sleep=lambda _: None)
+    outcome = watch_workflow_run(port, event("requested"), sleep=lambda _: None)
 
-    assert outcome == PublicationOutcome(published=True, status=ResultStatus.IN_PROGRESS)
-    assert all("comments" not in request[1] for request in port.requests)
+    assert outcome == PublicationOutcome(
+        published=True,
+        status=ResultStatus.PASSED,
+        comment_id=5,
+    )
+    check = [request for request in port.requests if request[1] == "/check-runs"][-1]
+    assert check[2]["status"] == "completed"
+    assert check[2]["conclusion"] == "success"
 
 
 def test_requested_event_polls_until_jobs_finish() -> None:
@@ -201,11 +230,59 @@ def test_requested_event_polls_until_jobs_finish() -> None:
     }
     port.enqueue("GET", comments, [existing])
     port.enqueue("PATCH", "/issues/comments/5", {"id": 5, "body": marker("dashboard")})
+    port.enqueue("GET", "/actions/runs/10/artifacts?per_page=100&page=1", {"artifacts": []})
     sleeps: list[float] = []
 
     watch_workflow_run(port, event("requested"), sleep=sleeps.append)
 
-    assert sleeps == [5.0]
+    assert sleeps == [30.0]
+
+
+def test_requested_event_does_not_finalize_after_becoming_superseded() -> None:
+    port = MemoryGitHubPort()
+    configure_publication(port)
+    port.enqueue(
+        "GET",
+        RUNS_PATH,
+        {"workflow_runs": [{"id": 11, "pull_requests": [{"number": 42}]}]},
+    )
+    port.enqueue(
+        "GET",
+        JOBS_PATH,
+        {"jobs": [{"name": "Formatting", "status": "in_progress"}]},
+    )
+
+    outcome = watch_workflow_run(port, event("requested"), sleep=lambda _: None)
+
+    assert outcome == PublicationOutcome(published=False)
+    assert all("comments" not in request[1] for request in port.requests)
+
+
+def test_requested_event_rejects_a_newer_attempt_of_the_same_run() -> None:
+    port = MemoryGitHubPort()
+    port.enqueue(
+        "GET",
+        "/pulls/42",
+        {"head": {"sha": "a" * 40}, "base": {"sha": "d" * 40}},
+    )
+    port.enqueue(
+        "GET",
+        RUNS_PATH,
+        {
+            "workflow_runs": [
+                {
+                    "id": 10,
+                    "run_attempt": 2,
+                    "pull_requests": [{"number": 42}],
+                }
+            ]
+        },
+    )
+
+    outcome = watch_workflow_run(port, event("requested"), sleep=lambda _: None)
+
+    assert outcome == PublicationOutcome(published=False)
+    assert len(port.requests) == 2
 
 
 @pytest.mark.parametrize(
@@ -411,6 +488,39 @@ def test_completed_event_downloads_results_and_publishes_success() -> None:
     assert check[2]["conclusion"] == "success"
 
 
+def test_repeated_completed_publication_updates_its_existing_check_run() -> None:
+    port = MemoryGitHubPort()
+    configure_publication(port)
+    external_id = "quality-graph:10:1"
+    configure_publication(port, check_runs=[{"id": 100, "external_id": external_id}])
+    format_archive = result_archive("format", "Formatting")
+    lint_archive = result_archive("lint", "Lint")
+    artifacts_path = "/actions/runs/10/artifacts?per_page=100&page=1"
+    artifacts = {
+        "artifacts": [
+            artifact(1, "format", format_archive),
+            artifact(2, "lint", lint_archive),
+        ]
+    }
+    port.enqueue("GET", artifacts_path, artifacts, artifacts)
+    port.downloads.update(
+        {
+            "/actions/artifacts/1/zip": format_archive,
+            "/actions/artifacts/2/zip": lint_archive,
+        }
+    )
+    port.enqueue("PATCH", "/check-runs/100", {"id": 100})
+
+    publish_workflow_run(port, event("completed"))
+    publish_workflow_run(port, event("completed"))
+
+    writes = [request for request in port.requests if request[1] == "/check-runs"]
+    updates = [request for request in port.requests if request[1] == "/check-runs/100"]
+    assert len(writes) == 1
+    assert writes[0][2]["external_id"] == external_id
+    assert len(updates) == 1
+
+
 def test_completed_event_accepts_none_projection_with_excluded_dependency() -> None:
     port = MemoryGitHubPort()
     configure_publication(port, source=NONE_PROJECTION_GRAPH)
@@ -430,15 +540,22 @@ def test_completed_event_accepts_none_projection_with_excluded_dependency() -> N
 def test_watcher_accepts_none_projection_with_excluded_dependency() -> None:
     port = MemoryGitHubPort()
     configure_publication(port, source=NONE_PROJECTION_GRAPH)
+    lint_archive = result_archive("lint", "Lint", source=NONE_PROJECTION_GRAPH)
+    port.enqueue(
+        "GET",
+        "/actions/runs/10/artifacts?per_page=100&page=1",
+        {"artifacts": [artifact(1, "lint", lint_archive)]},
+    )
+    port.downloads["/actions/artifacts/1/zip"] = lint_archive
     port.enqueue(
         "GET",
         JOBS_PATH,
         {"jobs": [{"name": "Lint", "status": "completed", "conclusion": "success"}]},
     )
 
-    outcome = watch_workflow_run(port, event("in_progress"), sleep=lambda _: None)
+    outcome = watch_workflow_run(port, event("requested"), sleep=lambda _: None)
 
-    assert outcome.status is ResultStatus.IN_PROGRESS
+    assert outcome.status is ResultStatus.PASSED
 
 
 def test_completed_event_surfaces_invalid_artifacts_as_failure() -> None:

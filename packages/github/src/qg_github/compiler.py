@@ -542,7 +542,7 @@ def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
         "on": {
             "workflow_run": {
                 "workflows": ["Quality Graph"],
-                "types": ["requested", "in_progress", "completed"],
+                "types": ["requested", "completed"],
             },
             "issue_comment": {"types": ["created", "edited"]},
         },
