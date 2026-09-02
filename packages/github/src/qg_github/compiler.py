@@ -28,7 +28,7 @@ EXECUTION_WORKFLOW = PurePosixPath(".github/workflows/quality-graph.yml")
 PUSH_WORKFLOW = PurePosixPath(".github/workflows/quality-graph-push.yml")
 PUBLICATION_WORKFLOW = PurePosixPath(".github/workflows/quality-graph-publish.yml")
 GRAPH_MANIFEST = PurePosixPath(".quality-graph/manifest.json")
-UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@v7"
+DEFAULT_UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@v7"
 ACTION_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?@[A-Za-z0-9_.:/-]+$")
 RUNTIME_ACTION_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$")
 PERMISSION_NAMES = {
@@ -60,6 +60,14 @@ class EventProjection:
     dependencies: DependencyPolicy
 
 
+@dataclass(frozen=True)
+class _GitHubConfiguration:
+    runtime_action: str
+    publisher_action: str
+    upload_artifact_action: str
+    default_branch: str
+
+
 class WorkflowDumper(yaml.SafeDumper):
     """Render deterministic YAML without aliases for shared immutable values."""
 
@@ -74,7 +82,7 @@ class WorkflowDumper(yaml.SafeDumper):
         super().increase_indent(flow, indentless=False)
 
 
-def _validate_github_graph(graph: Graph) -> tuple[str, str, str]:
+def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
     if graph.provider.name != "github":
         message = f"GitHub provider cannot compile provider '{graph.provider.name}'"
         raise ValueError(message)
@@ -86,11 +94,12 @@ def _validate_github_graph(graph: Graph) -> tuple[str, str, str]:
     if not isinstance(runtime, dict):
         message = "GitHub provider requires a runtime object"
         raise TypeError(message)
-    if runtime.keys() - {"action", "publisher-action"}:
+    if runtime.keys() - {"action", "publisher-action", "upload-artifact-action"}:
         message = "GitHub runtime contains unknown fields"
         raise ValueError(message)
     action = _runtime_action(runtime.get("action"), "runtime")
     publisher_action = _runtime_action(runtime.get("publisher-action", action), "publisher")
+    upload_artifact_action = _upload_artifact_action(runtime)
     default_branch = _default_branch(graph.provider.values.get("default-branch"))
     if publisher_action.partition("@")[0] != action.partition("@")[0]:
         message = "GitHub publisher action must use the runtime action repository"
@@ -106,7 +115,7 @@ def _validate_github_graph(graph: Graph) -> tuple[str, str, str]:
         message = "GitHub dashboard requires unique node titles"
         raise ValueError(message)
     _event_projections(graph)
-    return action, publisher_action, default_branch
+    return _GitHubConfiguration(action, publisher_action, upload_artifact_action, default_branch)
 
 
 def _event_projections(graph: Graph) -> tuple[EventProjection, ...]:
@@ -184,6 +193,12 @@ def _runtime_action(value: JsonValue, context: str) -> str:
     return value
 
 
+def _upload_artifact_action(runtime: Mapping[str, JsonValue]) -> str:
+    if "upload-artifact-action" not in runtime:
+        return DEFAULT_UPLOAD_ARTIFACT_ACTION
+    return _runtime_action(runtime["upload-artifact-action"], "upload artifact")
+
+
 def _validate_permissions(profile: Profile) -> None:
     for permission, access in profile.permissions.items():
         if permission not in PERMISSION_NAMES:
@@ -205,9 +220,9 @@ def _validate_step(step: Step) -> None:
 
 def compile_graph(graph: Graph) -> GeneratedProject:
     """Compile one graph through the public declaration seam."""
-    runtime_action, publisher_action, default_branch = _validate_github_graph(graph)
+    configuration = _validate_github_graph(graph)
     projections = {item.event: item for item in _event_projections(graph)}
-    manifest = _manifest_value(graph, runtime_action, default_branch)
+    manifest = _manifest_value(graph, configuration)
     digest = hashlib.sha256(_canonical_json(manifest).encode()).hexdigest()
     manifest["graphDigest"] = digest
     manifest["_generated"] = GENERATED_NOTICE
@@ -218,9 +233,8 @@ def compile_graph(graph: Graph) -> GeneratedProject:
                 _execution_workflow(
                     graph,
                     projections["pull-request"],
-                    runtime_action,
+                    configuration,
                     digest,
-                    default_branch,
                 )
             ),
         ),
@@ -230,15 +244,14 @@ def compile_graph(graph: Graph) -> GeneratedProject:
                 _execution_workflow(
                     graph,
                     projections["push"],
-                    runtime_action,
+                    configuration,
                     digest,
-                    default_branch,
                 )
             ),
         ),
         GeneratedFile(
             PUBLICATION_WORKFLOW,
-            _yaml_file(_publication_workflow(publisher_action)),
+            _yaml_file(_publication_workflow(configuration.publisher_action)),
         ),
         GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)),
     )
@@ -247,8 +260,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
 
 def _manifest_value(
     graph: Graph,
-    runtime_action: str,
-    default_branch: str,
+    configuration: _GitHubConfiguration,
 ) -> dict[str, JsonValue]:
     profiles = graph.expanded_profiles()
     value: dict[str, JsonValue] = {
@@ -256,14 +268,19 @@ def _manifest_value(
         "graphVersion": graph.version,
         "provider": graph.provider.name,
         "resultSchemaVersion": 0,
-        "runtime": {"action": runtime_action},
+        "runtime": {"action": configuration.runtime_action},
         "profiles": {name: _profile_value(profile) for name, profile in profiles.items()},
         "nodes": [_node_value(node, profiles[node.profile]) for node in graph.nodes],
         "labels": _labels_value(graph),
         "administration": {"roles": list(graph.administrator_roles)},
     }
     if "default-branch" in graph.provider.values:
-        value["defaultBranch"] = default_branch
+        value["defaultBranch"] = configuration.default_branch
+    runtime = cast("dict[str, JsonValue]", graph.provider.values["runtime"])
+    if "upload-artifact-action" in runtime:
+        cast("dict[str, JsonValue]", value["runtime"])["uploadArtifactAction"] = (
+            configuration.upload_artifact_action
+        )
     if graph.execution or any(node.events for node in graph.nodes):
         value["execution"] = {
             event: {
@@ -355,13 +372,17 @@ def _label_value(label: LabelSpec) -> dict[str, JsonValue]:
 def _execution_workflow(
     graph: Graph,
     projection: EventProjection,
-    runtime_action: str,
+    configuration: _GitHubConfiguration,
     digest: str,
-    default_branch: str,
 ) -> dict[str, JsonValue]:
     profiles = graph.expanded_profiles()
     jobs: dict[str, JsonValue] = {
-        node.id: _execution_job(node, profiles[node.profile], runtime_action, digest)
+        node.id: _execution_job(
+            node,
+            profiles[node.profile],
+            configuration,
+            digest,
+        )
         for node in projection.nodes
     }
     trigger: dict[str, JsonValue]
@@ -369,12 +390,12 @@ def _execution_workflow(
     if projection.event == "pull-request":
         name = "Quality Graph"
         trigger = {
-            "pull_request": {"branches": [default_branch]},
+            "pull_request": {"branches": [configuration.default_branch]},
             "workflow_dispatch": {},
         }
     else:
         name = "Quality Graph (push)"
-        trigger = {"push": {"branches": [default_branch]}}
+        trigger = {"push": {"branches": [configuration.default_branch]}}
     return {
         "name": name,
         "on": trigger,
@@ -390,7 +411,7 @@ def _execution_workflow(
 def _execution_job(
     node: Node,
     profile: Profile,
-    runtime_action: str,
+    configuration: _GitHubConfiguration,
     graph_digest: str,
 ) -> dict[str, JsonValue]:
     runner = cast("str", profile.runner)
@@ -408,7 +429,7 @@ def _execution_job(
         "name": f"Collect {node.title} result",
         "id": "quality-result",
         "if": "always()",
-        "uses": runtime_action,
+        "uses": configuration.runtime_action,
         "with": {
             "operation": "collect",
             "node-id": node.id,
@@ -425,7 +446,7 @@ def _execution_job(
     upload: dict[str, JsonValue] = {
         "name": f"Upload {node.title} result",
         "if": "always()",
-        "uses": UPLOAD_ARTIFACT_ACTION,
+        "uses": configuration.upload_artifact_action,
         "with": {
             "name": f"quality-result-{node.id}-${{{{ github.run_attempt }}}}",
             "path": result_path,
