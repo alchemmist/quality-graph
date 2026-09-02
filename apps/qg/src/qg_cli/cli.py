@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -35,6 +36,16 @@ def parser() -> argparse.ArgumentParser:
         "generated-files", help="List compiler-owned artifact paths"
     )
     generated_files.add_argument("--root", default=".")
+    github = commands.add_parser("github", help="Synchronize GitHub repository settings")
+    github_commands = github.add_subparsers(dest="github_command")
+    required_checks = github_commands.add_parser(
+        "required-checks", help="Manage required status checks"
+    )
+    required_checks_commands = required_checks.add_subparsers(dest="required_checks_command")
+    synchronize = required_checks_commands.add_parser(
+        "sync", help="Synchronize required checks from qg.yaml"
+    )
+    synchronize.add_argument("--root", default=".")
     graph_schema = commands.add_parser("schema", help="Render the graph JSON Schema")
     graph_schema.add_argument("--output", default="-")
     result_command = commands.add_parser("result", help="Work with native result JSON")
@@ -69,9 +80,28 @@ def main(arguments: Sequence[str] | None = None) -> int:
             return _project_command(args)
         if args.command == "result":
             return _result_command(command_parser, args)
+        if args.command == "github":
+            return _github_command(command_parser, args)
     except (OSError, TypeError, ValueError) as error:
         command_parser.error(str(error))
     command_parser.print_help()
+    return 0
+
+
+def _github_command(command_parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    if args.github_command != "required-checks" or args.required_checks_command != "sync":
+        command_parser.print_help()
+        return 0
+    project = Project.open(Path(args.root))
+    github = import_module("qg_github.github")
+    synchronization = import_module("qg_github.required_checks")
+    port = github.HttpGitHubPort.from_environment()
+    plan = synchronization.plan_required_checks(port, project.graph)
+    sys.stdout.write(plan.render())
+    sys.stdout.flush()
+    synchronization.apply_required_checks(port, plan)
+    result = "Applied required-check synchronization.\n" if plan.changed else "No changes.\n"
+    sys.stdout.write(result)
     return 0
 
 

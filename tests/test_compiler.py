@@ -126,6 +126,20 @@ def test_custom_default_branch_changes_workflow_manifest_and_digest() -> None:
     assert manifest["defaultBranch"] == "release/stable"
 
 
+def test_github_merge_requirement_is_validated() -> None:
+    source = GRAPH.replace("    runtime:\n", "    merge:\n      required: true\n    runtime:\n")
+    invalid = source.replace("merge:\n      required: true", "merge: true")
+    unknown = source.replace("required: true", "required: true\n      other: true")
+
+    compile_graph(Graph.from_yaml(source))
+    with pytest.raises(TypeError, match="merge required must be a boolean"):
+        compile_graph(Graph.from_yaml(source.replace("required: true", "required: 1")))
+    with pytest.raises(TypeError, match="merge configuration must be an object"):
+        compile_graph(Graph.from_yaml(invalid))
+    with pytest.raises(ValueError, match="merge configuration contains unknown fields"):
+        compile_graph(Graph.from_yaml(unknown))
+
+
 def test_legacy_declaration_defaults_to_main_branch() -> None:
     source = GRAPH.replace("    default-branch: main\n", "")
 

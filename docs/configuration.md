@@ -8,7 +8,8 @@ schema is [`schemas/graph-v0.schema.json`](https://github.com/alchemmist/quality
 - `version`: currently `0`.
 - `provider.name`: installed provider name; legacy declarations default to `github`.
 - `provider.configuration`: opaque provider-owned configuration. The GitHub provider supports an
-  explicit `default-branch` contract and requires `runtime.action` as
+  explicit `default-branch` contract, an optional `merge.required` synchronization contract, and
+  requires `runtime.action` as
   `owner/repository@<40-character-commit>` inside this object. An optional
   `runtime.publisher-action` independently rolls the trusted publisher forward. Set the optional
   `runtime.upload-artifact-action` to an immutable `owner/repository@<40-character-commit>` ref when
@@ -52,6 +53,17 @@ for example `main`, `trunk`, or `release/stable`.
 declarations that omit it retain the graph-v0 `main` behavior; add the field and regenerate to make
 the contract visible and to support a non-`main` repository. Omitted legacy values also preserve
 their existing manifest and graph digest, so migration does not invalidate in-flight artifacts.
+
+## Merge requirements
+
+Set `provider.configuration.merge.required` to `true` to make the stable synthetic
+`Quality Graph` check a merge requirement. Set it to `false`, or remove the `merge` object, to
+remove only that Quality Graph-owned requirement during the next manual synchronization. Node
+`policy.blocking` continues to determine which nodes contribute to the aggregate check.
+
+Configuration alone does not mutate GitHub. Run `qg github required-checks sync` explicitly after
+changing it. See [required-check synchronization](required-checks.md) for API behavior and token
+permissions.
 
 ## Profiles
 
