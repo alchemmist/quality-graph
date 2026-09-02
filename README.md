@@ -31,13 +31,31 @@ profiles:
 
 nodes:
   lint:
+    events: [pull-request, push]
     run: make lint
     results:
       sarif: reports/lint.sarif
 
   test:
+    events: [pull-request]
     needs: [lint]
     run: make test
     results:
       junit: reports/tests.xml
 ```
+
+`default-branch` controls the generated pull-request and push filters. Nodes run for both
+events unless `events` narrows them to `pull-request` or `push`.
+
+```bash
+uv tool install quality-graph-cli==0.1.2 --with quality-graph-github==0.1.2
+qg init \
+  --default-branch main \
+  --runtime-action alchemmist/quality-graph@<release-commit-sha>
+qg generate
+qg generated-files
+qg validate
+```
+
+`qg generated-files` prints the provider-owned paths that should be committed or passed to
+repository tooling. See the [installation guide](docs/installation.md) for the complete setup.
