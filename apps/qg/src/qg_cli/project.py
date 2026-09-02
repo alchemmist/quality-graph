@@ -140,7 +140,7 @@ class Project:
 def _configuration_path(root: Path) -> Path:
     configuration = root / CONFIGURATION_PATH
     legacy = root / LEGACY_CONFIGURATION_PATH
-    if legacy.exists():
+    if legacy.exists() or legacy.is_symlink():
         if configuration.exists():
             message = (
                 f"Both {CONFIGURATION_PATH} and {LEGACY_CONFIGURATION_PATH} exist; "

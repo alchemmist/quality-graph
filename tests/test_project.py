@@ -158,6 +158,17 @@ def test_project_rejects_canonical_and_legacy_declarations(tmp_path: Path) -> No
     assert legacy.exists()
 
 
+def test_project_rejects_dangling_legacy_symlink(tmp_path: Path) -> None:
+    legacy = tmp_path / "quality-graph.yml"
+    legacy.symlink_to(tmp_path / "missing.yml")
+
+    with pytest.raises(FileNotFoundError, match="no longer supported"):
+        Project.initialize(tmp_path, RUNTIME, force=True)
+
+    assert legacy.is_symlink()
+    assert not (tmp_path / "qg.yaml").exists()
+
+
 def test_project_does_not_write_when_default_provider_is_missing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
