@@ -333,15 +333,15 @@ def _is_latest_run(port: GitHubPort, event: WorkflowRunEvent, number: int) -> bo
     )
     response = _object(port.request("GET", path), "workflow runs")
     runs = _array(response.get("workflow_runs", []), "workflow runs")
-    matching_ids = [
-        run_id
+    matching_runs = [
+        (run_id, _integer(run.get("run_attempt", 1), "workflow run attempt"))
         for value in runs
         for run in (_object(value, "workflow run"),)
         if _run_has_pull(run, number)
         for run_id in (_optional_integer(run.get("id"), "workflow run id"),)
         if run_id is not None
     ]
-    return not matching_ids or event.id >= max(matching_ids)
+    return not matching_runs or (event.id, event.attempt) >= max(matching_runs)
 
 
 def _run_has_pull(run: Mapping[str, JsonValue], number: int) -> bool:

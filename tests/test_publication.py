@@ -258,6 +258,33 @@ def test_requested_event_does_not_finalize_after_becoming_superseded() -> None:
     assert all("comments" not in request[1] for request in port.requests)
 
 
+def test_requested_event_rejects_a_newer_attempt_of_the_same_run() -> None:
+    port = MemoryGitHubPort()
+    port.enqueue(
+        "GET",
+        "/pulls/42",
+        {"head": {"sha": "a" * 40}, "base": {"sha": "d" * 40}},
+    )
+    port.enqueue(
+        "GET",
+        RUNS_PATH,
+        {
+            "workflow_runs": [
+                {
+                    "id": 10,
+                    "run_attempt": 2,
+                    "pull_requests": [{"number": 42}],
+                }
+            ]
+        },
+    )
+
+    outcome = watch_workflow_run(port, event("requested"), sleep=lambda _: None)
+
+    assert outcome == PublicationOutcome(published=False)
+    assert len(port.requests) == 2
+
+
 @pytest.mark.parametrize(
     ("job", "expected"),
     [
