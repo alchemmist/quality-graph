@@ -3,6 +3,7 @@ import pytest
 from qg_github.github import GitHubError, MemoryGitHubPort
 from qg_github.required_checks import apply_required_checks, plan_required_checks
 from quality_graph_core.graph import Graph
+from quality_graph_core.result import JsonValue
 from tests.test_graph import GRAPH
 
 
@@ -268,7 +269,7 @@ def test_organization_ruleset_requires_organization_administration() -> None:
 
 def test_insufficient_repository_permission_is_actionable() -> None:
     class ForbiddenPort(MemoryGitHubPort):
-        def request(self, method: str, path: str, payload: object = None) -> object:
+        def request(self, method: str, path: str, payload: JsonValue = None) -> JsonValue:
             del payload
             raise GitHubError(method, path, 403)
 
@@ -276,7 +277,7 @@ def test_insufficient_repository_permission_is_actionable() -> None:
         plan_required_checks(ForbiddenPort(), graph(required=True))
 
     class InvalidPort(MemoryGitHubPort):
-        def request(self, method: str, path: str, payload: object = None) -> object:
+        def request(self, method: str, path: str, payload: JsonValue = None) -> JsonValue:
             del payload
             raise GitHubError(method, path, 500)
 
@@ -293,7 +294,7 @@ def test_insufficient_repository_permission_is_actionable() -> None:
         ([{"type": "rule", "ruleset_source_type": "Repository", "ruleset_id": True}], "ruleset id"),
     ],
 )
-def test_malformed_rule_discovery_is_rejected(response: object, message: str) -> None:
+def test_malformed_rule_discovery_is_rejected(response: JsonValue, message: str) -> None:
     port = MemoryGitHubPort()
     port.enqueue("GET", "/rules/branches/main", response)
 

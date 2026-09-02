@@ -125,7 +125,7 @@ def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
     )
 
 
-def _merge_required(merge: object) -> bool:
+def _merge_required(merge: JsonValue) -> bool:
     if not isinstance(merge, dict):
         message = "GitHub merge configuration must be an object"
         raise TypeError(message)
