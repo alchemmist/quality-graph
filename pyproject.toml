@@ -143,7 +143,7 @@ also_copy = [
   "action.yml",
   "LICENSE",
   "README.md",
-  "quality-graph.yml",
+  "qg.yaml",
   "packages/core/pyproject.toml",
   "packages/core/README.md",
   "packages/github/pyproject.toml",

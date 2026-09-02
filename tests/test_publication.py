@@ -60,7 +60,7 @@ def configure_publication(
     )
     port.enqueue("GET", RUNS_PATH, {"workflow_runs": []})
     content = base64.b64encode(source.encode()).decode()
-    port.enqueue("GET", f"/contents/quality-graph.yml?ref={'d' * 40}", {"content": content})
+    port.enqueue("GET", f"/contents/qg.yaml?ref={'d' * 40}", {"content": content})
     comments = "/issues/42/comments?per_page=100&page=1"
     port.enqueue("GET", comments, [])
     port.enqueue(
@@ -750,7 +750,7 @@ def test_publisher_rejects_invalid_base_configuration_encoding() -> None:
             ]
         },
     )
-    port.enqueue("GET", f"/contents/quality-graph.yml?ref={'d' * 40}", {"content": "%%%"})
+    port.enqueue("GET", f"/contents/qg.yaml?ref={'d' * 40}", {"content": "%%%"})
 
     with pytest.raises(ValueError, match="base64"):
         publish_workflow_run(port, event("completed"))

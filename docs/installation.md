@@ -33,7 +33,7 @@ convenient for evaluation and administration. Do not mix CLI and provider versio
 
 ## Initialize and generate
 
-`qg init` creates `quality-graph.yml`. `--default-branch` records the repository branch that
+`qg init` creates `qg.yaml`. `--default-branch` records the repository branch that
 receives pull requests and trusted pushes; it defaults to `main` and never queries GitHub. Use
 `--preset internal` only to select a self-hosted starter runner; it does not grant credentials or
 write permissions. Existing declarations are preserved unless `--force` is explicit.
@@ -43,7 +43,7 @@ Generate and commit observable GitHub files:
 ```bash
 uv run qg generate
 uv run qg validate
-git add quality-graph.yml .github/workflows .quality-graph/manifest.json .prettierignore
+git add qg.yaml .github/workflows .quality-graph/manifest.json .prettierignore
 ```
 
 `qg validate` recomputes output in memory and fails for an invalid declaration, a missing

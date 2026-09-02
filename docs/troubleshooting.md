@@ -24,7 +24,7 @@ Do not install mismatched versions.
 ```bash
 uv run qg generate
 uv run qg validate
-git diff -- quality-graph.yml .github/workflows .quality-graph
+git diff -- qg.yaml .github/workflows .quality-graph
 ```
 
 Do not edit generated workflows or `.quality-graph/manifest.json` by hand.
@@ -88,5 +88,5 @@ field when only process exit status should determine the node result.
 
 ## `qg init` refuses to replace a declaration
 
-Initialization preserves an existing `quality-graph.yml`. Edit it directly, or use `--force` only
+Initialization preserves an existing `qg.yaml`. Edit it directly, or use `--force` only
 when replacement is intentional and the current file is safely committed.

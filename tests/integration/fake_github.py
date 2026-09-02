@@ -46,7 +46,7 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
         path = _repository_path(self.path)
         if path == "/pulls/42":
             self._json({"head": {"sha": "a" * 40}, "base": {"sha": "d" * 40}})
-        elif path.startswith("/contents/quality-graph.yml"):
+        elif path.startswith("/contents/qg.yaml"):
             self._json({"content": base64.b64encode(self.state.graph.encode()).decode()})
         elif path.startswith("/actions/"):
             self._get_actions(path)

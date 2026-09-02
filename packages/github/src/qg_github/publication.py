@@ -110,7 +110,7 @@ def publish_workflow_run(
         return PublicationOutcome(published=False)
     if not _is_latest_run(port, event, number):
         return PublicationOutcome(published=False)
-    graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", pull.base_sha))
+    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", pull.base_sha))
     return _publish_completed_workflow_run(port, event, number, pull, graph)
 
 
@@ -167,7 +167,7 @@ def watch_workflow_run(
         return PublicationOutcome(published=False)
     if not _is_latest_run(port, event, number):
         return PublicationOutcome(published=False)
-    graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", pull.base_sha))
+    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", pull.base_sha))
     projected = project_graph(graph, "pull-request")
     nodes = tuple(DashboardNode(node.id, node.title) for node in projected.nodes)
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)

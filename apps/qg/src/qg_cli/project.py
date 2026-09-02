@@ -13,7 +13,8 @@ from quality_graph_core.graph import Graph
 if TYPE_CHECKING:
     from quality_graph_core.provider import GeneratedProject, Provider
 
-CONFIGURATION_PATH = Path("quality-graph.yml")
+CONFIGURATION_PATH = Path("qg.yaml")
+LEGACY_CONFIGURATION_PATH = Path("quality-graph.yml")
 PRETTIER_IGNORE_PATH = Path(".prettierignore")
 PRETTIER_BLOCK_START = "# Quality Graph generated files (managed by qg)"
 PRETTIER_BLOCK_END = "# End Quality Graph generated files"
@@ -42,7 +43,7 @@ class Project:
     @classmethod
     def open(cls, root: Path) -> Self:
         """Load a project from its committed declaration."""
-        configuration = root / CONFIGURATION_PATH
+        configuration = _configuration_path(root)
         if not configuration.is_file():
             message = f"Quality Graph declaration does not exist: {configuration}"
             raise FileNotFoundError(message)
@@ -123,7 +124,7 @@ class Project:
         force: bool = False,
     ) -> Self:
         """Create one understandable starter declaration."""
-        configuration = root / CONFIGURATION_PATH
+        configuration = _configuration_path(root)
         if configuration.exists() and not force:
             message = f"Refusing to replace existing declaration: {configuration}"
             raise FileExistsError(message)
@@ -134,6 +135,24 @@ class Project:
         root.mkdir(parents=True, exist_ok=True)
         configuration.write_text(source)
         return cls(root, graph, provider)
+
+
+def _configuration_path(root: Path) -> Path:
+    configuration = root / CONFIGURATION_PATH
+    legacy = root / LEGACY_CONFIGURATION_PATH
+    if legacy.exists():
+        if configuration.exists():
+            message = (
+                f"Both {CONFIGURATION_PATH} and {LEGACY_CONFIGURATION_PATH} exist; "
+                f"remove {LEGACY_CONFIGURATION_PATH}"
+            )
+            raise FileExistsError(message)
+        message = (
+            f"{LEGACY_CONFIGURATION_PATH} is no longer supported; "
+            f"rename it with `git mv {LEGACY_CONFIGURATION_PATH} {CONFIGURATION_PATH}`"
+        )
+        raise FileNotFoundError(message)
+    return configuration
 
 
 def _starter_configuration(

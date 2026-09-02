@@ -1,5 +1,19 @@
 # Migrating an existing repository
 
+## Rename the source specification
+
+Quality Graph accepts `qg.yaml` as its only source specification filename. Repositories using
+the former filename must migrate explicitly:
+
+```console
+git mv quality-graph.yml qg.yaml
+qg generate
+qg validate
+```
+
+Commands reject the former filename instead of treating it as a fallback. If both files exist,
+remove `quality-graph.yml` before running Quality Graph again.
+
 Migrate orchestration before deleting working checks. Existing commands remain the behavioral
 baseline; Quality Graph initially calls the same Make targets and report producers.
 
@@ -109,7 +123,7 @@ After the probe is green:
 1. retain repository-specific commands called by graph nodes;
 1. run `uv run qg validate` after the cleanup.
 
-Generated workflows are outputs, not customization points. Change `quality-graph.yml`, regenerate,
+Generated workflows are outputs, not customization points. Change `qg.yaml`, regenerate,
 and commit source and outputs together.
 
 ## Monori-shaped repositories
