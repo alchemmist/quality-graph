@@ -11,6 +11,7 @@ schema is [`schemas/graph-v0.schema.json`](https://github.com/alchemmist/quality
   explicit `default-branch` contract and requires `runtime.action` as
   `owner/repository@<40-character-commit>` inside this object. An optional
   `runtime.publisher-action` independently rolls the trusted publisher forward.
+- `execution`: optional dependency policies keyed by provider-recognized execution event.
 - `profiles`: reusable execution environments; `default` is required.
 - `nodes`: ordered graph operations keyed by stable node ID.
 - `labels`: optional aggregate label management.
@@ -51,7 +52,7 @@ write access through the declaration.
 
 Node keys are stable IDs matching `[a-z][a-z0-9-]{0,62}`. A node supports:
 
-- `title`, `profile`, and ordered `needs` dependencies;
+- `title`, `profile`, ordered `needs` dependencies, and optional `events` selection;
 - exactly one `run` command or pinned `uses` action;
 - node-level `env` and `timeout-minutes`;
 - one result adapter in `results`;
@@ -60,6 +61,31 @@ Node keys are stable IDs matching `[a-z][a-z0-9-]{0,62}`. A node supports:
 
 Validation rejects cycles, self-dependencies, unknown references, duplicate YAML keys,
 unsafe paths, mutable runtime refs, and conflicting adapters.
+
+## Event projections
+
+The GitHub provider recognizes `pull-request` and `push`. A node with no `events` field belongs to
+both event projections. Set `events: [pull-request]` for checks that inspect only changed code and
+must not run after merge.
+
+`execution.<event>.dependencies` controls scheduling independently from event selection. `graph`
+preserves declared `needs`; `none` removes scheduling dependencies so the selected nodes start in
+parallel:
+
+```yaml
+execution:
+  pull-request:
+    dependencies: graph
+  push:
+    dependencies: none
+```
+
+Omitting `execution` preserves the declared graph for both events. A `graph` projection must be
+closed over dependencies: every dependency of a selected node must also select that event. Each
+GitHub event projection must contain at least one node.
+
+Quality Graph generates separate pull-request and push workflows. Trusted dashboard publication
+continues to observe only the pull-request workflow.
 
 ## Policies and labels
 

@@ -2,7 +2,7 @@ PYTHON_SOURCES := packages apps tests scripts
 PYTHON ?= python3
 BASE ?= origin/main
 TOOLS_BIN := $(CURDIR)/.tools/bin
-MARKDOWN_SOURCES := README.md $(wildcard docs/*.md packages/*/README.md apps/*/README.md)
+MARKDOWN_SOURCES := README.md CONTEXT.md $(wildcard docs/*.md packages/*/README.md apps/*/README.md)
 
 .DEFAULT_GOAL := check
 

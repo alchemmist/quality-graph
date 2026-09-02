@@ -5,9 +5,6 @@ name: Quality Graph
   pull_request:
     branches:
       - main
-  push:
-    branches:
-      - main
   workflow_dispatch: {}
 permissions:
   contents: read
@@ -24,6 +21,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: 'false'
+          fetch-depth: '0'
       - uses: astral-sh/setup-uv@v7
       - run: uv sync --locked
       - run: bash scripts/lint.sh
@@ -41,7 +39,7 @@ jobs:
           adapter: sarif
           report-path: reports/ruff.sarif
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8a81b77727b1de937d83f7a1717f71b44a3f7ee3a15b98d2539dc564899c265c
+          graph-digest: 4b46ee1900ad7fdb9a250d045244bc46716d019ed23b511db35ab70d13174896
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -68,6 +66,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: 'false'
+          fetch-depth: '0'
       - uses: astral-sh/setup-uv@v7
       - run: uv sync --locked
       - run: bash scripts/test.sh
@@ -85,7 +84,7 @@ jobs:
           adapter: junit
           report-path: reports/pytest.xml
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 8a81b77727b1de937d83f7a1717f71b44a3f7ee3a15b98d2539dc564899c265c
+          graph-digest: 4b46ee1900ad7fdb9a250d045244bc46716d019ed23b511db35ab70d13174896
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -105,3 +104,50 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - lint
+  diff:
+    name: Diff check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: 'false'
+          fetch-depth: '0'
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --locked
+      - run: git diff --check origin/main...HEAD
+        name: Run Diff check
+        id: quality-command
+        continue-on-error: true
+      - name: Collect Diff check result
+        id: quality-result
+        if: always()
+        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        with:
+          operation: collect
+          node-id: diff
+          title: Diff check
+          adapter: exit-code
+          report-path: ''
+          command-outcome: ${{ steps.quality-command.outcome }}
+          graph-digest: 4b46ee1900ad7fdb9a250d045244bc46716d019ed23b511db35ab70d13174896
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
+      - name: Upload Diff check result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-result-diff-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/diff.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce Diff check result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+        run: exit "${EXIT_CODE:-2}"
+    needs:
+      - test

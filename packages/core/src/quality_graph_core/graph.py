@@ -30,6 +30,13 @@ class AdapterKind(StrEnum):
     JUNIT = "junit"
 
 
+class DependencyPolicy(StrEnum):
+    """Select how an execution event projects declared node dependencies."""
+
+    GRAPH = "graph"
+    NONE = "none"
+
+
 @dataclass(frozen=True)
 class Step:
     """Describe one setup or node execution step."""
@@ -176,6 +183,7 @@ class Node:
     failing_label: LabelSpec | None | bool = None
     environment: Mapping[str, str] = field(default_factory=dict)
     timeout_minutes: int | None = None
+    events: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """Validate node identity and local execution overrides."""
@@ -186,6 +194,11 @@ class Node:
         if len(set(self.needs)) != len(self.needs) or self.id in self.needs:
             message = f"node dependencies must be unique and exclude itself: {self.id}"
             raise ValueError(message)
+        if len(set(self.events)) != len(self.events):
+            message = f"node events must be unique: {self.id}"
+            raise ValueError(message)
+        for event in self.events:
+            _identifier(event, f"node {self.id} event")
         if self.timeout_minutes is not None and not (
             1 <= self.timeout_minutes <= MAX_TIMEOUT_MINUTES
         ):
@@ -215,6 +228,7 @@ class Graph:
     labels: LabelPolicy = LabelPolicy()
     administrator_roles: tuple[str, ...] = ("admin",)
     version: int = 0
+    execution: Mapping[str, DependencyPolicy] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate cross-reference, graph, and governance invariants."""
@@ -225,6 +239,8 @@ class Graph:
         nodes = _unique_nodes(self.nodes)
         _validate_profile_references(self.profiles, profiles)
         _validate_node_references(self.nodes, profiles, nodes)
+        for event in self.execution:
+            _identifier(event, "execution event")
         _validate_administrator_roles(self.administrator_roles)
 
     def expanded_profiles(self) -> dict[str, Profile]:
@@ -286,7 +302,16 @@ class Graph:
 def _parse_graph(data: dict[str, JsonValue]) -> Graph:
     _reject_unknown(
         data,
-        {"version", "provider", "runtime", "profiles", "nodes", "labels", "administration"},
+        {
+            "version",
+            "provider",
+            "runtime",
+            "execution",
+            "profiles",
+            "nodes",
+            "labels",
+            "administration",
+        },
         "graph",
     )
     profiles = _mapping(data.get("profiles"), "profiles")
@@ -301,6 +326,7 @@ def _parse_graph(data: dict[str, JsonValue]) -> Graph:
         _parse_labels(_object(data.get("labels", {}), "labels")),
         _parse_administration(_object(data.get("administration", {}), "administration")),
         _integer(data.get("version"), "graph version"),
+        _parse_execution(_mapping(data.get("execution", {}), "execution")),
     )
 
 
@@ -359,6 +385,7 @@ def _parse_node(name: str, data: dict[str, JsonValue]) -> Node:
         "title",
         "profile",
         "needs",
+        "events",
         "run",
         "uses",
         "with",
@@ -385,7 +412,35 @@ def _parse_node(name: str, data: dict[str, JsonValue]) -> Node:
         _parse_node_label(data.get("label"), f"node {name} label"),
         _string_mapping(data.get("env", {}), f"node {name} env"),
         _optional_integer(data.get("timeout-minutes"), f"node {name} timeout"),
+        _parse_node_events(name, data),
     )
+
+
+def _parse_node_events(name: str, data: dict[str, JsonValue]) -> tuple[str, ...]:
+    if "events" not in data:
+        return ()
+    values = _array(data["events"], f"node {name} events")
+    if not values:
+        message = f"node {name} events must not be empty"
+        raise ValueError(message)
+    return tuple(_string(value, f"node {name} event") for value in values)
+
+
+def _parse_execution(data: Mapping[str, JsonValue]) -> dict[str, DependencyPolicy]:
+    result: dict[str, DependencyPolicy] = {}
+    for event, value in data.items():
+        configuration = _object(value, f"execution event {event}")
+        _reject_unknown(configuration, {"dependencies"}, f"execution event {event}")
+        dependency = _string(
+            configuration.get("dependencies", DependencyPolicy.GRAPH.value),
+            f"execution event {event} dependencies",
+        )
+        try:
+            result[event] = DependencyPolicy(dependency)
+        except ValueError as error:
+            message = f"unsupported dependency policy for execution event {event}: {dependency}"
+            raise ValueError(message) from error
+    return result
 
 
 def _parse_step(data: dict[str, JsonValue]) -> Step:

@@ -33,6 +33,9 @@ enabled during migration.
 Use one node per independently useful GitHub job. Preserve parallel branches and encode only real
 dependencies in `needs`.
 
+Use `events: [pull-request]` for diff-only checks. To reuse the remaining checks on the default
+branch without their pull-request scheduling chain, configure `execution.push.dependencies: none`.
+
 ```yaml
 nodes:
   lint:

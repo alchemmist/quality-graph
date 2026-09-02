@@ -58,6 +58,17 @@
           },
           "type": "object"
         },
+        "events": {
+          "items": {
+            "minLength": 0,
+            "pattern": "^[a-z][a-z0-9-]{0,62}$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
         "label": {
           "oneOf": [
             {
@@ -316,6 +327,30 @@
         }
       },
       "required": [],
+      "type": "object"
+    },
+    "execution": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "dependencies": {
+            "enum": [
+              "graph",
+              "none"
+            ],
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "maxProperties": 100,
+      "propertyNames": {
+        "minLength": 0,
+        "pattern": "^[a-z][a-z0-9-]{0,62}$",
+        "type": "string"
+      },
       "type": "object"
     },
     "labels": {

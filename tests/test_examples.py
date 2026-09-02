@@ -14,6 +14,7 @@ def test_example_repository_uses_public_graph_and_generated_interfaces(ecosystem
     assert project.validate().current
     assert {str(item.path) for item in project.render().files} == {
         ".github/workflows/quality-graph.yml",
+        ".github/workflows/quality-graph-push.yml",
         ".github/workflows/quality-graph-publish.yml",
         ".quality-graph/manifest.json",
     }

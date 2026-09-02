@@ -5,6 +5,7 @@ import yaml
 
 from quality_graph_core.graph import (
     AdapterKind,
+    DependencyPolicy,
     Graph,
     LabelPolicy,
     LabelSpec,
@@ -65,6 +66,15 @@ administration:
   roles: [admin, maintain]
 """
 
+NONE_PROJECTION_GRAPH = (
+    GRAPH.replace(
+        "profiles:\n",
+        "execution:\n  pull-request:\n    dependencies: none\nprofiles:\n",
+    )
+    .replace("title: Formatting\n", "title: Formatting\n    events: [push]\n")
+    .replace("title: Lint\n", "title: Lint\n    events: [pull-request]\n")
+)
+
 MAXIMAL_GRAPH = (
     GRAPH.replace(
         "runner: ubuntu-latest",
@@ -124,6 +134,23 @@ def test_graph_defaults_to_github_provider_for_legacy_declarations() -> None:
     assert graph.provider == ProviderConfiguration("github", {"runtime": {"action": RUNTIME}})
 
 
+def test_graph_loads_event_selections_and_dependency_policies() -> None:
+    source = GRAPH.replace(
+        "profiles:\n",
+        "execution:\n  pull-request:\n    dependencies: graph\n"
+        "  push:\n    dependencies: none\nprofiles:\n",
+    ).replace("title: Lint\n", "title: Lint\n    events: [pull-request]\n")
+
+    graph = Graph.from_yaml(source)
+
+    assert graph.execution == {
+        "pull-request": DependencyPolicy.GRAPH,
+        "push": DependencyPolicy.NONE,
+    }
+    assert graph.nodes[0].events == ()
+    assert graph.nodes[1].events == ("pull-request",)
+
+
 def test_provider_configuration_rejects_legacy_runtime_and_unknown_fields() -> None:
     with pytest.raises(ValueError, match="cannot be combined"):
         Graph.from_yaml(GRAPH.replace("profiles:\n", f"runtime:\n  action: {RUNTIME}\nprofiles:\n"))
@@ -163,6 +190,18 @@ def test_profile_inheritance_appends_setup_and_merges_mappings() -> None:
         (GRAPH.replace("extends: default", "extends: missing"), "unknown parent profile"),
         (GRAPH.replace("needs: [format]", "needs: [lint]"), "exclude itself"),
         (GRAPH.replace("needs: [format]", "needs: [format, format]"), "must be unique"),
+        (GRAPH.replace("title: Lint", "title: Lint\n    events: []"), "must not be empty"),
+        (
+            GRAPH.replace("title: Lint", "title: Lint\n    events: [push, push]"),
+            "events must be unique",
+        ),
+        (
+            GRAPH.replace(
+                "profiles:\n",
+                "execution:\n  push:\n    dependencies: invalid\nprofiles:\n",
+            ),
+            "unsupported dependency policy",
+        ),
         (GRAPH.replace("sarif: reports/lint.sarif", "sarif: ../lint.sarif"), "repository-relative"),
     ],
 )

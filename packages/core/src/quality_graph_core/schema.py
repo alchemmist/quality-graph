@@ -193,6 +193,14 @@ def result_schema_json() -> str:
 def graph_schema_value() -> dict[str, JsonValue]:
     """Return the provisional graph declaration JSON Schema."""
     identifier = _string_schema(pattern=r"^[a-z][a-z0-9-]{0,62}$")
+    event_selection = _array_schema(identifier, 100)
+    event_selection.update({"minItems": 1, "uniqueItems": True})
+    execution_event = _object_schema(
+        {
+            "dependencies": _string_schema(enum=("graph", "none")),
+        },
+        (),
+    )
     provider_configuration: dict[str, JsonValue] = {
         "type": "object",
         "properties": {
@@ -282,6 +290,7 @@ def graph_schema_value() -> dict[str, JsonValue]:
             "title": _string_schema(minimum=1, maximum=255),
             "profile": identifier,
             "needs": _array_schema(identifier, 1_000),
+            "events": event_selection,
             "results": result_adapters,
             "policy": policy,
             "label": {
@@ -326,6 +335,12 @@ def graph_schema_value() -> dict[str, JsonValue]:
                 ]
             },
             "runtime": {"type": "object"},
+            "execution": {
+                "type": "object",
+                "propertyNames": identifier,
+                "additionalProperties": execution_event,
+                "maxProperties": 100,
+            },
             "profiles": {
                 "type": "object",
                 "propertyNames": identifier,
