@@ -7,7 +7,6 @@ name: Quality Graph Publisher
       - Quality Graph
     types:
       - requested
-      - in_progress
       - completed
   issue_comment:
     types:

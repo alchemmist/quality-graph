@@ -7,7 +7,7 @@ import pytest
 from qg_github.commands import handle_command
 from qg_github.compiler import compile_graph
 from qg_github.github import HttpGitHubPort
-from qg_github.publication import publish_workflow_run
+from qg_github.publication import publish_workflow_run, watch_workflow_run
 from quality_graph_core.graph import Graph
 from quality_graph_core.result import (
     FailureKind,
@@ -117,3 +117,39 @@ def test_full_publication_and_command_lifecycle_over_real_http() -> None:
     assert observable.labels == {"quality:failed", "quality:lint"}
     assert observable.reruns == [10]
     assert observable.reactions == [(10, "eyes"), (10, "hooray")]
+
+
+def test_live_and_completed_events_finalize_one_check_over_real_http() -> None:
+    server = FakeGitHubServer(state())
+    port = HttpGitHubPort(
+        "owner/repository",
+        "token",
+        base_url=server.base_url,
+    )
+
+    with server as observable:
+        observable.job_snapshots.extend(
+            [
+                [
+                    {"name": "Formatting", "status": "in_progress"},
+                    {"name": "Lint", "status": "queued"},
+                ],
+                [
+                    {"name": "Formatting", "status": "completed", "conclusion": "success"},
+                    {"name": "Lint", "status": "completed", "conclusion": "failure"},
+                ],
+            ]
+        )
+        live = watch_workflow_run(
+            port,
+            workflow_event() | {"action": "requested"},
+            sleep=lambda _: None,
+        )
+        completed = publish_workflow_run(port, workflow_event())
+
+    assert live.status is ResultStatus.FAILED
+    assert completed.status is ResultStatus.FAILED
+    assert len(observable.checks) == 1
+    assert observable.checks[0]["status"] == "completed"
+    assert observable.checks[0]["conclusion"] == "failure"
+    assert "waiting" not in observable.comments[0]["body"]

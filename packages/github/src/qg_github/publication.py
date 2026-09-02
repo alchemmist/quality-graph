@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 
     from quality_graph_core.result import Result
 
+PUBLISH_POLL_INTERVAL_SECONDS = 30.0
+
 
 @dataclass(frozen=True)
 class WorkflowRunEvent:
@@ -109,6 +111,16 @@ def publish_workflow_run(
     if not _is_latest_run(port, event, number):
         return PublicationOutcome(published=False)
     graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", pull.base_sha))
+    return _publish_completed_workflow_run(port, event, number, pull, graph)
+
+
+def _publish_completed_workflow_run(
+    port: GitHubPort,
+    event: WorkflowRunEvent,
+    number: int,
+    pull: PullRequestState,
+    graph: Graph,
+) -> PublicationOutcome:
     compiled = compile_graph(graph)
     graph = project_graph(graph, "pull-request")
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
@@ -140,12 +152,12 @@ def watch_workflow_run(
     port: GitHubPort,
     event_value: JsonValue,
     *,
-    poll_interval: float = 5.0,
+    poll_interval: float = PUBLISH_POLL_INTERVAL_SECONDS,
     sleep: Callable[[float], None] = time.sleep,
 ) -> PublicationOutcome:
     """Serialize live dashboard updates from authoritative GitHub job state."""
     event = WorkflowRunEvent.from_value(event_value)
-    if event.event != "pull_request" or event.action not in {"requested", "in_progress"}:
+    if event.event != "pull_request" or event.action != "requested":
         return PublicationOutcome(published=False)
     number = event.pull_request or _resolve_pull_request(port, event.workflow_head_sha)
     if number is None:
@@ -156,17 +168,19 @@ def watch_workflow_run(
     if not _is_latest_run(port, event, number):
         return PublicationOutcome(published=False)
     graph = Graph.from_yaml(_repository_file(port, "quality-graph.yml", pull.base_sha))
-    graph = project_graph(graph, "pull-request")
-    nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
+    projected = project_graph(graph, "pull-request")
+    nodes = tuple(DashboardNode(node.id, node.title) for node in projected.nodes)
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
-    _publish_check(port, pending_dashboard(graph, run))
+    _publish_check(port, pending_dashboard(projected, run))
 
     def is_current() -> bool:
         return _is_latest_run(port, event, number)
 
     while not publish_workflow_jobs(port, number, nodes, run, is_current=is_current):
         sleep(poll_interval)
-    return PublicationOutcome(published=True, status=ResultStatus.IN_PROGRESS)
+    if not is_current():
+        return PublicationOutcome(published=False)
+    return _publish_completed_workflow_run(port, event, number, pull, graph)
 
 
 def publish_workflow_jobs(
@@ -354,9 +368,11 @@ def _repository_file(port: GitHubPort, path: str, ref: str) -> str:
 
 def _publish_check(port: GitHubPort, model: DashboardModel) -> None:
     completed = model.status not in {ResultStatus.WAITING, ResultStatus.IN_PROGRESS}
+    external_id = f"quality-graph:{model.run_id}:{model.run_attempt}"
     payload: dict[str, JsonValue] = {
         "name": "Quality Graph",
         "head_sha": model.head_sha,
+        "external_id": external_id,
         "status": "completed" if completed else "in_progress",
         "details_url": next((row.logs_url for row in model.rows), ""),
         "output": {
@@ -366,7 +382,29 @@ def _publish_check(port: GitHubPort, model: DashboardModel) -> None:
     }
     if completed:
         payload["conclusion"] = "success" if model.status is ResultStatus.PASSED else "failure"
-    port.request("POST", "/check-runs", payload)
+    name = urllib.parse.quote("Quality Graph", safe="")
+    response = _object(
+        port.request(
+            "GET",
+            f"/commits/{model.head_sha}/check-runs"
+            f"?check_name={name}&filter=all&per_page={GITHUB_PAGE_SIZE}",
+        ),
+        "check runs",
+    )
+    check_id = next(
+        (
+            _optional_integer(check.get("id"), "check run id")
+            for value in _array(response.get("check_runs", []), "check runs")
+            for check in (_object(value, "check run"),)
+            if check.get("external_id") == external_id
+        ),
+        None,
+    )
+    if check_id is None:
+        port.request("POST", "/check-runs", payload)
+        return
+    update = {key: value for key, value in payload.items() if key != "head_sha"}
+    port.request("PATCH", f"/check-runs/{check_id}", update)
 
 
 def read_event_json(value: str) -> dict[str, JsonValue]:
