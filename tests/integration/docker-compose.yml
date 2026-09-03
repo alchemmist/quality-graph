@@ -1,3 +1,4 @@
+---
 services:
   fake-github:
     image: quality-graph-fake-github:local

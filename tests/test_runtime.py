@@ -87,6 +87,19 @@ def test_exit_collector_publishes_captured_command_output_and_node_control(
     assert "/qg ignore lint" in summary
 
 
+def test_exit_collector_rejects_non_utf8_command_output(tmp_path: Path) -> None:
+    values = environment(tmp_path, outcome="failure")
+    values["QG_REPORT_PATH"] = "reports/command.log"
+    report = tmp_path / "reports" / "command.log"
+    report.parent.mkdir()
+    report.write_bytes(b"\xff")
+
+    result = collect(CollectionRequest.from_environment(values, event()))
+
+    assert result.failure_kind is FailureKind.ADAPTER
+    assert "UTF-8" in result.summary
+
+
 def test_collector_uses_structured_adapter_and_reports_missing_input(tmp_path: Path) -> None:
     request = CollectionRequest.from_environment(environment(tmp_path), event())
     missing = replace(request, adapter=AdapterKind.SARIF, report_path=None)
