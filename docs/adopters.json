@@ -1,0 +1,19 @@
+{
+  "projects": [
+    {
+      "name": "monori",
+      "repository": "alchemmist/monori",
+      "logo": "assets/monori.svg"
+    },
+    {
+      "name": "quality—graph",
+      "repository": "alchemmist/quality-graph",
+      "logo": "assets/quality-graph-eye.svg"
+    },
+    {
+      "name": "lazy-tmux",
+      "repository": "alchemmist/lazy-tmux",
+      "logo": "assets/lazy-tmux.svg"
+    }
+  ]
+}

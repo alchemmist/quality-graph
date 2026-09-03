@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quality-graph-adopter-discovery"
+version = "0.1.0"
+description = "Find public GitHub repositories that use Quality Graph"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = ["tabulate==0.10.0"]
+
+[project.scripts]
+qg-find-adopters = "qg_adopter_discovery.cli:main"
+
+[dependency-groups]
+dev = ["mypy>=1.18.2", "pytest>=9.0.2", "ruff==0.15.22", "types-tabulate>=0.10.0"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["COM812", "D203", "D212"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["D100", "D101", "D102", "D103", "PLR2004", "S101"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src", "tests"]
+mypy_path = ["src"]
+strict = true
+warn_unreachable = true
+extra_checks = true
+explicit_package_bases = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qg_adopter_discovery"]
