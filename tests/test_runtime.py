@@ -67,6 +67,26 @@ def test_collector_publishes_exit_result_summary_and_outputs(tmp_path: Path) -> 
     assert "exit-code=1" in request.output_path.read_text()
 
 
+def test_exit_collector_publishes_captured_command_output_and_node_control(
+    tmp_path: Path,
+) -> None:
+    values = environment(tmp_path, outcome="failure")
+    values["QG_REPORT_PATH"] = "reports/command.log"
+    values["QG_APPROVAL_NODE"] = "true"
+    report = tmp_path / "reports" / "command.log"
+    report.parent.mkdir()
+    report.write_text("src/app.py:7:3: error: annotation must be more specific\n")
+    request = CollectionRequest.from_environment(values, event())
+
+    result = collect(request)
+    publish_collection(request, result)
+
+    assert "src/app.py:7:3" in result.summary
+    summary = request.summary_path.read_text()
+    assert "annotation must be more specific" in summary
+    assert "/qg ignore lint" in summary
+
+
 def test_collector_uses_structured_adapter_and_reports_missing_input(tmp_path: Path) -> None:
     request = CollectionRequest.from_environment(environment(tmp_path), event())
     missing = replace(request, adapter=AdapterKind.SARIF, report_path=None)

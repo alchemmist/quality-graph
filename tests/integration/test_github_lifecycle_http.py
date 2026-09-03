@@ -32,8 +32,8 @@ def archive(result: Result) -> bytes:
     return output.getvalue()
 
 
-def state() -> FakeGitHubState:
-    digest = compile_graph(Graph.from_yaml(GRAPH)).graph_digest
+def state(source: str = GRAPH) -> FakeGitHubState:
+    digest = compile_graph(Graph.from_yaml(source)).graph_digest
     format_result = Result(
         "format",
         "Formatting",
@@ -66,7 +66,7 @@ def state() -> FakeGitHubState:
         }
         for artifact_id, node_id in ((1, "format"), (2, "lint"))
     ]
-    return FakeGitHubState(GRAPH, artifacts, downloads)
+    return FakeGitHubState(source, artifacts, downloads)
 
 
 def workflow_event() -> dict[str, object]:
@@ -127,7 +127,20 @@ def test_full_publication_and_command_lifecycle_over_real_http() -> None:
 
 
 def test_live_and_completed_events_finalize_one_check_over_real_http() -> None:
-    server = FakeGitHubServer(state())
+    selected = state()
+    selected.job_snapshots.extend(
+        [
+            [
+                {"name": "Formatting", "status": "in_progress"},
+                {"name": "Lint", "status": "queued"},
+            ],
+            [
+                {"name": "Formatting", "status": "completed", "conclusion": "success"},
+                {"name": "Lint", "status": "completed", "conclusion": "failure"},
+            ],
+        ]
+    )
+    server = FakeGitHubServer(selected)
     port = HttpGitHubPort(
         "owner/repository",
         "token",
@@ -135,18 +148,6 @@ def test_live_and_completed_events_finalize_one_check_over_real_http() -> None:
     )
 
     with server as observable:
-        observable.job_snapshots.extend(
-            [
-                [
-                    {"name": "Formatting", "status": "in_progress"},
-                    {"name": "Lint", "status": "queued"},
-                ],
-                [
-                    {"name": "Formatting", "status": "completed", "conclusion": "success"},
-                    {"name": "Lint", "status": "completed", "conclusion": "failure"},
-                ],
-            ]
-        )
         live = watch_workflow_run(
             port,
             workflow_event() | {"action": "requested"},
@@ -264,3 +265,58 @@ def test_invalid_artifacts_publish_terminal_failure_from_job_state_over_http() -
     assert "Formatting | ✅ passed" in cast("str", comments[0]["body"])
     assert checks[0]["status"] == "completed"
     assert checks[0]["conclusion"] == "failure"
+
+
+def test_completed_workflow_finalizes_when_pull_request_renames_graph_nodes() -> None:
+    source = GRAPH.replace(
+        "labels:\n",
+        """  unit:
+    title: Unit tests
+    needs: [lint]
+    run: make test-unit
+labels:
+""",
+    )
+    selected = state(source)
+    selected.workflow_runs = [
+        {
+            "id": 10,
+            "run_attempt": 1,
+            "status": "completed",
+            "pull_requests": [{"number": 42}],
+        }
+    ]
+    selected.run_artifacts[10] = [
+        {
+            "id": 1,
+            "name": "quality-result-lint-1",
+            "size_in_bytes": 0,
+            "digest": "sha256:" + "0" * 64,
+            "expired": True,
+        }
+    ]
+    selected.workflow_jobs[10] = [
+        {"name": "Formatting", "status": "completed", "conclusion": "success"},
+        {"name": "Lint", "status": "completed", "conclusion": "failure"},
+        {"name": "Fast tests", "status": "completed", "conclusion": "skipped"},
+    ]
+    server = FakeGitHubServer(selected)
+    port = HttpGitHubPort("owner/repository", "token", base_url=server.base_url)
+
+    def unexpected_sleep(_seconds: float) -> None:
+        message = "watcher did not observe the completed workflow run"
+        raise AssertionError(message)
+
+    with server as observable:
+        outcome = watch_workflow_run(
+            port,
+            workflow_event() | {"action": "requested"},
+            sleep=unexpected_sleep,
+        )
+        observed = observable.snapshot()
+
+    assert outcome.status is ResultStatus.FAILED
+    comments = cast("list[dict[str, object]]", observed["comments"])
+    checks = cast("list[dict[str, object]]", observed["checks"])
+    assert "Lint | ❌ failed" in cast("str", comments[0]["body"])
+    assert checks[0]["status"] == "completed"

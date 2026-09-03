@@ -11,7 +11,7 @@ import pytest
 
 from qg_github.artifacts import ArtifactError, ArtifactExpectation, download_results
 from qg_github.github import HttpGitHubPort
-from quality_graph_core.result import Provenance, Result, ResultStatus
+from quality_graph_core.result import JsonValue, Provenance, Result, ResultStatus
 
 if TYPE_CHECKING:
     from tests.integration.fake_github import FakeGitHubScenario
@@ -35,7 +35,7 @@ def archive(value: Result, *, name: str = "result.json") -> bytes:
     return output.getvalue()
 
 
-def metadata(identifier: int, name: str, content: bytes) -> dict[str, object]:
+def metadata(identifier: int, name: str, content: bytes) -> dict[str, JsonValue]:
     return {
         "id": identifier,
         "name": name,

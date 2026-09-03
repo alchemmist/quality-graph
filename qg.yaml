@@ -42,7 +42,15 @@ nodes:
     title: Python object annotation gate
     profile: python
     needs: [format]
-    run: make python-object-annotations
+    run: |
+      mkdir -p reports
+      set -o pipefail
+      make python-object-annotations 2>&1 | tee reports/object-annotations.log
+    results:
+      exit-code: reports/object-annotations.log
+    policy:
+      approvals:
+        node: true
 
   triple-quotes:
     title: Triple-quoted string style

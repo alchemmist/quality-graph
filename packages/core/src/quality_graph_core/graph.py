@@ -97,9 +97,8 @@ class ResultAdapter:
     path: str | None = None
 
     def __post_init__(self) -> None:
-        """Require a report exactly for structured adapters."""
-        structured = self.kind is not AdapterKind.EXIT_CODE
-        if structured != (self.path is not None):
+        """Require reports for structured adapters and validate optional command output."""
+        if self.kind is not AdapterKind.EXIT_CODE and self.path is None:
             message = f"{self.kind.value} adapter report path is inconsistent"
             raise ValueError(message)
         if self.path is not None:
@@ -464,7 +463,7 @@ def _parse_results(data: dict[str, JsonValue]) -> ResultAdapter:
         raise ValueError(message)
     name, value = next(iter(data.items()))
     kind = AdapterKind(name)
-    path = None if kind is AdapterKind.EXIT_CODE else _string(value, f"{name} report path")
+    path = None if value is None else _string(value, f"{name} report path")
     return ResultAdapter(kind, path)
 
 

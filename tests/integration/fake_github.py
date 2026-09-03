@@ -359,6 +359,13 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
     def _action_routes(
         self, method: str, path: str, query: dict[str, list[str]]
     ) -> tuple[HTTPStatus, JsonValue | bytes] | None:
+        if method == "GET" and (match := re.fullmatch(r"/actions/runs/(?P<id>\d+)", path)):
+            identifier = int(match.group("id"))
+            run = next(
+                (value for value in self.state.workflow_runs if value.get("id") == identifier),
+                None,
+            )
+            return _optional(run)
         if method == "GET" and re.fullmatch(r"/actions/workflows/[^/]+/runs", path):
             status, page = _page(self.state.workflow_runs, query)
             return status, {"total_count": len(self.state.workflow_runs), "workflow_runs": page}
@@ -454,12 +461,6 @@ class FakeGitHubScenario:
         response = httpx.get(f"{self.base_url}/_test/state")
         response.raise_for_status()
         return cast("dict[str, JsonValue]", response.json())
-
-    def __getattr__(self, name: str) -> object:
-        """Proxy legacy in-process state access during migration."""
-        if self.state is None:
-            raise AttributeError(name)
-        return getattr(self.state, name)
 
 
 class FakeGitHubServer(AbstractContextManager[FakeGitHubScenario]):

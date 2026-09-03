@@ -5,7 +5,7 @@
       "admin"
     ]
   },
-  "graphDigest": "e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25",
+  "graphDigest": "b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -72,7 +72,7 @@
         "approvals": {
           "files": false,
           "findings": true,
-          "node": false
+          "node": true
         },
         "blocking": true,
         "blockingSeverities": [
@@ -81,10 +81,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "exit-code",
+        "path": "reports/object-annotations.log"
       },
       "step": {
-        "run": "make python-object-annotations"
+        "run": "mkdir -p reports\nset -o pipefail\nmake python-object-annotations 2>&1 | tee reports/object-annotations.log\n"
       },
       "title": "Python object annotation gate"
     },

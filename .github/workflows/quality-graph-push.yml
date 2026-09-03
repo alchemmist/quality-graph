@@ -42,7 +42,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -91,7 +91,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -127,7 +127,13 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make python-object-annotations
+      - run: 'mkdir -p reports
+
+          set -o pipefail
+
+          make python-object-annotations 2>&1 | tee reports/object-annotations.log
+
+          '
         name: Run Python object annotation gate
         id: quality-command
         continue-on-error: true
@@ -140,12 +146,12 @@ jobs:
           node-id: object-annotations
           title: Python object annotation gate
           adapter: exit-code
-          report-path: ''
+          report-path: reports/object-annotations.log
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
-          approval-node: 'false'
+          approval-node: 'true'
       - name: Upload Python object annotation gate result
         if: always()
         uses: actions/upload-artifact@v7
@@ -193,7 +199,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -244,7 +250,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -295,7 +301,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -348,7 +354,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -399,7 +405,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -451,7 +457,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -502,7 +508,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -553,7 +559,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -604,7 +610,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -656,7 +662,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -707,7 +713,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -758,7 +764,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -809,7 +815,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e62b32e5fd3ad396b19ad83bc8f1080bf338dc40b4909866dfdb87a651ab1c25
+          graph-digest: b582675ef0709943fb4bcba3b74464e076bab8eb04020d13289382c49d0c9934
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'

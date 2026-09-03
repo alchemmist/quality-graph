@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-def event(body: str, *, actor: str = "admin", comment_id: int = 10) -> dict[str, object]:
+def event(body: str, *, actor: str = "admin", comment_id: int = 10) -> dict[str, JsonValue]:
     return {
         "action": "created",
         "issue": {"number": 42, "pull_request": {"url": "pull"}},
@@ -70,7 +70,7 @@ def configure(
     *,
     permission: str = "admin",
     permission_failure: bool = False,
-    workflow_runs: list[dict[str, object]] | None = None,
+    workflow_runs: list[dict[str, JsonValue]] | None = None,
     comment: tuple[str, str] = ("/qg ignore finding", "admin"),
 ) -> None:
     content = command_archive()
