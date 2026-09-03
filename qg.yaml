@@ -4,8 +4,8 @@ provider:
   name: github
   configuration:
     runtime:
-      action: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
-      publisher-action: alchemmist/quality-graph@9f813fbdcfbcd92b8cc0a272fb2c4f8ce23e1188
+      action: alchemmist/quality-graph@585b63cd796644e7d2c27c742ee400db43aa645e
+      publisher-action: alchemmist/quality-graph@585b63cd796644e7d2c27c742ee400db43aa645e
 
 profiles:
   default:
