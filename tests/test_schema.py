@@ -33,4 +33,5 @@ def test_graph_schema_is_deterministic_and_describes_declaration_contract() -> N
     provider = schema["properties"]["provider"]["oneOf"][1]
     configuration = provider["properties"]["configuration"]
     assert configuration["properties"]["default-branch"]["minLength"] == 1
+    assert configuration["properties"]["merge"]["properties"]["required"] == {"type": "boolean"}
     assert configuration["additionalProperties"] is True

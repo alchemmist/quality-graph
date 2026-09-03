@@ -205,6 +205,7 @@ def graph_schema_value() -> dict[str, JsonValue]:
         "type": "object",
         "properties": {
             "default-branch": _string_schema(minimum=1, maximum=255),
+            "merge": _object_schema({"required": {"type": "boolean"}}, ()),
         },
         "additionalProperties": True,
     }

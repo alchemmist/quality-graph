@@ -6,8 +6,10 @@ import pytest
 
 from qg_cli import __version__
 from qg_cli.cli import main, parser
-from quality_graph_core.result import Result
+from qg_github.github import HttpGitHubPort, MemoryGitHubPort
+from quality_graph_core.result import JsonValue, Result
 from quality_graph_core.schema import result_schema_value
+from tests.test_graph import GRAPH
 
 PROVENANCE_ARGUMENTS = [
     "--repository",
@@ -92,6 +94,64 @@ def test_result_schema_command_writes_published_schema(
     assert json.loads(output.read_text()) == result_schema_value()
     assert main(["result", "schema"]) == 0
     assert json.loads(capsys.readouterr().out) == result_schema_value()
+
+
+def test_required_checks_sync_reports_an_idempotent_plan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "qg.yaml").write_text(GRAPH)
+    port = MemoryGitHubPort()
+    port.enqueue("GET", "/rules/branches/main", [])
+    port.enqueue(
+        "GET",
+        "/branches/main/protection/required_status_checks",
+        {"strict": False, "contexts": []},
+    )
+    monkeypatch.setattr(HttpGitHubPort, "from_environment", lambda: port)
+
+    assert main(["github", "required-checks", "sync", "--root", str(tmp_path)]) == 0
+
+    assert "Required checks plan (classic branch protection, main)" in capsys.readouterr().out
+    assert port.requests[-1][0] == "GET"
+
+
+def test_incomplete_github_command_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["github"]) == 0
+    assert "Quality Graph" in capsys.readouterr().out
+
+
+def test_required_checks_sync_reports_missing_provider_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "qg.yaml").write_text(GRAPH)
+    monkeypatch.setattr(
+        "qg_cli.cli.import_module",
+        lambda _name: (_ for _ in ()).throw(ModuleNotFoundError("missing GitHub provider")),
+    )
+
+    with pytest.raises(SystemExit, match="2"):
+        main(["github", "required-checks", "sync", "--root", str(tmp_path)])
+
+
+def test_required_checks_sync_reports_github_runtime_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "qg.yaml").write_text(GRAPH)
+    port = MemoryGitHubPort()
+    message = "GitHub failed"
+
+    def fail(*_args: JsonValue, **_kwargs: JsonValue) -> JsonValue:
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(HttpGitHubPort, "from_environment", lambda: port)
+    monkeypatch.setattr(port, "request", fail)
+
+    with pytest.raises(SystemExit, match="2"):
+        main(["github", "required-checks", "sync", "--root", str(tmp_path)])
 
 
 @pytest.mark.parametrize(

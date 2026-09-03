@@ -65,6 +65,7 @@ class _GitHubConfiguration:
     publisher_action: str
     upload_artifact_action: str
     default_branch: str
+    merge_required: bool
 
 
 class WorkflowDumper(yaml.SafeDumper):
@@ -85,7 +86,7 @@ def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
     if graph.provider.name != "github":
         message = f"GitHub provider cannot compile provider '{graph.provider.name}'"
         raise ValueError(message)
-    unknown = graph.provider.values.keys() - {"default-branch", "runtime"}
+    unknown = graph.provider.values.keys() - {"default-branch", "runtime", "merge"}
     if unknown:
         message = f"GitHub provider contains unknown configuration: {', '.join(sorted(unknown))}"
         raise ValueError(message)
@@ -100,6 +101,7 @@ def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
     publisher_action = _runtime_action(runtime.get("publisher-action", action), "publisher")
     upload_artifact_action = _upload_artifact_action(runtime)
     default_branch = _default_branch(graph.provider.values.get("default-branch"))
+    merge_required = _merge_required(graph.provider.values.get("merge", {}))
     if publisher_action.partition("@")[0] != action.partition("@")[0]:
         message = "GitHub publisher action must use the runtime action repository"
         raise ValueError(message)
@@ -114,7 +116,27 @@ def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
         message = "GitHub dashboard requires unique node titles"
         raise ValueError(message)
     _event_projections(graph)
-    return _GitHubConfiguration(action, publisher_action, upload_artifact_action, default_branch)
+    return _GitHubConfiguration(
+        action,
+        publisher_action,
+        upload_artifact_action,
+        default_branch,
+        merge_required,
+    )
+
+
+def _merge_required(merge: JsonValue) -> bool:
+    if not isinstance(merge, dict):
+        message = "GitHub merge configuration must be an object"
+        raise TypeError(message)
+    if merge.keys() - {"required"}:
+        message = "GitHub merge configuration contains unknown fields"
+        raise ValueError(message)
+    merge_required = merge.get("required", False)
+    if not isinstance(merge_required, bool):
+        message = "GitHub merge required must be a boolean"
+        raise TypeError(message)
+    return merge_required
 
 
 def _event_projections(graph: Graph) -> tuple[EventProjection, ...]:

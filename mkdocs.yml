@@ -20,6 +20,7 @@ nav:
       - Migration: migration.md
   - Reference:
       - Configuration: configuration.md
+      - Required checks: required-checks.md
       - Result protocol: result-protocol.md
       - Result adapters: adapters.md
       - Security: security.md
