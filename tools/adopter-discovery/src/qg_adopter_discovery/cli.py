@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import sys
@@ -10,13 +11,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from textwrap import shorten
 from typing import Protocol, TypedDict, cast
-from urllib.error import HTTPError
 from urllib.parse import quote, urlencode
-from urllib.request import Request, urlopen
 
 from tabulate import tabulate
 
 DEFAULT_ADOPTERS = Path("docs/adopters.json")
+HTTP_ERROR_STATUS = 400
 RESULTS_PER_PAGE = 100
 SEARCHES = {
     "action": '"alchemmist/quality-graph@" in:file',
@@ -121,10 +121,20 @@ class GitHubClient:
         path = f"/repos/{quote(full_name, safe='/')}"
         return cast("RepositoryResponse", self._get(path))
 
-    def _get(self, path: str) -> object:
-        request = Request(f"https://api.github.com{path}", headers=self._headers)
-        with urlopen(request, timeout=30) as response:  # noqa: S310
-            return cast("object", json.load(response))
+    def _get(self, path: str) -> SearchResponse | RepositoryResponse:
+        connection = http.client.HTTPSConnection("api.github.com", timeout=30)
+        try:
+            connection.request("GET", path, headers=self._headers)
+            response = connection.getresponse()
+            if response.status >= HTTP_ERROR_STATUS:
+                message = f"HTTP {response.status} {response.reason}"
+                raise RuntimeError(message)
+            return cast("SearchResponse | RepositoryResponse", json.loads(response.read()))
+        except (http.client.HTTPException, OSError) as error:
+            message = f"GitHub API request failed: {error}"
+            raise RuntimeError(message) from error
+        finally:
+            connection.close()
 
 
 def listed_repositories(path: Path) -> frozenset[str]:
@@ -162,7 +172,7 @@ def discover(
                 description=repository["description"] or "",
                 evidence=tuple(sorted(evidence_by_repository[normalized])),
                 listed=normalized in listed,
-            )
+            ),
         )
     return tuple(sorted(candidates, key=lambda item: (-item.stars, item.full_name.lower())))
 
@@ -195,7 +205,7 @@ def render_table(candidates: tuple[Candidate, ...]) -> str:
 def main() -> int:
     """Find and print ranked Quality Graph adopter candidates."""
     parser = argparse.ArgumentParser(
-        description="Find public Quality Graph adopters and rank them by GitHub stars."
+        description="Find public Quality Graph adopters and rank them by GitHub stars.",
     )
     parser.add_argument("--adopters", type=Path, default=DEFAULT_ADOPTERS)
     parser.add_argument("--max-pages", type=int, choices=range(1, 11), default=1)
@@ -213,9 +223,6 @@ def main() -> int:
         )
     except FileNotFoundError:
         parser.error(f"adopter catalog does not exist: {arguments.adopters}")
-    except HTTPError as error:
-        sys.stderr.write(f"GitHub API request failed: HTTP {error.code} {error.reason}\n")
-        return 1
     except RuntimeError as error:
         sys.stderr.write(f"GitHub search failed: {error}\n")
         return 1

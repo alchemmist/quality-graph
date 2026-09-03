@@ -1,6 +1,12 @@
 [tool.uv.workspace]
-members = ["packages/core", "packages/github", "packages/python", "apps/qg"]
-exclude = ["examples/*", "tools/*"]
+members = [
+  "packages/core",
+  "packages/github",
+  "packages/python",
+  "apps/qg",
+  "tools/adopter-discovery",
+]
+exclude = ["examples/*"]
 
 [dependency-groups]
 format = ["mdformat>=0.7.22", "ruff==0.15.22"]

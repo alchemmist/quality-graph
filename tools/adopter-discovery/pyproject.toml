@@ -22,15 +22,8 @@ addopts = "--strict-config"
 testpaths = ["tests"]
 
 [tool.ruff]
+extend = "../../pyproject.toml"
 target-version = "py312"
-line-length = 100
-
-[tool.ruff.lint]
-select = ["ALL"]
-ignore = ["COM812", "D203", "D212"]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["D100", "D101", "D102", "D103", "PLR2004", "S101"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -6,6 +6,7 @@ from scripts.mkdocs_hooks import load_adopters
 
 
 def test_site_loads_adopter_catalog(tmp_path: Path) -> None:
+    """Load valid projects for the landing-page ticker."""
     path = tmp_path / "adopters.json"
     path.write_text(
         json.dumps(
@@ -25,6 +26,7 @@ def test_site_loads_adopter_catalog(tmp_path: Path) -> None:
 
 
 def test_site_catalog_rejects_duplicate_repositories(tmp_path: Path) -> None:
+    """Reject duplicate repositories before rendering the ticker."""
     path = tmp_path / "adopters.json"
     project = {"name": "Project", "repository": "owner/project", "logo": "logo.svg"}
     path.write_text(json.dumps({"projects": [project, project]}))
