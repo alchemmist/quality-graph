@@ -1,5 +1,6 @@
 PYTHON_SOURCES := packages apps tests scripts
 PYTHON ?= python3
+COMPOSE ?= docker compose
 BASE ?= origin/main
 TOOLS_BIN := $(CURDIR)/.tools/bin
 MARKDOWN_SOURCES := README.md CONTEXT.md $(wildcard docs/*.md packages/*/README.md apps/*/README.md)
@@ -7,7 +8,7 @@ MARKDOWN_SOURCES := README.md CONTEXT.md $(wildcard docs/*.md packages/*/README.
 .DEFAULT_GOAL := check
 
 .PHONY: install tools schemas schemas-check graph-generate graph-validate \
-	fmt fmt-check lint type analyze test test-unit test-integration coverage \
+	fmt fmt-check lint type analyze test t-fast t-medium coverage \
 	python-suppressions python-object-annotations python-triple-quotes \
 	python-time-bombs python-no-comments coverage-diff flaky-python \
 	mutation mutation-diff audit package check clean fmt-staged \
@@ -131,13 +132,21 @@ python-time-bombs:
 python-no-comments:
 	uv run --locked --all-packages qg-python-no-comments packages apps scripts
 
-test: test-unit test-integration
+test: t-fast t-medium
 
-test-unit:
+t-fast:
 	uv run --locked --all-packages --group test pytest -q -m "not integration"
 
-test-integration:
+t-medium:
 	uv run --locked --all-packages --group test pytest -q -m integration
+	@compose="tests/integration/docker-compose.yml"; status=0; \
+	$(COMPOSE) -f "$$compose" up -d --build --wait || status=$$?; \
+	if [ "$$status" -eq 0 ]; then \
+		QG_FAKE_GITHUB_URL="http://127.0.0.1:$${QG_FAKE_GITHUB_PORT:-18080}" \
+			uv run --locked --all-packages --group test pytest -q -m integration || status=$$?; \
+	fi; \
+	$(COMPOSE) -f "$$compose" down; \
+	exit "$$status"
 
 coverage:
 	uv run --locked --all-packages --group test pytest -q --cov=quality_graph_core \

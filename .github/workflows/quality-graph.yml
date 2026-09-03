@@ -35,7 +35,7 @@ jobs:
       - name: Collect Format check result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: format
@@ -43,7 +43,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -84,7 +84,7 @@ jobs:
       - name: Collect Lint suppression gate result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: suppressions
@@ -92,7 +92,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -128,25 +128,31 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make python-object-annotations
+      - run: 'mkdir -p reports
+
+          set -o pipefail
+
+          make python-object-annotations 2>&1 | tee reports/object-annotations.log
+
+          '
         name: Run Python object annotation gate
         id: quality-command
         continue-on-error: true
       - name: Collect Python object annotation gate result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: object-annotations
           title: Python object annotation gate
           adapter: exit-code
-          report-path: ''
+          report-path: reports/object-annotations.log
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
-          approval-node: 'false'
+          approval-node: 'true'
       - name: Upload Python object annotation gate result
         if: always()
         uses: actions/upload-artifact@v7
@@ -186,7 +192,7 @@ jobs:
       - name: Collect Triple-quoted string style result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: triple-quotes
@@ -194,7 +200,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -237,7 +243,7 @@ jobs:
       - name: Collect Python no-comments policy result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: no-comments
@@ -245,7 +251,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -288,7 +294,7 @@ jobs:
       - name: Collect Lint result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: lint
@@ -296,7 +302,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -341,7 +347,7 @@ jobs:
       - name: Collect Type check result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: type
@@ -349,7 +355,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -392,7 +398,7 @@ jobs:
       - name: Collect Static analysis result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: analyze
@@ -400,7 +406,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -444,7 +450,7 @@ jobs:
       - name: Collect Time bomb guardrail result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: time-bombs
@@ -452,7 +458,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -472,8 +478,8 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - analyze
-  test-unit:
-    name: Unit tests
+  test-fast:
+    name: Fast tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -488,34 +494,34 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make test-unit
-        name: Run Unit tests
+      - run: make t-fast
+        name: Run Fast tests
         id: quality-command
         continue-on-error: true
-      - name: Collect Unit tests result
+      - name: Collect Fast tests result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
-          node-id: test-unit
-          title: Unit tests
+          node-id: test-fast
+          title: Fast tests
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
-      - name: Upload Unit tests result
+      - name: Upload Fast tests result
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: quality-result-test-unit-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/quality-graph/test-unit.json
+          name: quality-result-test-fast-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/test-fast.json
           if-no-files-found: error
           retention-days: 7
-      - name: Enforce Unit tests result
+      - name: Enforce Fast tests result
         if: always()
         shell: bash
         env:
@@ -523,8 +529,8 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - time-bombs
-  test-integration:
-    name: Integration tests
+  test-medium:
+    name: Medium tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -539,34 +545,34 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make test-integration
-        name: Run Integration tests
+      - run: make t-medium
+        name: Run Medium tests
         id: quality-command
         continue-on-error: true
-      - name: Collect Integration tests result
+      - name: Collect Medium tests result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
-          node-id: test-integration
-          title: Integration tests
+          node-id: test-medium
+          title: Medium tests
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
-      - name: Upload Integration tests result
+      - name: Upload Medium tests result
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: quality-result-test-integration-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/quality-graph/test-integration.json
+          name: quality-result-test-medium-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/test-medium.json
           if-no-files-found: error
           retention-days: 7
-      - name: Enforce Integration tests result
+      - name: Enforce Medium tests result
         if: always()
         shell: bash
         env:
@@ -597,7 +603,7 @@ jobs:
       - name: Collect Coverage and diff coverage result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: coverage
@@ -605,7 +611,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -624,8 +630,8 @@ jobs:
           EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
         run: exit "${EXIT_CODE:-2}"
     needs:
-      - test-unit
-      - test-integration
+      - test-fast
+      - test-medium
   flaky-python:
     name: Changed Python flaky-test detection
     runs-on: ubuntu-latest
@@ -649,7 +655,7 @@ jobs:
       - name: Collect Changed Python flaky-test detection result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: flaky-python
@@ -657,7 +663,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -700,7 +706,7 @@ jobs:
       - name: Collect Changed decision mutation gate result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: mutation
@@ -708,7 +714,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -751,7 +757,7 @@ jobs:
       - name: Collect Dependency and secret audit result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: audit
@@ -759,7 +765,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -802,7 +808,7 @@ jobs:
       - name: Collect Package result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
+        uses: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
         with:
           operation: collect
           node-id: package
@@ -810,7 +816,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: e6413e2039a63c97ff32e9a19014637f1d23a396894e8e768d14e86fee51aba3
+          graph-digest: 6b69c8ae96c9dc73b983e837ae9f39b6a1cd950f030beed2db234d44f570d259
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'

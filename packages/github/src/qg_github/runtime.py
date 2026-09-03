@@ -92,9 +92,16 @@ def collect(request: CollectionRequest) -> Result:
     try:
         if request.adapter is AdapterKind.EXIT_CODE:
             state = "passed" if request.context.command_succeeded else "failed"
+            output = f"The declared command {state}."
+            if request.report_path is not None:
+                try:
+                    output = read_report(request.workspace, request.report_path).decode()
+                except UnicodeDecodeError as error:
+                    message = "Exit-code command output must be UTF-8"
+                    raise AdapterError(message) from error
             return _with_policy_controls(
                 request,
-                adapt_exit(request.context, f"The declared command {state}."),
+                adapt_exit(request.context, output),
             )
         report = _structured_report(request)
         if request.adapter is AdapterKind.NATIVE:

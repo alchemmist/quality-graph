@@ -4,8 +4,8 @@ provider:
   name: github
   configuration:
     runtime:
-      action: alchemmist/quality-graph@240cf2504a8cf4c9d75cd672c173568732a6a65d
-      publisher-action: alchemmist/quality-graph@9f813fbdcfbcd92b8cc0a272fb2c4f8ce23e1188
+      action: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
+      publisher-action: alchemmist/quality-graph@585b63cf6fd2c022160a10a1330be4799e9d5acc
 
 profiles:
   default:
@@ -42,7 +42,15 @@ nodes:
     title: Python object annotation gate
     profile: python
     needs: [format]
-    run: make python-object-annotations
+    run: |
+      mkdir -p reports
+      set -o pipefail
+      make python-object-annotations 2>&1 | tee reports/object-annotations.log
+    results:
+      exit-code: reports/object-annotations.log
+    policy:
+      approvals:
+        node: true
 
   triple-quotes:
     title: Triple-quoted string style
@@ -80,22 +88,22 @@ nodes:
     needs: [analyze]
     run: make python-time-bombs
 
-  test-unit:
-    title: Unit tests
+  test-fast:
+    title: Fast tests
     profile: python
     needs: [time-bombs]
-    run: make test-unit
+    run: make t-fast
 
-  test-integration:
-    title: Integration tests
+  test-medium:
+    title: Medium tests
     profile: python
     needs: [time-bombs]
-    run: make test-integration
+    run: make t-medium
 
   coverage:
     title: Coverage and diff coverage
     profile: python
-    needs: [test-unit, test-integration]
+    needs: [test-fast, test-medium]
     run: make coverage-diff
 
   flaky-python:
