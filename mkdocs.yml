@@ -5,6 +5,8 @@ site_url: https://alchemmist.github.io/quality-graph/
 repo_url: https://github.com/alchemmist/quality-graph
 docs_dir: docs
 site_dir: site
+hooks:
+  - scripts/mkdocs_hooks.py
 exclude_docs: |
   design-prototype/
 theme:
@@ -26,6 +28,7 @@ nav:
       - Compatibility: compatibility.md
   - Contributing:
       - Provider authoring: provider-authoring.md
+      - Integration testing: testing.md
       - Monori parity: monori-parity.md
       - Release: release.md
       - Troubleshooting: troubleshooting.md

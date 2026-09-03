@@ -307,11 +307,16 @@ def test_core_step_accepts_provider_owned_action_fields() -> None:
     assert step.uses == "local-action"
 
 
-def test_result_adapter_requires_report_exactly_for_structured_formats() -> None:
+def test_result_adapter_requires_structured_reports_and_accepts_exit_output() -> None:
     with pytest.raises(ValueError, match="inconsistent"):
         ResultAdapter(AdapterKind.SARIF)
-    with pytest.raises(ValueError, match="inconsistent"):
-        ResultAdapter(AdapterKind.EXIT_CODE, "result.json")
+    adapter = ResultAdapter(AdapterKind.EXIT_CODE, "command.log")
+    graph = Graph.from_yaml(
+        GRAPH.replace("sarif: reports/lint.sarif", "exit-code: reports/command.log")
+    )
+
+    assert adapter.path == "command.log"
+    assert graph.nodes[1].result == ResultAdapter(AdapterKind.EXIT_CODE, "reports/command.log")
 
 
 def test_graph_constructor_rejects_duplicate_and_missing_declarations() -> None:

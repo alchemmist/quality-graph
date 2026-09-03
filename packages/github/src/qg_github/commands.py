@@ -208,20 +208,27 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
 
 
 def _latest_run(port: GitHubPort, number: int) -> dict[str, JsonValue]:
-    path = (
-        "/actions/workflows/quality-graph.yml/runs?event=pull_request"
-        f"&per_page={GITHUB_PAGE_SIZE}&page=1"
-    )
-    response = _object(port.request("GET", path), "workflow runs")
-    runs = [
-        run
-        for value in _array(response.get("workflow_runs", []), "workflow runs")
-        for run in (_object(value, "workflow run"),)
-        if any(
-            _object(pull, "workflow pull request").get("number") == number
-            for pull in _array(run.get("pull_requests", []), "workflow pull requests")
+    runs: list[dict[str, JsonValue]] = []
+    page = 1
+    while True:
+        path = (
+            "/actions/workflows/quality-graph.yml/runs?event=pull_request"
+            f"&per_page={GITHUB_PAGE_SIZE}&page={page}"
         )
-    ]
+        response = _object(port.request("GET", path), "workflow runs")
+        values = _array(response.get("workflow_runs", []), "workflow runs")
+        runs.extend(
+            run
+            for value in values
+            for run in (_object(value, "workflow run"),)
+            if any(
+                _object(pull, "workflow pull request").get("number") == number
+                for pull in _array(run.get("pull_requests", []), "workflow pull requests")
+            )
+        )
+        if len(values) < GITHUB_PAGE_SIZE:
+            break
+        page += 1
     if not runs:
         message = f"no Quality Graph workflow run found for PR #{number}"
         raise ValueError(message)

@@ -59,13 +59,13 @@ nodes:
 
   unit:
     needs: [lint]
-    run: make test-unit
+    run: make t-fast
     results:
       junit: reports/unit.xml
 
   integration:
     needs: [lint]
-    run: make test-integration
+    run: make t-medium
     results:
       junit: reports/integration.xml
 ```

@@ -199,11 +199,18 @@ def publish_workflow_jobs(
     )
     if terminal or not is_current():
         return True
+    if len(statuses) < len(nodes) and _workflow_run_completed(port, run.id):
+        return True
     existing = find_managed_comment(port, number, DASHBOARD_MARKER)
     previous_labels = parse_label_state(existing.body) if existing is not None else frozenset()
     model = live_dashboard(nodes, statuses, run, managed_labels=tuple(sorted(previous_labels)))
     upsert_managed_comment(port, number, DASHBOARD_MARKER, render_dashboard(model))
     return terminal
+
+
+def _workflow_run_completed(port: GitHubPort, run_id: int) -> bool:
+    run = _object(port.request("GET", f"/actions/runs/{run_id}"), "workflow run")
+    return _string(run.get("status"), "workflow run status") == "completed"
 
 
 def _workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:

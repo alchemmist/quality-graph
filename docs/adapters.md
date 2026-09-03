@@ -7,6 +7,24 @@ All adapters produce the same Result Protocol and reporting path.
 Omit `results` to map a successful command to `passed` and any other outcome to a distinct
 command failure. No report file is required.
 
+An exit-code adapter may optionally read captured UTF-8 command output:
+
+```yaml
+run: |
+  mkdir -p reports
+  set -o pipefail
+  make check 2>&1 | tee reports/check.log
+results:
+  exit-code: reports/check.log
+policy:
+  approvals:
+    node: true
+```
+
+The captured output becomes the result summary and diagnostic detail. Enabling node approval adds
+the corresponding `/qg ignore <node>` and `/qg remove-ignore <node>` controls to the Job Summary
+and managed dashboard.
+
 ## Native JSON
 
 ```yaml

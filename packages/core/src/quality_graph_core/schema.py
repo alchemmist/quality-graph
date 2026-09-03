@@ -248,7 +248,9 @@ def graph_schema_value() -> dict[str, JsonValue]:
     result_adapters: dict[str, JsonValue] = {
         "type": "object",
         "properties": {
-            "exit-code": {"type": "null"},
+            "exit-code": {
+                "oneOf": [{"type": "null"}, _string_schema(minimum=1)],
+            },
             "native": _string_schema(minimum=1),
             "sarif": _string_schema(minimum=1),
             "junit": _string_schema(minimum=1),

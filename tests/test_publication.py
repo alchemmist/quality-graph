@@ -327,6 +327,7 @@ def test_job_coordinator_ignores_non_graph_jobs() -> None:
         JOBS_PATH,
         {"jobs": [{"name": "publisher", "status": "in_progress"}]},
     )
+    port.enqueue("GET", "/actions/runs/10", {"status": "in_progress"})
     comments = "/issues/42/comments?per_page=100&page=1"
     port.enqueue("GET", comments, [])
     port.enqueue("POST", "/issues/42/comments", {"id": 5, "body": marker("dashboard")})
