@@ -33,5 +33,10 @@
         {{ page.content }}
       </main>
     {% endif %}
+    <a
+      class="release-version"
+      href="{{ config.repo_url }}/releases/latest"
+      aria-label="Latest Quality Graph release: version {{ config.extra.version }}"
+    >v{{ config.extra.version }}</a>
   </body>
 </html>

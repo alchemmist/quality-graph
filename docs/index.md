@@ -1,5 +1,5 @@
 Quality Graph turns repository-owned checks into a native GitHub Actions pipeline.
-You describe commands, environments, and dependencies in `quality-graph.yml`; Quality Graph
+You describe commands, environments, and dependencies in `qg.yaml`; Quality Graph
 generates the workflows and connects their results to pull-request reporting and governance.
 
 ```yaml
@@ -41,3 +41,39 @@ Generated workflows keep native jobs, logs, statuses, and retries. The declarati
 source of truth.
 
 [Get started →](quickstart.md)
+
+<section class="adopters" aria-labelledby="adopters-title">
+  <p id="adopters-title">Already running on</p>
+  <div class="adopters-window">
+    <div class="adopters-track">
+      <div class="adopters-set">
+        <a class="adopter" href="https://github.com/alchemmist/monori">
+          <img src="assets/monori.svg" alt="">
+          <span>monori</span>
+        </a>
+        <a class="adopter" href="https://github.com/alchemmist/quality-graph">
+          <img src="assets/quality-graph-eye.svg" alt="">
+          <span>quality—graph</span>
+        </a>
+        <a class="adopter" href="https://github.com/alchemmist/lazy-tmux">
+          <img src="assets/lazy-tmux.svg" alt="">
+          <span>lazy-tmux</span>
+        </a>
+      </div>
+      <div class="adopters-set" aria-hidden="true">
+        <span class="adopter">
+          <img src="assets/monori.svg" alt="">
+          <span>monori</span>
+        </span>
+        <span class="adopter">
+          <img src="assets/quality-graph-eye.svg" alt="">
+          <span>quality—graph</span>
+        </span>
+        <span class="adopter">
+          <img src="assets/lazy-tmux.svg" alt="">
+          <span>lazy-tmux</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</section>

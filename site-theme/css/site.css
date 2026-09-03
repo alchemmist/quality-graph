@@ -21,6 +21,25 @@ body {
   margin: 0;
 }
 
+.release-version {
+  position: fixed;
+  right: 20px;
+  bottom: 18px;
+  padding: 5px 8px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--divider);
+  border-radius: 3px;
+  font-size: 0.75rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.release-version:hover {
+  color: var(--link);
+  border-color: var(--link);
+}
+
 ::selection {
   color: var(--paper);
   background: var(--link);
@@ -57,6 +76,7 @@ a:focus-visible {
 .brand-lockup img {
   width: 112px;
   height: 112px;
+  transform: translateY(4px);
 }
 
 .brand-lockup span {
@@ -79,6 +99,70 @@ a:focus-visible {
 
 .landing article p + p {
   margin-top: 22px;
+}
+
+.adopters {
+  margin-top: 58px;
+}
+
+.adopters > p {
+  color: #626262;
+  font-size: 0.75rem;
+}
+
+.adopters-window {
+  overflow: hidden;
+  margin-top: 26px;
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+
+.adopters-track {
+  display: flex;
+  width: max-content;
+  animation: adopters-scroll 24s linear infinite;
+}
+
+.adopters-set {
+  display: flex;
+  align-items: center;
+  gap: 54px;
+  padding-right: 54px;
+}
+
+.adopter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+  opacity: 0.76;
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 160ms ease-out;
+}
+
+.adopter:hover,
+.adopter:focus-visible {
+  opacity: 1;
+}
+
+.adopter img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.adopters-window:hover .adopters-track,
+.adopters-window:focus-within .adopters-track {
+  animation-play-state: paused;
+}
+
+@keyframes adopters-scroll {
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .docs-sidebar {
@@ -213,5 +297,20 @@ a:focus-visible {
 
   .article {
     padding-top: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adopters-window {
+    overflow-x: auto;
+    mask-image: none;
+  }
+
+  .adopters-track {
+    animation: none;
+  }
+
+  .adopters-set[aria-hidden="true"] {
+    display: none;
   }
 }
