@@ -11,12 +11,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from textwrap import shorten
 from typing import Protocol, TypedDict, cast
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urljoin, urlsplit
+from urllib.request import getproxies, proxy_bypass
 
 from tabulate import tabulate
 
 DEFAULT_ADOPTERS = Path("docs/adopters.json")
+API_HOST = "api.github.com"
+API_ORIGIN = f"https://{API_HOST}"
 HTTP_ERROR_STATUS = 400
+HTTP_PROXY_PORT = 80
+HTTP_REDIRECT_STATUS = 300
+HTTP_TIMEOUT_SECONDS = 30
+HTTPS_PORT = 443
+MAX_REDIRECTS = 5
 RESULTS_PER_PAGE = 100
 SEARCHES = {
     "action": '"alchemmist/quality-graph@" in:file',
@@ -90,6 +98,44 @@ class Candidate:
     listed: bool
 
 
+def https_proxy() -> str | None:
+    """Select the configured HTTPS proxy unless api.github.com bypasses it."""
+    if proxy_bypass(API_HOST):
+        return None
+    return getproxies().get("https")
+
+
+def api_path(url: str) -> str:
+    """Validate one GitHub API URL and return its request target."""
+    target = urlsplit(url)
+    if (
+        target.scheme != "https"
+        or target.hostname != API_HOST
+        or target.port not in {None, HTTPS_PORT}
+    ):
+        message = f"refusing GitHub API redirect to another origin: {url}"
+        raise RuntimeError(message)
+    path = target.path or "/"
+    return f"{path}?{target.query}" if target.query else path
+
+
+def github_connection(proxy: str | None) -> http.client.HTTPSConnection:
+    """Create a direct connection or an HTTP CONNECT tunnel to GitHub."""
+    if proxy is None:
+        return http.client.HTTPSConnection(API_HOST, timeout=HTTP_TIMEOUT_SECONDS)
+    target = urlsplit(proxy)
+    if target.scheme != "http" or target.hostname is None or target.username is not None:
+        message = "HTTPS_PROXY must be an unauthenticated http:// proxy URL"
+        raise RuntimeError(message)
+    connection = http.client.HTTPSConnection(
+        target.hostname,
+        target.port or HTTP_PROXY_PORT,
+        timeout=HTTP_TIMEOUT_SECONDS,
+    )
+    connection.set_tunnel(API_HOST, HTTPS_PORT)
+    return connection
+
+
 class GitHubClient:
     """Expose the small GitHub REST surface needed by adopter discovery."""
 
@@ -122,12 +168,26 @@ class GitHubClient:
         return cast("RepositoryResponse", self._get(path))
 
     def _get(self, path: str) -> SearchResponse | RepositoryResponse:
-        connection = http.client.HTTPSConnection("api.github.com", timeout=30)
+        return self._get_url(f"{API_ORIGIN}{path}", redirects=0)
+
+    def _get_url(self, url: str, *, redirects: int) -> SearchResponse | RepositoryResponse:
+        connection = github_connection(https_proxy())
         try:
-            connection.request("GET", path, headers=self._headers)
+            connection.request("GET", api_path(url), headers=self._headers)
             response = connection.getresponse()
+            if HTTP_REDIRECT_STATUS <= response.status < HTTP_ERROR_STATUS:
+                location = response.getheader("Location")
+                if location is None:
+                    message = f"GitHub API redirect has no Location header: HTTP {response.status}"
+                    raise RuntimeError(message)
+                if redirects >= MAX_REDIRECTS:
+                    message = f"GitHub API exceeded {MAX_REDIRECTS} redirects"
+                    raise RuntimeError(message)
+                redirected = urljoin(url, location)
+                api_path(redirected)
+                return self._get_url(redirected, redirects=redirects + 1)
             if response.status >= HTTP_ERROR_STATUS:
-                message = f"HTTP {response.status} {response.reason}"
+                message = f"GitHub API request failed: HTTP {response.status} {response.reason}"
                 raise RuntimeError(message)
             return cast("SearchResponse | RepositoryResponse", json.loads(response.read()))
         except (http.client.HTTPException, OSError) as error:
