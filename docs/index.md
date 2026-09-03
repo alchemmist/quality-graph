@@ -1,35 +1,43 @@
-Quality Graph connects repository-owned checks into a native CI pipeline and
-provides a shared result protocol, pull-request reporting, and governance.
-
-Release 0.1.2 supports event-specific graph projections: set node `events` to
-`pull-request`, `push`, or both. Configure `provider.configuration.default-branch`
-explicitly so generated workflow filters match the repository:
+Quality Graph turns repository-owned checks into a native GitHub Actions pipeline.
+You describe commands, environments, and dependencies in `quality-graph.yml`; Quality Graph
+generates the workflows and connects their results to pull-request reporting and governance.
 
 ```yaml
+version: 0
 provider:
   name: github
   configuration:
     default-branch: main
     runtime:
-      action: alchemmist/quality-graph@<release-commit-sha>
+      action: alchemmist/quality-graph@<exact-commit-sha>
+
+profiles:
+  default:
+    runner: ubuntu-latest
+    setup:
+      - uses: actions/checkout@v7
 
 nodes:
   lint:
-    events: [pull-request, push]
     run: make lint
-  diff-check:
-    events: [pull-request]
-    run: make diff-check
+
+  test:
+    needs: [lint]
+    run: make test
+    results:
+      junit: reports/tests.xml
 ```
 
-After changing the declaration, regenerate and validate the compiler-owned files:
+Each node remains an ordinary command or reusable action. `needs` defines execution order, and
+`results` lets Quality Graph render structured output such as test failures.
+
+Generate the GitHub workflows from the declaration:
 
 ```bash
 qg generate
-qg generated-files
-qg validate
 ```
 
-`qg generated-files` emits one path per line for scripts, formatters, and staging commands.
+Generated workflows keep native jobs, logs, statuses, and retries. The declaration remains the
+source of truth.
 
-[Read the documentation →](quickstart.md)
+[Get started →](quickstart.md)
