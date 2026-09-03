@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quality-graph-github"
-version = "0.1.7"
+version = "0.1.8"
 description = "GitHub provider and Action runtime for Quality Graph"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -13,7 +13,7 @@ dependencies = [
   "httpx>=0.28.1",
   "jinja2>=3.1.6",
   "pyyaml>=6.0.2",
-  "quality-graph-core==0.1.7",
+  "quality-graph-core==0.1.8",
 ]
 
 [project.urls]
