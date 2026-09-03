@@ -31,6 +31,9 @@ branch-protection resource while preserving review requirements, restrictions, a
 enforcement, and other branch settings. For a repository ruleset that applies to the default
 branch, it preserves the ruleset conditions, enforcement, bypass actors, unrelated rules, and
 unrelated checks. Removing the opt-in and synchronizing removes only the `Quality Graph` context.
+When an unrelated repository ruleset and classic required checks both apply, synchronization keeps
+the managed context on the classic surface. If both surfaces configure required checks, the command
+fails as ambiguous instead of partially updating one of them.
 
 The token needs repository `Administration: write` permission. A `403` response is reported as a
 permission error without exposing response data. Organization-owned rulesets require organization

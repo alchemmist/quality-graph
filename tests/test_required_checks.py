@@ -115,6 +115,7 @@ def test_repository_ruleset_preserves_unrelated_settings() -> None:
             }
         ],
     )
+    port.enqueue("GET", "/branches/main/protection/required_status_checks", None)
     ruleset = {
         "id": 42,
         "name": "main",
@@ -162,6 +163,7 @@ def test_repository_ruleset_adds_missing_required_status_rule() -> None:
             }
         ],
     )
+    port.enqueue("GET", "/branches/main/protection/required_status_checks", None)
     port.enqueue(
         "GET",
         "/rulesets/42",
@@ -194,6 +196,7 @@ def test_repository_ruleset_without_required_rule_is_unchanged_when_disabled() -
             }
         ],
     )
+    port.enqueue("GET", "/branches/main/protection/required_status_checks", None)
     port.enqueue("GET", "/rulesets/42", {"rules": [{"type": "required_linear_history"}]})
 
     assert plan_required_checks(port, graph(required=False)).changed is False
@@ -221,6 +224,7 @@ def test_repository_ruleset_idempotence_and_managed_rule_removal() -> None:
             }
         ],
     )
+    unchanged.enqueue("GET", "/branches/main/protection/required_status_checks", None)
     unchanged.enqueue("GET", "/rulesets/42", {"rules": [rule]})
     assert plan_required_checks(unchanged, graph(required=True)).changed is False
 
@@ -236,6 +240,7 @@ def test_repository_ruleset_idempotence_and_managed_rule_removal() -> None:
             }
         ],
     )
+    removal.enqueue("GET", "/branches/main/protection/required_status_checks", None)
     removal.enqueue("GET", "/rulesets/42", {"rules": [rule]})
     plan = plan_required_checks(removal, graph(required=False))
     assert plan.payload == {
@@ -261,6 +266,7 @@ def test_repository_ruleset_idempotence_and_managed_rule_removal() -> None:
             }
         ],
     )
+    sole.enqueue("GET", "/branches/main/protection/required_status_checks", None)
     sole.enqueue(
         "GET",
         "/rulesets/42",
@@ -290,9 +296,63 @@ def test_multiple_repository_rulesets_are_rejected() -> None:
             for ruleset_id in (1, 2)
         ],
     )
+    port.enqueue("GET", "/branches/main/protection/required_status_checks", None)
 
     with pytest.raises(ValueError, match="exactly one"):
         plan_required_checks(port, graph(required=True))
+
+
+def test_classic_required_checks_take_precedence_over_unrelated_repository_ruleset() -> None:
+    port = MemoryGitHubPort()
+    port.enqueue(
+        "GET",
+        "/rules/branches/main",
+        [
+            {
+                "type": "required_linear_history",
+                "ruleset_source_type": "Repository",
+                "ruleset_id": 42,
+            }
+        ],
+    )
+    path = "/branches/main/protection/required_status_checks"
+    port.enqueue(
+        "GET",
+        path,
+        {"strict": False, "contexts": ["Quality Graph", "external"]},
+    )
+
+    plan = plan_required_checks(port, graph(required=False))
+
+    assert plan.surface == "classic branch protection"
+    assert plan.changed is True
+    assert plan.payload == {"strict": False, "contexts": ["external"]}
+    assert all(request_path != "/rulesets/42" for _, request_path, _ in port.requests)
+
+
+def test_classic_and_repository_required_checks_are_ambiguous() -> None:
+    port = MemoryGitHubPort()
+    port.enqueue(
+        "GET",
+        "/rules/branches/main",
+        [
+            {
+                "type": "required_status_checks",
+                "ruleset_source_type": "Repository",
+                "ruleset_id": 42,
+            }
+        ],
+    )
+    port.enqueue(
+        "GET",
+        "/branches/main/protection/required_status_checks",
+        {"strict": False, "contexts": ["Quality Graph"]},
+    )
+
+    with pytest.raises(ValueError, match="both classic protection and a repository ruleset"):
+        plan_required_checks(port, graph(required=False))
+
+    assert all(request_path != "/rulesets/42" for _, request_path, _ in port.requests)
 
 
 def test_classic_missing_status_protection_paths() -> None:

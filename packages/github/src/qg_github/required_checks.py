@@ -78,13 +78,36 @@ def plan_required_checks(port: GitHubPort, graph: Graph) -> RequiredChecksPlan:
             "synchronize it with organization Administration write permission"
         )
         raise PermissionError(message)
+    classic_path = f"/branches/{encoded}/protection/required_status_checks"
+    classic_status = _request(port, "GET", classic_path)
+    if required_repository and classic_status is not None:
+        message = (
+            "Required checks are configured in both classic protection and a repository ruleset"
+        )
+        raise ValueError(message)
     repository = required_repository or [source for source in sources if source[0] == "Repository"]
+    if len(required_repository) == 1:
+        return _ruleset_plan(port, branch, repository[0][1], required=configuration.merge_required)
+    if classic_status is not None:
+        return _classic_plan(
+            port,
+            branch,
+            encoded,
+            classic_status,
+            required=configuration.merge_required,
+        )
     if len(repository) == 1:
         return _ruleset_plan(port, branch, repository[0][1], required=configuration.merge_required)
     if len(repository) > 1:
         message = "Expected exactly one applicable repository ruleset"
         raise ValueError(message)
-    return _classic_plan(port, branch, encoded, required=configuration.merge_required)
+    return _classic_plan(
+        port,
+        branch,
+        encoded,
+        classic_status,
+        required=configuration.merge_required,
+    )
 
 
 def apply_required_checks(port: GitHubPort, plan: RequiredChecksPlan) -> None:
@@ -174,11 +197,11 @@ def _classic_plan(
     port: GitHubPort,
     branch: str,
     encoded: str,
+    status: JsonValue,
     *,
     required: bool,
 ) -> RequiredChecksPlan:
     path = f"/branches/{encoded}/protection/required_status_checks"
-    status = _request(port, "GET", path)
     full_protection: dict[str, JsonValue] | None = None
     if status is None:
         if not required:
