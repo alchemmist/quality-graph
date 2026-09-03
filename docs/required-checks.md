@@ -25,8 +25,10 @@ The command reads the configured `default-branch`, prints the planned context ad
 removals, and only then applies them. It never runs during `qg generate`, validation, or workflow
 execution. Repeating it with unchanged configuration performs no mutation.
 
-For classic branch protection, synchronization changes only the required-status-checks endpoint,
-preserving strictness and unrelated contexts. For a repository ruleset that applies to the default
+For classic branch protection with existing status checks, synchronization changes only the
+required-status-checks endpoint. When status checks are not enabled yet, it updates the complete
+branch-protection resource while preserving review requirements, restrictions, administrative
+enforcement, and other branch settings. For a repository ruleset that applies to the default
 branch, it preserves the ruleset conditions, enforcement, bypass actors, unrelated rules, and
 unrelated checks. Removing the opt-in and synchronizing removes only the `Quality Graph` context.
 

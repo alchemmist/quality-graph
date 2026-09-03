@@ -5,7 +5,7 @@ from __future__ import annotations
 import urllib.parse
 from dataclasses import dataclass, replace
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from qg_github.compiler import _validate_github_graph
 from qg_github.github import GitHubError
@@ -179,6 +179,7 @@ def _classic_plan(
 ) -> RequiredChecksPlan:
     path = f"/branches/{encoded}/protection/required_status_checks"
     status = _request(port, "GET", path)
+    full_protection: dict[str, JsonValue] | None = None
     if status is None:
         if not required:
             return RequiredChecksPlan("classic branch protection", branch, None, None, None, (), ())
@@ -189,6 +190,7 @@ def _classic_plan(
         before: tuple[str, ...] = ()
         strict = False
         checks: list[JsonValue] | None = None
+        full_protection = _object(protection, "branch protection")
     else:
         value = _object(status, "required status check protection")
         strict = bool(value.get("strict", False))
@@ -207,6 +209,19 @@ def _classic_plan(
         return RequiredChecksPlan(
             "classic branch protection", branch, None, None, None, before, desired
         )
+    if status is None:
+        protection_payload = cast("dict[str, JsonValue]", full_protection)
+        required_checks: JsonValue = {"strict": strict, "contexts": list(desired)}
+        put_payload = _branch_protection_payload(protection_payload, required_checks)
+        return RequiredChecksPlan(
+            "classic branch protection",
+            branch,
+            "PUT",
+            f"/branches/{encoded}/protection",
+            put_payload,
+            before,
+            desired,
+        )
     if checks is None:
         payload: JsonValue = {"strict": strict, "contexts": list(desired)}
     else:
@@ -215,6 +230,81 @@ def _classic_plan(
     return RequiredChecksPlan(
         "classic branch protection", branch, "PATCH", path, payload, before, desired
     )
+
+
+def _branch_protection_payload(
+    protection: dict[str, JsonValue], required_checks: JsonValue
+) -> JsonValue:
+    payload: dict[str, JsonValue] = {
+        "required_status_checks": required_checks,
+        "enforce_admins": _enabled_or_none(protection.get("enforce_admins")),
+        "required_pull_request_reviews": _pull_request_reviews(
+            protection.get("required_pull_request_reviews")
+        ),
+        "restrictions": _restrictions(protection.get("restrictions")),
+    }
+    for key in (
+        "required_linear_history",
+        "allow_force_pushes",
+        "allow_deletions",
+        "block_creations",
+        "required_conversation_resolution",
+        "lock_branch",
+        "allow_fork_syncing",
+    ):
+        if key in protection:
+            payload[key] = _enabled(protection[key], key)
+    return payload
+
+
+def _pull_request_reviews(value: JsonValue) -> JsonValue:
+    if value is None:
+        return None
+    reviews = _object(value, "pull request review protection")
+    payload: dict[str, JsonValue] = {
+        key: reviews[key]
+        for key in (
+            "dismiss_stale_reviews",
+            "require_code_owner_reviews",
+            "required_approving_review_count",
+            "require_last_push_approval",
+        )
+        if key in reviews
+    }
+    for key in ("dismissal_restrictions", "bypass_pull_request_allowances"):
+        if key in reviews:
+            payload[key] = _restrictions(reviews[key])
+    return payload
+
+
+def _restrictions(value: JsonValue) -> JsonValue:
+    if value is None:
+        return None
+    restrictions = _object(value, "branch restrictions")
+    return {
+        "users": _actor_names(restrictions.get("users", []), "login"),
+        "teams": _actor_names(restrictions.get("teams", []), "slug"),
+        "apps": _actor_names(restrictions.get("apps", []), "slug"),
+    }
+
+
+def _actor_names(value: JsonValue, field: str) -> list[JsonValue]:
+    return [
+        _string(_object(actor, "branch restriction actor").get(field), field)
+        for actor in _array(value, "branch restriction actors")
+    ]
+
+
+def _enabled_or_none(value: JsonValue) -> JsonValue:
+    return None if value is None else _enabled(value, "branch protection")
+
+
+def _enabled(value: JsonValue, context: str) -> bool:
+    enabled = _object(value, context).get("enabled")
+    if not isinstance(enabled, bool):
+        message = f"{context} enabled must be a boolean"
+        raise TypeError(message)
+    return enabled
 
 
 def _desired_check_objects(checks: list[JsonValue], *, required: bool) -> list[JsonValue]:

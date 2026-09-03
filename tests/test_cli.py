@@ -7,7 +7,7 @@ import pytest
 from qg_cli import __version__
 from qg_cli.cli import main, parser
 from qg_github.github import HttpGitHubPort, MemoryGitHubPort
-from quality_graph_core.result import Result
+from quality_graph_core.result import JsonValue, Result
 from quality_graph_core.schema import result_schema_value
 from tests.test_graph import GRAPH
 
@@ -120,6 +120,38 @@ def test_required_checks_sync_reports_an_idempotent_plan(
 def test_incomplete_github_command_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["github"]) == 0
     assert "Quality Graph" in capsys.readouterr().out
+
+
+def test_required_checks_sync_reports_missing_provider_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "qg.yaml").write_text(GRAPH)
+    monkeypatch.setattr(
+        "qg_cli.cli.import_module",
+        lambda _name: (_ for _ in ()).throw(ModuleNotFoundError("missing GitHub provider")),
+    )
+
+    with pytest.raises(SystemExit, match="2"):
+        main(["github", "required-checks", "sync", "--root", str(tmp_path)])
+
+
+def test_required_checks_sync_reports_github_runtime_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "qg.yaml").write_text(GRAPH)
+    port = MemoryGitHubPort()
+    message = "GitHub failed"
+
+    def fail(*_args: JsonValue, **_kwargs: JsonValue) -> JsonValue:
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(HttpGitHubPort, "from_environment", lambda: port)
+    monkeypatch.setattr(port, "request", fail)
+
+    with pytest.raises(SystemExit, match="2"):
+        main(["github", "required-checks", "sync", "--root", str(tmp_path)])
 
 
 @pytest.mark.parametrize(

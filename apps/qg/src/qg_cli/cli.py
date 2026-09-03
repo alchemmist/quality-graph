@@ -82,7 +82,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
             return _result_command(command_parser, args)
         if args.command == "github":
             return _github_command(command_parser, args)
-    except (OSError, TypeError, ValueError) as error:
+    except (ModuleNotFoundError, OSError, RuntimeError, TypeError, ValueError) as error:
         command_parser.error(str(error))
     command_parser.print_help()
     return 0

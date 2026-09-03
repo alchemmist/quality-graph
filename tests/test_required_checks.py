@@ -304,8 +304,57 @@ def test_classic_missing_status_protection_paths() -> None:
     enabled = MemoryGitHubPort()
     enabled.enqueue("GET", "/rules/branches/main", [])
     enabled.enqueue("GET", "/branches/main/protection/required_status_checks", None)
-    enabled.enqueue("GET", "/branches/main/protection", {"url": "protection"})
-    assert plan_required_checks(enabled, graph(required=True)).after == ("Quality Graph",)
+    enabled.enqueue(
+        "GET",
+        "/branches/main/protection",
+        {
+            "enforce_admins": {"enabled": True},
+            "required_pull_request_reviews": {
+                "dismiss_stale_reviews": True,
+                "require_code_owner_reviews": True,
+                "required_approving_review_count": 2,
+                "require_last_push_approval": True,
+                "dismissal_restrictions": {
+                    "users": [{"login": "maintainer"}],
+                    "teams": [{"slug": "reviewers"}],
+                    "apps": [{"slug": "review-app"}],
+                },
+            },
+            "restrictions": {
+                "users": [{"login": "deployer"}],
+                "teams": [{"slug": "release"}],
+                "apps": [{"slug": "deploy-app"}],
+            },
+            "required_linear_history": {"enabled": True},
+            "allow_force_pushes": {"enabled": False},
+        },
+    )
+    plan = plan_required_checks(enabled, graph(required=True))
+    assert plan.after == ("Quality Graph",)
+    assert plan.method == "PUT"
+    assert plan.path == "/branches/main/protection"
+    assert plan.payload == {
+        "required_status_checks": {"strict": False, "contexts": ["Quality Graph"]},
+        "enforce_admins": True,
+        "required_pull_request_reviews": {
+            "dismiss_stale_reviews": True,
+            "require_code_owner_reviews": True,
+            "required_approving_review_count": 2,
+            "require_last_push_approval": True,
+            "dismissal_restrictions": {
+                "users": ["maintainer"],
+                "teams": ["reviewers"],
+                "apps": ["review-app"],
+            },
+        },
+        "restrictions": {
+            "users": ["deployer"],
+            "teams": ["release"],
+            "apps": ["deploy-app"],
+        },
+        "required_linear_history": True,
+        "allow_force_pushes": False,
+    }
 
     unprotected = MemoryGitHubPort()
     unprotected.enqueue("GET", "/rules/branches/main", [])
@@ -313,6 +362,42 @@ def test_classic_missing_status_protection_paths() -> None:
     unprotected.enqueue("GET", "/branches/main/protection", None)
     with pytest.raises(ValueError, match="neither branch protection"):
         plan_required_checks(unprotected, graph(required=True))
+
+
+def test_classic_full_protection_preserves_disabled_settings_and_validates_flags() -> None:
+    path = "/branches/main/protection/required_status_checks"
+    disabled = MemoryGitHubPort()
+    disabled.enqueue("GET", "/rules/branches/main", [])
+    disabled.enqueue("GET", path, None)
+    disabled.enqueue(
+        "GET",
+        "/branches/main/protection",
+        {
+            "enforce_admins": None,
+            "required_pull_request_reviews": None,
+            "restrictions": None,
+        },
+    )
+
+    plan = plan_required_checks(disabled, graph(required=True))
+
+    assert plan.payload == {
+        "required_status_checks": {"strict": False, "contexts": ["Quality Graph"]},
+        "enforce_admins": None,
+        "required_pull_request_reviews": None,
+        "restrictions": None,
+    }
+
+    malformed = MemoryGitHubPort()
+    malformed.enqueue("GET", "/rules/branches/main", [])
+    malformed.enqueue("GET", path, None)
+    malformed.enqueue(
+        "GET",
+        "/branches/main/protection",
+        {"required_linear_history": {"enabled": "yes"}},
+    )
+    with pytest.raises(TypeError, match="enabled must be a boolean"):
+        plan_required_checks(malformed, graph(required=True))
 
 
 def test_organization_ruleset_requires_organization_administration() -> None:
