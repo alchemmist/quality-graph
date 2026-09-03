@@ -270,12 +270,11 @@ def test_invalid_artifacts_publish_terminal_failure_from_job_state_over_http() -
 def test_completed_workflow_finalizes_when_pull_request_renames_graph_nodes() -> None:
     source = GRAPH.replace(
         "labels:\n",
-        """  unit:
-    title: Unit tests
-    needs: [lint]
-    run: make test-unit
-labels:
-""",
+        "  unit:\n"
+        "    title: Unit tests\n"
+        "    needs: [lint]\n"
+        "    run: make test-unit\n"
+        "labels:\n",
     )
     selected = state(source)
     selected.workflow_runs = [
