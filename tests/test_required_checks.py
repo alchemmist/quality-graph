@@ -76,6 +76,32 @@ def test_classic_protection_removes_only_managed_context() -> None:
     assert port.requests[-1] == ("PATCH", path, {"strict": False, "contexts": ["external"]})
 
 
+def test_classic_protection_preserves_managed_app_binding_and_order() -> None:
+    port = MemoryGitHubPort()
+    port.enqueue("GET", "/rules/branches/main", [])
+    path = "/branches/main/protection/required_status_checks"
+    port.enqueue(
+        "GET",
+        path,
+        {
+            "strict": True,
+            "checks": [
+                {"context": "Quality Graph", "app_id": 7},
+                {"context": "external", "app_id": 9},
+            ],
+        },
+    )
+
+    plan = plan_required_checks(port, graph(required=True))
+
+    assert plan.changed is False
+    assert plan.before == ("Quality Graph", "external")
+    assert port.requests == [
+        ("GET", "/rules/branches/main", None),
+        ("GET", path, None),
+    ]
+
+
 def test_repository_ruleset_preserves_unrelated_settings() -> None:
     port = MemoryGitHubPort()
     port.enqueue(
@@ -176,7 +202,12 @@ def test_repository_ruleset_without_required_rule_is_unchanged_when_disabled() -
 def test_repository_ruleset_idempotence_and_managed_rule_removal() -> None:
     rule = {
         "type": "required_status_checks",
-        "parameters": {"required_status_checks": [{"context": "Quality Graph"}]},
+        "parameters": {
+            "required_status_checks": [
+                {"context": "Quality Graph", "integration_id": 7},
+                {"context": "external", "integration_id": 9},
+            ]
+        },
     }
     unchanged = MemoryGitHubPort()
     unchanged.enqueue(
@@ -207,7 +238,42 @@ def test_repository_ruleset_idempotence_and_managed_rule_removal() -> None:
     )
     removal.enqueue("GET", "/rulesets/42", {"rules": [rule]})
     plan = plan_required_checks(removal, graph(required=False))
-    assert plan.payload == {"rules": []}
+    assert plan.payload == {
+        "rules": [
+            {
+                "type": "required_status_checks",
+                "parameters": {
+                    "required_status_checks": [{"context": "external", "integration_id": 9}]
+                },
+            }
+        ]
+    }
+
+    sole = MemoryGitHubPort()
+    sole.enqueue(
+        "GET",
+        "/rules/branches/main",
+        [
+            {
+                "type": "required_status_checks",
+                "ruleset_source_type": "Repository",
+                "ruleset_id": 42,
+            }
+        ],
+    )
+    sole.enqueue(
+        "GET",
+        "/rulesets/42",
+        {
+            "rules": [
+                {
+                    "type": "required_status_checks",
+                    "parameters": {"required_status_checks": [{"context": "Quality Graph"}]},
+                }
+            ]
+        },
+    )
+    assert plan_required_checks(sole, graph(required=False)).payload == {"rules": []}
 
 
 def test_multiple_repository_rulesets_are_rejected() -> None:
@@ -265,6 +331,27 @@ def test_organization_ruleset_requires_organization_administration() -> None:
 
     with pytest.raises(PermissionError, match="organization Administration"):
         plan_required_checks(port, graph(required=True))
+
+
+def test_organization_required_rule_blocks_repository_ruleset_mutation() -> None:
+    port = MemoryGitHubPort()
+    port.enqueue(
+        "GET",
+        "/rules/branches/main",
+        [
+            {
+                "type": "required_status_checks",
+                "ruleset_source_type": source_type,
+                "ruleset_id": ruleset_id,
+            }
+            for source_type, ruleset_id in (("Organization", 73), ("Repository", 42))
+        ],
+    )
+
+    with pytest.raises(PermissionError, match="organization ruleset"):
+        plan_required_checks(port, graph(required=True))
+
+    assert all(path != "/rulesets/42" for _, path, _ in port.requests)
 
 
 def test_insufficient_repository_permission_is_actionable() -> None:

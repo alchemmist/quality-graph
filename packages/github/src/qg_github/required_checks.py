@@ -71,19 +71,19 @@ def plan_required_checks(port: GitHubPort, graph: Graph) -> RequiredChecksPlan:
         if rule.get("type") == "required_status_checks"
     }
     required_repository = [source for source in required_sources if source[0] == "Repository"]
+    required_organization = [source for source in required_sources if source[0] == "Organization"]
+    if required_organization:
+        message = (
+            "Required checks are controlled by an organization ruleset; "
+            "synchronize it with organization Administration write permission"
+        )
+        raise PermissionError(message)
     repository = required_repository or [source for source in sources if source[0] == "Repository"]
-    organization = [source for source in sources if source[0] == "Organization"]
     if len(repository) == 1:
         return _ruleset_plan(port, branch, repository[0][1], required=configuration.merge_required)
     if len(repository) > 1:
         message = "Expected exactly one applicable repository ruleset"
         raise ValueError(message)
-    if organization:
-        message = (
-            "Branch rules are controlled by an organization ruleset; "
-            "synchronize it with organization Administration write permission"
-        )
-        raise PermissionError(message)
     return _classic_plan(port, branch, encoded, required=configuration.merge_required)
 
 
@@ -136,13 +136,7 @@ def _ruleset_plan(
         _string(_object(value, "required status check").get("context"), "status context")
         for value in checks
     )
-    desired_checks = [
-        value
-        for value in checks
-        if _object(value, "required status check").get("context") != QUALITY_GRAPH_CONTEXT
-    ]
-    if required:
-        desired_checks.append({"context": QUALITY_GRAPH_CONTEXT})
+    desired_checks = _desired_check_objects(checks, required=required)
     after = tuple(
         _string(_object(value, "required status check").get("context"), "status context")
         for value in desired_checks
@@ -208,9 +202,7 @@ def _classic_plan(
                 _string(_object(item, "status check").get("context"), "status context")
                 for item in checks
             )
-    desired = tuple(item for item in before if item != QUALITY_GRAPH_CONTEXT)
-    if required:
-        desired = (*desired, QUALITY_GRAPH_CONTEXT)
+    desired = _desired_contexts(before, required=required)
     if before == desired:
         return RequiredChecksPlan(
             "classic branch protection", branch, None, None, None, before, desired
@@ -218,17 +210,32 @@ def _classic_plan(
     if checks is None:
         payload: JsonValue = {"strict": strict, "contexts": list(desired)}
     else:
-        desired_checks = [
-            item
-            for item in checks
-            if _object(item, "status check").get("context") != QUALITY_GRAPH_CONTEXT
-        ]
-        if required:
-            desired_checks.append({"context": QUALITY_GRAPH_CONTEXT})
+        desired_checks = _desired_check_objects(checks, required=required)
         payload = {"strict": strict, "checks": desired_checks}
     return RequiredChecksPlan(
         "classic branch protection", branch, "PATCH", path, payload, before, desired
     )
+
+
+def _desired_check_objects(checks: list[JsonValue], *, required: bool) -> list[JsonValue]:
+    managed = [
+        item
+        for item in checks
+        if _object(item, "status check").get("context") == QUALITY_GRAPH_CONTEXT
+    ]
+    if required and managed:
+        return list(checks)
+    desired = [item for item in checks if item not in managed]
+    if required:
+        desired.append({"context": QUALITY_GRAPH_CONTEXT})
+    return desired
+
+
+def _desired_contexts(contexts: tuple[str, ...], *, required: bool) -> tuple[str, ...]:
+    if required and QUALITY_GRAPH_CONTEXT in contexts:
+        return contexts
+    desired = tuple(item for item in contexts if item != QUALITY_GRAPH_CONTEXT)
+    return (*desired, QUALITY_GRAPH_CONTEXT) if required else desired
 
 
 def _request(port: GitHubPort, method: str, path: str, payload: JsonValue = None) -> JsonValue:
