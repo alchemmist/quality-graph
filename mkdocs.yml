@@ -1,7 +1,7 @@
 ---
 site_name: Quality Graph
 site_description: Quality infrastructure for GitHub Actions
-site_url: https://alchemmist.github.io/quality-graph/
+site_url: https://quality-graph.xyz/
 repo_url: https://github.com/alchemmist/quality-graph
 docs_dir: docs
 site_dir: site
