@@ -49,6 +49,7 @@ class FakeGitHubState:
     workflow_job_snapshots: dict[int, list[list[dict[str, JsonValue]]]] = field(
         default_factory=dict
     )
+    active_workflow_job_pages: dict[int, list[dict[str, JsonValue]]] = field(default_factory=dict)
     run_artifacts: dict[int, list[dict[str, JsonValue]]] = field(default_factory=dict)
     pull_files: dict[int, list[dict[str, JsonValue]]] = field(default_factory=dict)
     comparisons: dict[str, dict[str, JsonValue]] = field(default_factory=dict)
@@ -76,7 +77,14 @@ class FakeGitHubState:
                 "base": {"sha": "d" * 40},
             }
         if not self.workflow_runs:
-            self.workflow_runs = [{"id": 10, "run_attempt": 1, "pull_requests": [{"number": 42}]}]
+            self.workflow_runs = [
+                {
+                    "id": 10,
+                    "run_attempt": 1,
+                    "status": "in_progress",
+                    "pull_requests": [{"number": 42}],
+                }
+            ]
         if not self.permissions:
             self.permissions["admin"] = "admin"
         self._advance_identifiers()
@@ -102,6 +110,7 @@ class FakeGitHubState:
         fresh.workflow_runs = _object_list(payload.get("workflow_runs", fresh.workflow_runs))
         fresh.workflow_jobs = _integer_object_lists(payload.get("workflow_jobs", {}))
         fresh.workflow_job_snapshots = _job_snapshots(payload.get("workflow_job_snapshots", {}))
+        fresh.active_workflow_job_pages = {}
         fresh.run_artifacts = _integer_object_lists(payload.get("run_artifacts", {}))
         fresh.pull_files = _integer_object_lists(payload.get("pull_files", {}))
         fresh.comparisons = _object_mapping(payload.get("comparisons", {}))
@@ -372,13 +381,24 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
         if method == "GET" and (match := re.fullmatch(r"/actions/runs/(?P<id>\d+)/jobs", path)):
             identifier = int(match.group("id"))
             snapshots = self.state.workflow_job_snapshots.get(identifier)
-            jobs = (
-                snapshots.pop(0)
-                if snapshots is not None and len(snapshots) > 1
-                else snapshots[0]
-                if snapshots
-                else self.state.workflow_jobs.get(identifier, [])
-            )
+            try:
+                page_number = int(query.get("page", ["1"])[0])
+            except ValueError:
+                return _page([], query)
+            if page_number == 1:
+                jobs = (
+                    snapshots.pop(0)
+                    if snapshots is not None and len(snapshots) > 1
+                    else snapshots[0]
+                    if snapshots
+                    else self.state.workflow_jobs.get(identifier, [])
+                )
+                self.state.active_workflow_job_pages[identifier] = jobs
+            else:
+                jobs = self.state.active_workflow_job_pages.get(
+                    identifier,
+                    self.state.workflow_jobs.get(identifier, []),
+                )
             status, page = _page(jobs, query)
             return status, {"total_count": len(jobs), "jobs": page}
         if method == "GET" and (
