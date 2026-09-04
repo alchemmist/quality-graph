@@ -15,6 +15,29 @@
           <span>quality—graph</span>
         </div>
         <article>{{ page.content }}</article>
+        <section class="adopters" aria-labelledby="adopters-title">
+          <p id="adopters-title">Already running on</p>
+          <div class="adopters-window">
+            <div class="adopters-track">
+              <div class="adopters-set">
+                {% for adopter in config.extra.adopters %}
+                  <a class="adopter" href="https://github.com/{{ adopter.repository }}">
+                    <img src="{{ adopter.logo | url }}" alt="">
+                    <span>{{ adopter.name }}</span>
+                  </a>
+                {% endfor %}
+              </div>
+              <div class="adopters-set" aria-hidden="true">
+                {% for adopter in config.extra.adopters %}
+                  <span class="adopter">
+                    <img src="{{ adopter.logo | url }}" alt="">
+                    <span>{{ adopter.name }}</span>
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
     {% else %}
       <nav class="docs-sidebar" aria-label="Documentation">

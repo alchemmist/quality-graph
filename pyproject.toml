@@ -1,5 +1,11 @@
 [tool.uv.workspace]
-members = ["packages/core", "packages/github", "packages/python", "apps/qg"]
+members = [
+  "packages/core",
+  "packages/github",
+  "packages/python",
+  "apps/qg",
+  "tools/adopter-discovery",
+]
 exclude = ["examples/*"]
 
 [dependency-groups]

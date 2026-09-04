@@ -7,7 +7,7 @@ MARKDOWN_SOURCES := README.md CONTEXT.md $(wildcard docs/*.md packages/*/README.
 
 .DEFAULT_GOAL := check
 
-.PHONY: install tools schemas schemas-check graph-generate graph-validate \
+.PHONY: install tools schemas schemas-check graph-generate graph-validate adopters-find users \
 	fmt fmt-check lint type analyze test t-fast t-medium coverage \
 	python-suppressions python-object-annotations python-triple-quotes \
 	python-time-bombs python-no-comments coverage-diff flaky-python \
@@ -75,6 +75,12 @@ graph-generate:
 
 graph-validate:
 	uv run --locked --all-packages qg validate
+
+adopters-find:
+	uv run --project tools/adopter-discovery --locked qg-find-adopters
+
+users:
+	uv run --project tools/adopter-discovery --locked qg-find-adopters --new-only
 
 examples-generate:
 	@for example in examples/python examples/typescript examples/go; do \
