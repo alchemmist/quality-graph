@@ -17,6 +17,7 @@ nav:
   - Start here:
       - Installation: installation.md
       - Quickstart: quickstart.md
+      - Upgrade to v0.1.8: upgrading-v0.1.8.md
       - Migration: migration.md
   - Reference:
       - Configuration: configuration.md

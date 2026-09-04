@@ -1,6 +1,6 @@
 # Compatibility policy
 
-Quality Graph is a functional pre-release. Package version `0.1.2`, graph version `0`,
+Quality Graph is a functional pre-release. Package version `0.1.8`, graph version `0`,
 and result schema version `0` carry no backward-compatibility guarantee.
 
 Until the separate contract-freeze decision:

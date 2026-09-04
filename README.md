@@ -1,6 +1,6 @@
 <h2><img src="docs/assets/quality-graph-eye-inline.svg" width="72" alt="Quality Graph logo" align="absmiddle"> Quality Graph</h2>
 
-[Docs](https://alchemmist.github.io/quality-graph/)
+[Docs](https://quality-graph.xyz/)
 
 Quality Graph turns a small repository-owned declaration into native GitHub Actions
 jobs and a complete pull-request quality experience. Checks remain ordinary commands
@@ -48,7 +48,7 @@ nodes:
 events unless `events` narrows them to `pull-request` or `push`.
 
 ```bash
-uv tool install quality-graph-cli==0.1.2 --with quality-graph-github==0.1.2
+uv tool install quality-graph-cli==0.1.8 --with quality-graph-github==0.1.8
 qg init \
   --default-branch main \
   --runtime-action alchemmist/quality-graph@<release-commit-sha>
@@ -59,3 +59,8 @@ qg validate
 
 `qg generated-files` prints the provider-owned paths that should be committed or passed to
 repository tooling. See the [installation guide](docs/installation.md) for the complete setup.
+
+> [!IMPORTANT]
+> Version `0.1.8` intentionally replaces `quality-graph.yml` with `qg.yaml` without a fallback.
+> Existing installations must follow the ordered [v0.1.8 upgrade guide](docs/upgrading-v0.1.8.md)
+> before running the upgraded CLI.

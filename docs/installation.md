@@ -9,13 +9,13 @@ Use repository dev dependencies when every contributor and CI job should receive
 Quality Graph version through the existing lockfile:
 
 ```bash
-uv add --dev quality-graph-cli==0.1.2 quality-graph-github==0.1.2
+uv add --dev quality-graph-cli==0.1.8 quality-graph-github==0.1.8
 uv run qg init \
   --default-branch main \
-  --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
+  --runtime-action alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
 ```
 
-Add `quality-graph-python==0.1.2` to the same command only when the repository uses the optional
+Add `quality-graph-python==0.1.8` to the same command only when the repository uses the optional
 Python gates.
 
 ## User-level tool installation
@@ -24,7 +24,7 @@ Use an isolated uv tool when operating on several repositories without adding th
 their dependencies:
 
 ```bash
-uv tool install quality-graph-cli==0.1.2 --with quality-graph-github==0.1.2
+uv tool install quality-graph-cli==0.1.8 --with quality-graph-github==0.1.8
 qg --version
 ```
 
@@ -78,3 +78,7 @@ gates.
 
 Continue with the [quickstart](quickstart.md), or follow the staged
 [migration guide](migration.md) for an existing CI repository.
+
+Repositories upgrading from `v0.1.7` or earlier must rename the source specification before
+running the new CLI. Follow the complete [v0.1.8 upgrade guide](upgrading-v0.1.8.md); this release
+does not provide a compatibility alias for `quality-graph.yml`.

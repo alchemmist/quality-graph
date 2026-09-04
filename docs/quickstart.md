@@ -7,7 +7,7 @@ repository. Quality Graph orchestrates and reports checks; it does not replace t
 ## 1. Install the released toolchain
 
 ```bash
-uv add --dev quality-graph-cli==0.1.2 quality-graph-github==0.1.2
+uv add --dev quality-graph-cli==0.1.8 quality-graph-github==0.1.8
 ```
 
 The CLI and provider are released together and must use the same exact version.
@@ -17,10 +17,10 @@ The CLI and provider are released together and must use the same exact version.
 ```bash
 uv run qg init \
   --default-branch main \
-  --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
+  --runtime-action alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
 ```
 
-The 40-character ref binds runtime code to the reviewed `v0.1.2` release commit. Do not replace it
+The 40-character ref binds runtime code to the reviewed `v0.1.8` release commit. Do not replace it
 with `main`, `v0`, or another moving ref.
 
 Replace the starter node with repository commands:
@@ -32,7 +32,7 @@ provider:
   configuration:
     default-branch: main
     runtime:
-      action: alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
+      action: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
 
 profiles:
   default:

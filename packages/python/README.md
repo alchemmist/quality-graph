@@ -7,7 +7,7 @@ CI system.
 ## Installation
 
 ```bash
-uv add --dev quality-graph-python==0.1.2
+uv add --dev quality-graph-python==0.1.8
 ```
 
 Diff-based commands compare committed repository content with `origin/main` by default. CI must

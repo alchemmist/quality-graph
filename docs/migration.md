@@ -14,6 +14,10 @@ qg validate
 Commands reject the former filename instead of treating it as a fallback. If both files exist,
 remove `quality-graph.yml` before running Quality Graph again.
 
+This rename is a breaking change in `v0.1.8`. When upgrading an existing Quality Graph
+installation, use the ordered [v0.1.8 upgrade guide](upgrading-v0.1.8.md) so the package version,
+source filename, immutable Action pins, and generated workflows move together.
+
 Migrate orchestration before deleting working checks. Existing commands remain the behavioral
 baseline; Quality Graph initially calls the same Make targets and report producers.
 
@@ -35,11 +39,11 @@ steps into the graph.
 
 ```bash
 uv add --dev \
-  quality-graph-cli==0.1.2 \
-  quality-graph-github==0.1.2
+  quality-graph-cli==0.1.8 \
+  quality-graph-github==0.1.8
 ```
 
-Add `quality-graph-python==0.1.2` when reusing its optional Python gates. Keep the old workflows
+Add `quality-graph-python==0.1.8` when reusing its optional Python gates. Keep the old workflows
 enabled during migration.
 
 ## 3. Map jobs to graph nodes
@@ -78,7 +82,7 @@ profile and leave deployment, release, and credential-bearing workflows outside 
 ```bash
 uv run qg init \
   --default-branch trunk \
-  --runtime-action alchemmist/quality-graph@a4a65abfc9364da6801be56b992358d302c7ad77
+  --runtime-action alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
 uv run qg generate
 uv run qg validate
 ```
