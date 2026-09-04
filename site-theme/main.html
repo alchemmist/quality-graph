@@ -6,6 +6,9 @@
     <meta name="description" content="{{ config.site_description }}">
     <title>{% if not page.is_homepage %}{{ page.title }} · {% endif %}{{ config.site_name }}</title>
     <link rel="stylesheet" href="{{ 'css/site.css' | url }}">
+    {% if page.is_homepage %}
+      <script defer src="https://umami.alchemmist.xyz/script.js" data-website-id="77a18ea0-ec9c-4976-8aa2-01c9d5f25139"></script>
+    {% endif %}
   </head>
   <body class="{% if page.is_homepage %}landing{% else %}documentation{% endif %}">
     {% if page.is_homepage %}
