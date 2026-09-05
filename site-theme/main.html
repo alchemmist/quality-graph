@@ -4,7 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="{{ config.site_description }}">
+    <meta name="theme-color" content="#ffffff">
     <title>{% if not page.is_homepage %}{{ page.title }} · {% endif %}{{ config.site_name }}</title>
+    <link rel="icon" href="{{ 'assets/quality-graph-eye.svg' | url }}" type="image/svg+xml">
+    <link rel="icon" href="{{ 'favicon-96x96.png' | url }}" type="image/png" sizes="96x96">
+    <link rel="icon" href="{{ 'favicon-32x32.png' | url }}" type="image/png" sizes="32x32">
+    <link rel="icon" href="{{ 'favicon-16x16.png' | url }}" type="image/png" sizes="16x16">
+    <link rel="shortcut icon" href="{{ 'favicon.ico' | url }}">
+    <link rel="apple-touch-icon" href="{{ 'apple-touch-icon.png' | url }}" sizes="180x180">
+    <link rel="manifest" href="{{ 'site.webmanifest' | url }}">
     <link rel="stylesheet" href="{{ 'css/site.css' | url }}">
     {% if page.is_homepage %}
       <script defer src="https://umami.alchemmist.xyz/script.js" data-website-id="77a18ea0-ec9c-4976-8aa2-01c9d5f25139"></script>
