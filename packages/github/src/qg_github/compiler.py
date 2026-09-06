@@ -456,7 +456,9 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
             if flow.trigger == "pull-request"
             else PUSH_WORKFLOW
         )
-        files.append(GeneratedFile(path, _yaml_file(workflow)))
+        files.append(
+            GeneratedFile(path, _yaml_file(workflow, width=100 if flow.is_release else 1_000))
+        )
     if any(flow.presentation == "github-pr" for flow in graph.flows):
         files.append(
             GeneratedFile(
@@ -862,13 +864,13 @@ def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
     }
 
 
-def _yaml_file(value: Mapping[str, JsonValue]) -> str:
+def _yaml_file(value: Mapping[str, JsonValue], *, width: int = 1_000) -> str:
     body = yaml.dump(
         dict(value),
         Dumper=WorkflowDumper,
         default_flow_style=False,
         sort_keys=False,
-        width=1_000,
+        width=width,
     )
     return GENERATED_HEADER + body
 
