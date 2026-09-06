@@ -29,9 +29,15 @@ profiles:
         run: uv sync --locked --all-groups --all-packages
 
 nodes:
+  workflow-graph:
+    title: Workflow graph validation
+    profile: python
+    run: make graph-validate
+
   format:
     title: Format check
     profile: python
+    needs: [workflow-graph]
     run: make fmt-check
 
   suppressions:

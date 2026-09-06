@@ -11,6 +11,55 @@ concurrency:
   group: quality-graph-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  workflow-graph:
+    name: Workflow graph validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: 'false'
+          fetch-depth: '0'
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: 'true'
+          cache-dependency-glob: uv.lock
+      - name: Install locked dependencies
+        run: uv sync --locked --all-groups --all-packages
+      - run: make graph-validate
+        name: Run Workflow graph validation
+        id: quality-command
+        continue-on-error: true
+      - name: Collect Workflow graph validation result
+        id: quality-result
+        if: always()
+        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        with:
+          operation: collect
+          node-id: workflow-graph
+          title: Workflow graph validation
+          adapter: exit-code
+          report-path: ''
+          command-outcome: ${{ steps.quality-command.outcome }}
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          approval-findings: 'true'
+          approval-files: 'false'
+          approval-node: 'false'
+      - name: Upload Workflow graph validation result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-result-workflow-graph-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/workflow-graph.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce Workflow graph validation result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+        run: exit "${EXIT_CODE:-2}"
   format:
     name: Format check
     runs-on: ubuntu-latest
@@ -42,7 +91,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -60,6 +109,8 @@ jobs:
         env:
           EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
         run: exit "${EXIT_CODE:-2}"
+    needs:
+      - workflow-graph
   suppressions:
     name: Lint suppression gate
     runs-on: ubuntu-latest
@@ -91,7 +142,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -148,7 +199,7 @@ jobs:
           adapter: exit-code
           report-path: reports/object-annotations.log
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'true'
@@ -199,7 +250,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -250,7 +301,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -301,7 +352,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -354,7 +405,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -405,7 +456,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -457,7 +508,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -508,7 +559,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -559,7 +610,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -610,7 +661,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -662,7 +713,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -713,7 +764,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -764,7 +815,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
@@ -815,7 +866,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: 87c20070d29ff21310e7fc2b95af78549c6318f5a949b321b57cecad3ac6bd2b
+          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
