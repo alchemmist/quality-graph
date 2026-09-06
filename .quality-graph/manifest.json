@@ -5,17 +5,384 @@
       "admin"
     ]
   },
-  "graphDigest": "f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533",
+  "flows": {
+    "main": {
+      "branches": [
+        "main"
+      ],
+      "concurrency": null,
+      "dependencies": "graph",
+      "execution": "github-actions",
+      "inputs": {},
+      "nodes": [
+        {
+          "checkpoint": {},
+          "id": "workflow-graph",
+          "needs": [],
+          "operation": "workflow-graph"
+        },
+        {
+          "checkpoint": {},
+          "id": "format",
+          "needs": [
+            "workflow-graph"
+          ],
+          "operation": "format"
+        },
+        {
+          "checkpoint": {},
+          "id": "suppressions",
+          "needs": [
+            "format"
+          ],
+          "operation": "suppressions"
+        },
+        {
+          "checkpoint": {},
+          "id": "object-annotations",
+          "needs": [
+            "format"
+          ],
+          "operation": "object-annotations"
+        },
+        {
+          "checkpoint": {},
+          "id": "triple-quotes",
+          "needs": [
+            "format"
+          ],
+          "operation": "triple-quotes"
+        },
+        {
+          "checkpoint": {},
+          "id": "no-comments",
+          "needs": [
+            "format"
+          ],
+          "operation": "no-comments"
+        },
+        {
+          "checkpoint": {},
+          "id": "lint",
+          "needs": [
+            "suppressions",
+            "triple-quotes",
+            "no-comments"
+          ],
+          "operation": "lint"
+        },
+        {
+          "checkpoint": {},
+          "id": "type",
+          "needs": [
+            "object-annotations"
+          ],
+          "operation": "type"
+        },
+        {
+          "checkpoint": {},
+          "id": "analyze",
+          "needs": [
+            "lint",
+            "type"
+          ],
+          "operation": "analyze"
+        },
+        {
+          "checkpoint": {},
+          "id": "time-bombs",
+          "needs": [
+            "analyze"
+          ],
+          "operation": "time-bombs"
+        },
+        {
+          "checkpoint": {},
+          "id": "test-fast",
+          "needs": [
+            "time-bombs"
+          ],
+          "operation": "test-fast"
+        },
+        {
+          "checkpoint": {},
+          "id": "test-medium",
+          "needs": [
+            "time-bombs"
+          ],
+          "operation": "test-medium"
+        },
+        {
+          "checkpoint": {},
+          "id": "coverage",
+          "needs": [
+            "test-fast",
+            "test-medium"
+          ],
+          "operation": "coverage"
+        },
+        {
+          "checkpoint": {},
+          "id": "flaky-python",
+          "needs": [
+            "coverage"
+          ],
+          "operation": "flaky-python"
+        },
+        {
+          "checkpoint": {},
+          "id": "mutation",
+          "needs": [
+            "flaky-python"
+          ],
+          "operation": "mutation"
+        },
+        {
+          "checkpoint": {},
+          "id": "audit",
+          "needs": [
+            "mutation"
+          ],
+          "operation": "audit"
+        },
+        {
+          "checkpoint": {},
+          "id": "package",
+          "needs": [
+            "audit"
+          ],
+          "operation": "package"
+        }
+      ],
+      "presentation": "none",
+      "trigger": "push"
+    },
+    "pull-request": {
+      "branches": [],
+      "concurrency": null,
+      "dependencies": "graph",
+      "execution": "github-actions",
+      "inputs": {},
+      "nodes": [
+        {
+          "checkpoint": {},
+          "id": "workflow-graph",
+          "needs": [],
+          "operation": "workflow-graph"
+        },
+        {
+          "checkpoint": {},
+          "id": "format",
+          "needs": [
+            "workflow-graph"
+          ],
+          "operation": "format"
+        },
+        {
+          "checkpoint": {},
+          "id": "suppressions",
+          "needs": [
+            "format"
+          ],
+          "operation": "suppressions"
+        },
+        {
+          "checkpoint": {},
+          "id": "object-annotations",
+          "needs": [
+            "format"
+          ],
+          "operation": "object-annotations"
+        },
+        {
+          "checkpoint": {},
+          "id": "triple-quotes",
+          "needs": [
+            "format"
+          ],
+          "operation": "triple-quotes"
+        },
+        {
+          "checkpoint": {},
+          "id": "no-comments",
+          "needs": [
+            "format"
+          ],
+          "operation": "no-comments"
+        },
+        {
+          "checkpoint": {},
+          "id": "lint",
+          "needs": [
+            "suppressions",
+            "triple-quotes",
+            "no-comments"
+          ],
+          "operation": "lint"
+        },
+        {
+          "checkpoint": {},
+          "id": "type",
+          "needs": [
+            "object-annotations"
+          ],
+          "operation": "type"
+        },
+        {
+          "checkpoint": {},
+          "id": "analyze",
+          "needs": [
+            "lint",
+            "type"
+          ],
+          "operation": "analyze"
+        },
+        {
+          "checkpoint": {},
+          "id": "time-bombs",
+          "needs": [
+            "analyze"
+          ],
+          "operation": "time-bombs"
+        },
+        {
+          "checkpoint": {},
+          "id": "test-fast",
+          "needs": [
+            "time-bombs"
+          ],
+          "operation": "test-fast"
+        },
+        {
+          "checkpoint": {},
+          "id": "test-medium",
+          "needs": [
+            "time-bombs"
+          ],
+          "operation": "test-medium"
+        },
+        {
+          "checkpoint": {},
+          "id": "coverage",
+          "needs": [
+            "test-fast",
+            "test-medium"
+          ],
+          "operation": "coverage"
+        },
+        {
+          "checkpoint": {},
+          "id": "flaky-python",
+          "needs": [
+            "coverage"
+          ],
+          "operation": "flaky-python"
+        },
+        {
+          "checkpoint": {},
+          "id": "mutation",
+          "needs": [
+            "flaky-python"
+          ],
+          "operation": "mutation"
+        },
+        {
+          "checkpoint": {},
+          "id": "audit",
+          "needs": [
+            "mutation"
+          ],
+          "operation": "audit"
+        },
+        {
+          "checkpoint": {},
+          "id": "package",
+          "needs": [
+            "audit"
+          ],
+          "operation": "package"
+        }
+      ],
+      "presentation": "github-pr",
+      "trigger": "pull-request"
+    },
+    "release": {
+      "branches": [],
+      "concurrency": "release-publishing",
+      "dependencies": "graph",
+      "execution": "github-actions",
+      "inputs": {},
+      "nodes": [
+        {
+          "checkpoint": {},
+          "id": "build",
+          "needs": [],
+          "operation": "release-build"
+        },
+        {
+          "checkpoint": {},
+          "id": "publish-core",
+          "needs": [
+            "build"
+          ],
+          "operation": "publish-core"
+        },
+        {
+          "checkpoint": {},
+          "id": "publish-python",
+          "needs": [
+            "build"
+          ],
+          "operation": "publish-python"
+        },
+        {
+          "checkpoint": {},
+          "id": "publish-github",
+          "needs": [
+            "build",
+            "publish-core"
+          ],
+          "operation": "publish-github"
+        },
+        {
+          "checkpoint": {},
+          "id": "publish-cli",
+          "needs": [
+            "build",
+            "publish-core"
+          ],
+          "operation": "publish-cli"
+        },
+        {
+          "checkpoint": {},
+          "id": "release",
+          "needs": [
+            "publish-core",
+            "publish-python",
+            "publish-github",
+            "publish-cli"
+          ],
+          "operation": "github-release"
+        }
+      ],
+      "presentation": "release",
+      "tags": [
+        "v[0-9]+.[0-9]+.[0-9]+"
+      ],
+      "trigger": "push"
+    }
+  },
+  "graphDigest": "d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47",
   "graphVersion": 0,
   "labels": {
     "enabled": false
   },
-  "manifestVersion": 0,
-  "nodes": [
-    {
+  "manifestVersion": 1,
+  "operations": {
+    "analyze": {
+      "diffOnly": false,
       "env": {},
-      "id": "workflow-graph",
-      "needs": [],
+      "id": "analyze",
       "policy": {
         "approvals": {
           "files": false,
@@ -32,16 +399,86 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make graph-validate"
+        "run": "make analyze"
       },
-      "title": "Workflow graph validation"
+      "title": "Static analysis"
     },
-    {
+    "audit": {
+      "diffOnly": false,
+      "env": {},
+      "id": "audit",
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make audit"
+      },
+      "title": "Dependency and secret audit"
+    },
+    "coverage": {
+      "diffOnly": false,
+      "env": {},
+      "id": "coverage",
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make coverage-diff"
+      },
+      "title": "Coverage and diff coverage"
+    },
+    "flaky-python": {
+      "diffOnly": false,
+      "env": {},
+      "id": "flaky-python",
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make flaky-python"
+      },
+      "title": "Changed Python flaky-test detection"
+    },
+    "format": {
+      "diffOnly": false,
       "env": {},
       "id": "format",
-      "needs": [
-        "workflow-graph"
-      ],
       "policy": {
         "approvals": {
           "files": false,
@@ -62,12 +499,51 @@
       },
       "title": "Format check"
     },
-    {
+    "github-release": {
+      "diffOnly": false,
       "env": {},
-      "id": "suppressions",
-      "needs": [
-        "format"
+      "id": "github-release",
+      "permissions": {
+        "contents": "write"
+      },
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "release",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "with": {
+            "merge-multiple": "true",
+            "path": "dist",
+            "pattern": "quality-graph-*"
+          }
+        },
+        {
+          "env": {
+            "GH_TOKEN": "${{ github.token }}"
+          },
+          "name": "Create immutable GitHub release",
+          "run": "gh release create \"$GITHUB_REF_NAME\" dist/* --generate-notes --verify-tag --repo \"$GITHUB_REPOSITORY\""
+        }
       ],
+      "title": "Github Release"
+    },
+    "lint": {
+      "diffOnly": false,
+      "env": {},
+      "id": "lint",
       "policy": {
         "approvals": {
           "files": false,
@@ -84,16 +560,62 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make python-suppressions"
+        "run": "make lint"
       },
-      "title": "Lint suppression gate"
+      "title": "Lint"
     },
-    {
+    "mutation": {
+      "diffOnly": false,
+      "env": {},
+      "id": "mutation",
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make mutation-diff"
+      },
+      "title": "Changed decision mutation gate"
+    },
+    "no-comments": {
+      "diffOnly": false,
+      "env": {},
+      "id": "no-comments",
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make python-no-comments"
+      },
+      "title": "Python no-comments policy"
+    },
+    "object-annotations": {
+      "diffOnly": false,
       "env": {},
       "id": "object-annotations",
-      "needs": [
-        "format"
-      ],
       "policy": {
         "approvals": {
           "files": false,
@@ -115,12 +637,10 @@
       },
       "title": "Python object annotation gate"
     },
-    {
+    "package": {
+      "diffOnly": false,
       "env": {},
-      "id": "triple-quotes",
-      "needs": [
-        "format"
-      ],
+      "id": "package",
       "policy": {
         "approvals": {
           "files": false,
@@ -137,16 +657,248 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make python-triple-quotes"
+        "run": "make package"
       },
-      "title": "Triple-quoted string style"
+      "title": "Package"
     },
-    {
+    "publish-cli": {
+      "diffOnly": false,
       "env": {},
-      "id": "no-comments",
-      "needs": [
-        "format"
+      "environment": {
+        "name": "pypi-cli",
+        "url": "https://pypi.org/project/quality-graph-cli/"
+      },
+      "id": "publish-cli",
+      "permissions": {
+        "id-token": "write"
+      },
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "release",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "with": {
+            "name": "quality-graph-cli",
+            "path": "dist"
+          }
+        },
+        {
+          "uses": "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        }
       ],
+      "title": "Publish Cli"
+    },
+    "publish-core": {
+      "diffOnly": false,
+      "env": {},
+      "environment": {
+        "name": "pypi",
+        "url": "https://pypi.org/project/quality-graph-core/"
+      },
+      "id": "publish-core",
+      "permissions": {
+        "id-token": "write"
+      },
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "release",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "with": {
+            "name": "quality-graph-core",
+            "path": "dist"
+          }
+        },
+        {
+          "uses": "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        }
+      ],
+      "title": "Publish Core"
+    },
+    "publish-github": {
+      "diffOnly": false,
+      "env": {},
+      "environment": {
+        "name": "pypi-github",
+        "url": "https://pypi.org/project/quality-graph-github/"
+      },
+      "id": "publish-github",
+      "permissions": {
+        "id-token": "write"
+      },
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "release",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "with": {
+            "name": "quality-graph-github",
+            "path": "dist"
+          }
+        },
+        {
+          "uses": "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        }
+      ],
+      "title": "Publish Github"
+    },
+    "publish-python": {
+      "diffOnly": false,
+      "env": {},
+      "environment": {
+        "name": "pypi-python",
+        "url": "https://pypi.org/project/quality-graph-python/"
+      },
+      "id": "publish-python",
+      "permissions": {
+        "id-token": "write"
+      },
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "release",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "with": {
+            "name": "quality-graph-python",
+            "path": "dist"
+          }
+        },
+        {
+          "uses": "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        }
+      ],
+      "title": "Publish Python"
+    },
+    "release-build": {
+      "diffOnly": false,
+      "env": {},
+      "id": "release-build",
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "release",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "persist-credentials": "false"
+          }
+        },
+        {
+          "uses": "astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78"
+        },
+        {
+          "run": "uv sync --locked --all-groups"
+        },
+        {
+          "name": "Verify release version",
+          "run": "test \"$GITHUB_REF_NAME\" = \"v$(uv run --locked --all-packages qg --version)\""
+        },
+        {
+          "run": "make check BASE=\"$GITHUB_SHA\""
+        },
+        {
+          "uses": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "with": {
+            "if-no-files-found": "error",
+            "name": "quality-graph-core",
+            "path": "dist/quality_graph_core-*"
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "with": {
+            "if-no-files-found": "error",
+            "name": "quality-graph-python",
+            "path": "dist/quality_graph_python-*"
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "with": {
+            "if-no-files-found": "error",
+            "name": "quality-graph-github",
+            "path": "dist/quality_graph_github-*"
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "with": {
+            "if-no-files-found": "error",
+            "name": "quality-graph-cli",
+            "path": "dist/quality_graph_cli-*"
+          }
+        }
+      ],
+      "title": "Release Build"
+    },
+    "suppressions": {
+      "diffOnly": false,
+      "env": {},
+      "id": "suppressions",
       "policy": {
         "approvals": {
           "files": false,
@@ -163,123 +915,14 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make python-no-comments"
+        "run": "make python-suppressions"
       },
-      "title": "Python no-comments policy"
+      "title": "Lint suppression gate"
     },
-    {
-      "env": {},
-      "id": "lint",
-      "needs": [
-        "suppressions",
-        "triple-quotes",
-        "no-comments"
-      ],
-      "policy": {
-        "approvals": {
-          "files": false,
-          "findings": true,
-          "node": false
-        },
-        "blocking": true,
-        "blockingSeverities": [
-          "error"
-        ]
-      },
-      "profile": "python",
-      "result": {
-        "adapter": "exit-code"
-      },
-      "step": {
-        "run": "make lint"
-      },
-      "title": "Lint"
-    },
-    {
-      "env": {},
-      "id": "type",
-      "needs": [
-        "object-annotations"
-      ],
-      "policy": {
-        "approvals": {
-          "files": false,
-          "findings": true,
-          "node": false
-        },
-        "blocking": true,
-        "blockingSeverities": [
-          "error"
-        ]
-      },
-      "profile": "python",
-      "result": {
-        "adapter": "exit-code"
-      },
-      "step": {
-        "run": "make type"
-      },
-      "title": "Type check"
-    },
-    {
-      "env": {},
-      "id": "analyze",
-      "needs": [
-        "lint",
-        "type"
-      ],
-      "policy": {
-        "approvals": {
-          "files": false,
-          "findings": true,
-          "node": false
-        },
-        "blocking": true,
-        "blockingSeverities": [
-          "error"
-        ]
-      },
-      "profile": "python",
-      "result": {
-        "adapter": "exit-code"
-      },
-      "step": {
-        "run": "make analyze"
-      },
-      "title": "Static analysis"
-    },
-    {
-      "env": {},
-      "id": "time-bombs",
-      "needs": [
-        "analyze"
-      ],
-      "policy": {
-        "approvals": {
-          "files": false,
-          "findings": true,
-          "node": false
-        },
-        "blocking": true,
-        "blockingSeverities": [
-          "error"
-        ]
-      },
-      "profile": "python",
-      "result": {
-        "adapter": "exit-code"
-      },
-      "step": {
-        "run": "make python-time-bombs"
-      },
-      "title": "Time bomb guardrail"
-    },
-    {
+    "test-fast": {
+      "diffOnly": false,
       "env": {},
       "id": "test-fast",
-      "needs": [
-        "time-bombs"
-      ],
       "policy": {
         "approvals": {
           "files": false,
@@ -300,12 +943,10 @@
       },
       "title": "Fast tests"
     },
-    {
+    "test-medium": {
+      "diffOnly": false,
       "env": {},
       "id": "test-medium",
-      "needs": [
-        "time-bombs"
-      ],
       "policy": {
         "approvals": {
           "files": false,
@@ -326,13 +967,10 @@
       },
       "title": "Medium tests"
     },
-    {
+    "time-bombs": {
+      "diffOnly": false,
       "env": {},
-      "id": "coverage",
-      "needs": [
-        "test-fast",
-        "test-medium"
-      ],
+      "id": "time-bombs",
       "policy": {
         "approvals": {
           "files": false,
@@ -349,16 +987,14 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make coverage-diff"
+        "run": "make python-time-bombs"
       },
-      "title": "Coverage and diff coverage"
+      "title": "Time bomb guardrail"
     },
-    {
+    "triple-quotes": {
+      "diffOnly": false,
       "env": {},
-      "id": "flaky-python",
-      "needs": [
-        "coverage"
-      ],
+      "id": "triple-quotes",
       "policy": {
         "approvals": {
           "files": false,
@@ -375,16 +1011,14 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make flaky-python"
+        "run": "make python-triple-quotes"
       },
-      "title": "Changed Python flaky-test detection"
+      "title": "Triple-quoted string style"
     },
-    {
+    "type": {
+      "diffOnly": false,
       "env": {},
-      "id": "mutation",
-      "needs": [
-        "flaky-python"
-      ],
+      "id": "type",
       "policy": {
         "approvals": {
           "files": false,
@@ -401,16 +1035,14 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make mutation-diff"
+        "run": "make type"
       },
-      "title": "Changed decision mutation gate"
+      "title": "Type check"
     },
-    {
+    "workflow-graph": {
+      "diffOnly": false,
       "env": {},
-      "id": "audit",
-      "needs": [
-        "mutation"
-      ],
+      "id": "workflow-graph",
       "policy": {
         "approvals": {
           "files": false,
@@ -427,37 +1059,11 @@
         "adapter": "exit-code"
       },
       "step": {
-        "run": "make audit"
+        "run": "make graph-validate"
       },
-      "title": "Dependency and secret audit"
-    },
-    {
-      "env": {},
-      "id": "package",
-      "needs": [
-        "audit"
-      ],
-      "policy": {
-        "approvals": {
-          "files": false,
-          "findings": true,
-          "node": false
-        },
-        "blocking": true,
-        "blockingSeverities": [
-          "error"
-        ]
-      },
-      "profile": "python",
-      "result": {
-        "adapter": "exit-code"
-      },
-      "step": {
-        "run": "make package"
-      },
-      "title": "Package"
+      "title": "Workflow graph validation"
     }
-  ],
+  },
   "profiles": {
     "default": {
       "env": {},
@@ -503,11 +1109,20 @@
           "run": "uv sync --locked --all-groups --all-packages"
         }
       ]
+    },
+    "release": {
+      "env": {},
+      "permissions": {
+        "contents": "read"
+      },
+      "runner": "ubuntu-latest",
+      "services": {},
+      "setup": []
     }
   },
   "provider": "github",
   "resultSchemaVersion": 0,
   "runtime": {
-    "action": "alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69"
+    "action": "alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1"
   }
 }

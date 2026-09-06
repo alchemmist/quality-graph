@@ -1,5 +1,16 @@
 # Releases
 
+The release pipeline is declared in the `release` flow of `qg.yaml` and compiled into
+`.github/workflows/release.yml`. Edit the declaration and run `make graph-generate`; do not edit
+the generated workflow. The workflow path and the four PyPI environments remain unchanged,
+so existing Trusted Publisher bindings continue to apply.
+
+The release build operation retains checkout, dependency installation, version verification,
+the complete quality gate, and four artifact uploads. Four isolated publishing operations
+download those artifacts; GitHub Release creation depends on all four publishers. The flow
+serializes active releases without cancelling them. Failed-job reruns use retained artifacts;
+duplicate publication is rejected by the external publishers rather than silently ignored.
+
 An exact semantic-version tag triggers the release workflow. The tag version must match all
 four workspace distributions.
 

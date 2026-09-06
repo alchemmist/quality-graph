@@ -6,134 +6,357 @@ provider:
     merge:
       required: true
     runtime:
-      action: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+      action: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
       publisher-action: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
 
 profiles:
   default:
     runner: ubuntu-latest
     setup:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: "false"
-          fetch-depth: "0"
-
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: 'false'
+        fetch-depth: '0'
   python:
     extends: default
     setup:
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: "true"
-          cache-dependency-glob: uv.lock
-      - name: Install locked dependencies
-        run: uv sync --locked --all-groups --all-packages
-
-nodes:
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: 'true'
+        cache-dependency-glob: uv.lock
+    - name: Install locked dependencies
+      run: uv sync --locked --all-groups --all-packages
+  release:
+    runner: ubuntu-latest
+operations:
   workflow-graph:
     title: Workflow graph validation
     profile: python
     run: make graph-validate
-
   format:
     title: Format check
     profile: python
-    needs: [workflow-graph]
     run: make fmt-check
-
   suppressions:
     title: Lint suppression gate
     profile: python
-    needs: [format]
     run: make python-suppressions
-
   object-annotations:
     title: Python object annotation gate
     profile: python
-    needs: [format]
-    run: |
-      mkdir -p reports
+    run: 'mkdir -p reports
+
       set -o pipefail
+
       make python-object-annotations 2>&1 | tee reports/object-annotations.log
+
+      '
     results:
       exit-code: reports/object-annotations.log
     policy:
       approvals:
         node: true
-
   triple-quotes:
     title: Triple-quoted string style
     profile: python
-    needs: [format]
     run: make python-triple-quotes
-
   no-comments:
     title: Python no-comments policy
     profile: python
-    needs: [format]
     run: make python-no-comments
-
   lint:
     title: Lint
     profile: python
-    needs: [suppressions, triple-quotes, no-comments]
     run: make lint
-
   type:
     title: Type check
     profile: python
-    needs: [object-annotations]
     run: make type
-
   analyze:
     title: Static analysis
     profile: python
-    needs: [lint, type]
     run: make analyze
-
   time-bombs:
     title: Time bomb guardrail
     profile: python
-    needs: [analyze]
     run: make python-time-bombs
-
   test-fast:
     title: Fast tests
     profile: python
-    needs: [time-bombs]
     run: make t-fast
-
   test-medium:
     title: Medium tests
     profile: python
-    needs: [time-bombs]
     run: make t-medium
-
   coverage:
     title: Coverage and diff coverage
     profile: python
-    needs: [test-fast, test-medium]
     run: make coverage-diff
-
   flaky-python:
     title: Changed Python flaky-test detection
     profile: python
-    needs: [coverage]
     run: make flaky-python
-
   mutation:
     title: Changed decision mutation gate
     profile: python
-    needs: [flaky-python]
     run: make mutation-diff
-
   audit:
     title: Dependency and secret audit
     profile: python
-    needs: [mutation]
     run: make audit
-
   package:
     title: Package
     profile: python
-    needs: [audit]
     run: make package
+  release-build:
+    profile: release
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: 'false'
+    - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+    - run: uv sync --locked --all-groups
+    - name: Verify release version
+      run: test "$GITHUB_REF_NAME" = "v$(uv run --locked --all-packages qg --version)"
+    - run: make check BASE="$GITHUB_SHA"
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: quality-graph-core
+        path: dist/quality_graph_core-*
+        if-no-files-found: error
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: quality-graph-python
+        path: dist/quality_graph_python-*
+        if-no-files-found: error
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: quality-graph-github
+        path: dist/quality_graph_github-*
+        if-no-files-found: error
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: quality-graph-cli
+        path: dist/quality_graph_cli-*
+        if-no-files-found: error
+  publish-core:
+    profile: release
+    steps:
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        name: quality-graph-core
+        path: dist
+    - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+    permissions:
+      id-token: write
+    environment:
+      name: pypi
+      url: https://pypi.org/project/quality-graph-core/
+  publish-python:
+    profile: release
+    steps:
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        name: quality-graph-python
+        path: dist
+    - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+    permissions:
+      id-token: write
+    environment:
+      name: pypi-python
+      url: https://pypi.org/project/quality-graph-python/
+  publish-github:
+    profile: release
+    steps:
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        name: quality-graph-github
+        path: dist
+    - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+    permissions:
+      id-token: write
+    environment:
+      name: pypi-github
+      url: https://pypi.org/project/quality-graph-github/
+  publish-cli:
+    profile: release
+    steps:
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        name: quality-graph-cli
+        path: dist
+    - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+    permissions:
+      id-token: write
+    environment:
+      name: pypi-cli
+      url: https://pypi.org/project/quality-graph-cli/
+  github-release:
+    profile: release
+    steps:
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        pattern: quality-graph-*
+        path: dist
+        merge-multiple: 'true'
+    - name: Create immutable GitHub release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: >-
+        gh release create "$GITHUB_REF_NAME" dist/* --generate-notes
+        --verify-tag --repo "$GITHUB_REPOSITORY"
+    permissions:
+      contents: write
+flows:
+  pull-request:
+    trigger: pull-request
+    dependencies: graph
+    presentation: github-pr
+    nodes:
+      workflow-graph: {}
+      format:
+        needs:
+        - workflow-graph
+      suppressions:
+        needs:
+        - format
+      object-annotations:
+        needs:
+        - format
+      triple-quotes:
+        needs:
+        - format
+      no-comments:
+        needs:
+        - format
+      lint:
+        needs:
+        - suppressions
+        - triple-quotes
+        - no-comments
+      type:
+        needs:
+        - object-annotations
+      analyze:
+        needs:
+        - lint
+        - type
+      time-bombs:
+        needs:
+        - analyze
+      test-fast:
+        needs:
+        - time-bombs
+      test-medium:
+        needs:
+        - time-bombs
+      coverage:
+        needs:
+        - test-fast
+        - test-medium
+      flaky-python:
+        needs:
+        - coverage
+      mutation:
+        needs:
+        - flaky-python
+      audit:
+        needs:
+        - mutation
+      package:
+        needs:
+        - audit
+  main:
+    trigger:
+      push:
+        branches:
+        - main
+    dependencies: graph
+    presentation: none
+    nodes:
+      workflow-graph: {}
+      format:
+        needs:
+        - workflow-graph
+      suppressions:
+        needs:
+        - format
+      object-annotations:
+        needs:
+        - format
+      triple-quotes:
+        needs:
+        - format
+      no-comments:
+        needs:
+        - format
+      lint:
+        needs:
+        - suppressions
+        - triple-quotes
+        - no-comments
+      type:
+        needs:
+        - object-annotations
+      analyze:
+        needs:
+        - lint
+        - type
+      time-bombs:
+        needs:
+        - analyze
+      test-fast:
+        needs:
+        - time-bombs
+      test-medium:
+        needs:
+        - time-bombs
+      coverage:
+        needs:
+        - test-fast
+        - test-medium
+      flaky-python:
+        needs:
+        - coverage
+      mutation:
+        needs:
+        - flaky-python
+      audit:
+        needs:
+        - mutation
+      package:
+        needs:
+        - audit
+  release:
+    trigger:
+      push:
+        tags:
+        - v[0-9]+.[0-9]+.[0-9]+
+    execution: github-actions
+    dependencies: graph
+    concurrency: release-publishing
+    presentation: release
+    nodes:
+      build:
+        operation: release-build
+      publish-core:
+        needs:
+        - build
+      publish-python:
+        needs:
+        - build
+      publish-github:
+        needs:
+        - build
+        - publish-core
+      publish-cli:
+        needs:
+        - build
+        - publish-core
+      release:
+        operation: github-release
+        needs:
+        - publish-core
+        - publish-python
+        - publish-github
+        - publish-cli
