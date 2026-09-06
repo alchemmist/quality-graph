@@ -161,7 +161,7 @@ The trusted publisher normally validates artifacts against the base-branch decla
 only the declaration digest changes, a publisher containing this migration support can also read
 the immutable PR-head declaration and compare its effective PR contract with the base. Acceptance
 requires identical node identities, commands, adapters, dependencies, effective profiles, labels,
-administrator roles, provider settings and runtime repository. Pin revisions and unrelated flows
+administrator roles, provider settings, runtime repository and artifact-upload repository. Pin revisions and unrelated flows
 may change. Results must then match the actual head declaration digest and flow/operation IDs;
 the publisher never rewrites results to claim the base digest.
 
