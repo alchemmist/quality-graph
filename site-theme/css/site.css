@@ -134,29 +134,16 @@ a:focus-visible {
   flex: none;
   align-items: center;
   gap: 12px;
-  color: var(--ink);
   opacity: 0.76;
   font-size: 1rem;
   font-weight: 700;
-  text-decoration: none;
   white-space: nowrap;
-  transition: opacity 160ms ease-out;
-}
-
-.adopter:hover,
-.adopter:focus-visible {
-  opacity: 1;
 }
 
 .adopter img {
   width: 30px;
   height: 30px;
   object-fit: contain;
-}
-
-.adopters-window:hover .adopters-track,
-.adopters-window:focus-within .adopters-track {
-  animation-play-state: paused;
 }
 
 @keyframes adopters-scroll {

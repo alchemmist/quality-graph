@@ -32,10 +32,10 @@
             <div class="adopters-track">
               <div class="adopters-set">
                 {% for adopter in config.extra.adopters %}
-                  <a class="adopter" href="https://github.com/{{ adopter.repository }}">
+                  <span class="adopter">
                     <img src="{{ adopter.logo | url }}" alt="">
                     <span>{{ adopter.name }}</span>
-                  </a>
+                  </span>
                 {% endfor %}
               </div>
               <div class="adopters-set" aria-hidden="true">
