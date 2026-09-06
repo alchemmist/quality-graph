@@ -154,6 +154,15 @@ def test_release_inputs_reject_invalid_types_and_defaults(
 
 def test_programmatic_flows_validate_membership_and_unique_identities() -> None:
     graph = Graph.from_yaml(SOURCE)
+    assert (
+        Graph(
+            provider=graph.provider,
+            profiles=graph.profiles,
+            operations=graph.operations,
+            flows=graph.flows,
+        )
+        == graph
+    )
     with pytest.raises(ValueError, match="unique"):
         replace(graph, operations=(*graph.operations, graph.operations[0]))
     with pytest.raises(ValueError, match="unique"):
@@ -209,3 +218,70 @@ def test_result_requires_valid_paired_flow_and_operation_provenance(
             flow_id=flow_id,
             operation_id=operation_id,
         )
+
+
+def test_flow_resolution_preserves_the_full_operation_contract() -> None:
+    source = SOURCE.replace(
+        "profiles: {default: {}}", "profiles: {default: {}, python: {extends: default}}"
+    )
+    source = source.replace(
+        "lint: {run: make lint}",
+        "lint: {title: Analysis, run: make lint, profile: python, env: {MODE: strict}, "
+        "results: {sarif: lint.sarif}, timeout-minutes: 12, label: 'quality:lint', "
+        "policy: {blocking: false, approvals: {files: true, node: true}}}",
+    )
+    graph = Graph.from_yaml(source)
+    flow = graph.for_flow("review")
+    node = flow.nodes[0]
+    assert flow.flow_id == "review"
+    assert flow.operations == ()
+    assert flow.flows == ()
+    assert node.operation_id == "lint"
+    assert node.title == "Analysis"
+    assert node.profile == "python"
+    assert node.step.run == "make lint"
+    assert node.environment == {"MODE": "strict"}
+    assert node.timeout_minutes == 12
+    assert node.result.path == "lint.sarif"
+    assert node.policy.blocking is False
+    assert node.policy.approvals.files is True
+    assert node.policy.approvals.node is True
+    assert node.failing_label is not None
+    repeated = replace(
+        graph,
+        flows=(
+            replace(
+                graph.flows[0],
+                nodes=(FlowNode("first", "lint"), FlowNode("second", "lint", ("first",))),
+            ),
+        ),
+    )
+    nodes = repeated.for_flow("review").nodes
+    assert [item.title for item in nodes] == ["Analysis (first)", "Analysis (second)"]
+    assert nodes[0].step == nodes[1].step
+    assert nodes[1].needs == ("first",)
+
+
+def test_explicit_provenance_round_trip_preserves_flow_and_operation() -> None:
+    provenance = Provenance("owner/repository", "a" * 40, 10, 1, "b" * 64, 42, "review", "lint")
+    assert provenance.to_value() == {
+        "repository": "owner/repository",
+        "headSha": "a" * 40,
+        "workflowRunId": 10,
+        "runAttempt": 1,
+        "graphDigest": "b" * 64,
+        "pullRequest": 42,
+        "flowId": "review",
+        "operationId": "lint",
+    }
+    assert Provenance.from_value(provenance.to_value()) == provenance
+
+
+def test_aliased_operation_titles_fit_the_result_protocol() -> None:
+    graph = Graph.from_yaml(SOURCE)
+    flow = replace(graph.flows[0], nodes=(FlowNode("alias", "lint"),))
+    operation = replace(graph.operations[0], title="a" * 247)
+    maximum = replace(graph, operations=(operation,), flows=(flow,))
+    assert len(maximum.for_flow("review").nodes[0].title) == 255
+    with pytest.raises(ValueError, match="title exceeds"):
+        replace(maximum, operations=(replace(operation, title="a" * 248),))

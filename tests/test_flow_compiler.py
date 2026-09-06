@@ -202,3 +202,33 @@ def test_required_check_requires_pr_presentation() -> None:
                 ),
             )
         )
+
+
+def test_release_only_contract_preserves_dispatch_inputs_without_workflows() -> None:
+    graph = Graph.from_yaml(SOURCE)
+    release = replace(graph.flows[2], inputs={"version": {"type": "string", "required": True}})
+    compiled = compile_graph(replace(graph, flows=(release,)))
+    assert [str(item.path) for item in compiled.files] == [".quality-graph/manifest.json"]
+    assert {str(path) for path in compiled.retired_files} == {
+        ".github/workflows/quality-graph.yml",
+        ".github/workflows/quality-graph-push.yml",
+        ".github/workflows/quality-graph-publish.yml",
+    }
+    manifest = json.loads(compiled.files[0].content)
+    assert manifest["flows"]["release"]["inputs"] == {
+        "version": {"type": "string", "required": True}
+    }
+
+
+def test_required_check_accepts_enabled_pr_presentation() -> None:
+    graph = Graph.from_yaml(SOURCE)
+    graph = replace(
+        graph,
+        provider=replace(
+            graph.provider, values={**graph.provider.values, "merge": {"required": True}}
+        ),
+    )
+    assert any(
+        str(item.path) == ".github/workflows/quality-graph-publish.yml"
+        for item in compile_graph(graph).files
+    )

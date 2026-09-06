@@ -19,6 +19,7 @@ ADMIN_ROLES = {"admin", "maintain", "write"}
 MAX_TIMEOUT_MINUTES = 360
 MAX_LABEL_NAME_LENGTH = 50
 MAX_LABEL_DESCRIPTION_LENGTH = 100
+MAX_NODE_TITLE_LENGTH = 255
 
 
 class AdapterKind(StrEnum):
@@ -223,9 +224,13 @@ class Operation:
 
     def place(self, placement: FlowNode, dependencies: DependencyPolicy) -> Node:
         """Resolve this contract at a flow-local identity."""
+        title = self.title if placement.id == self.id else f"{self.title} ({placement.id})"
+        if len(title) > MAX_NODE_TITLE_LENGTH:
+            message = f"flow placement title exceeds the result protocol limit: {placement.id}"
+            raise ValueError(message)
         return Node(
             id=placement.id,
-            title=self.title if placement.id == self.id else f"{self.title} ({placement.id})",
+            title=title,
             step=self.step,
             profile=self.profile,
             needs=placement.needs if dependencies is DependencyPolicy.GRAPH else (),
@@ -280,7 +285,7 @@ class Graph:
 
     provider: ProviderConfiguration
     profiles: tuple[Profile, ...]
-    nodes: tuple[Node, ...]
+    nodes: tuple[Node, ...] = ()
     labels: LabelPolicy = LabelPolicy()
     administrator_roles: tuple[str, ...] = ("admin",)
     version: int = 0

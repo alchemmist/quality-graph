@@ -81,10 +81,19 @@ def test_explicit_pr_collection_and_publication_converge_over_http(
     assert len(cast("list[JsonValue]", observed["checks"])) == 1
 
 
-@pytest.mark.parametrize("flow_id", ["main", "release", None])
+@pytest.mark.parametrize(
+    ("flow_id", "operation_id"),
+    [
+        ("main", "lint"),
+        ("release", "lint"),
+        (None, None),
+        ("review", "test"),
+    ],
+)
 def test_pr_artifact_reader_rejects_a_different_or_missing_flow(
     fake_github: FakeGitHubScenario,
     flow_id: str | None,
+    operation_id: str | None,
 ) -> None:
     original = result()
     content = archive(
@@ -93,7 +102,7 @@ def test_pr_artifact_reader_rejects_a_different_or_missing_flow(
             provenance=replace(
                 original.provenance,
                 flow_id=flow_id,
-                operation_id="lint" if flow_id else None,
+                operation_id=operation_id,
             ),
         )
     )
