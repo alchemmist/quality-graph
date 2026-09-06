@@ -63,6 +63,8 @@ def parser() -> argparse.ArgumentParser:
     emit.add_argument("--metric", action="append", default=[])
     emit.add_argument("--repository", required=True)
     emit.add_argument("--pull-request", type=int)
+    emit.add_argument("--flow-id")
+    emit.add_argument("--operation-id")
     emit.add_argument("--head-sha", required=True)
     emit.add_argument("--workflow-run-id", type=int, required=True)
     emit.add_argument("--run-attempt", type=int, required=True)
@@ -160,6 +162,8 @@ def _emitted_result(args: argparse.Namespace) -> Result:
             args.run_attempt,
             args.graph_digest,
             args.pull_request,
+            args.flow_id,
+            args.operation_id,
         ),
         failure,
         args.summary,

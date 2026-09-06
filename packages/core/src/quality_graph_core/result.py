@@ -333,6 +333,8 @@ class Provenance:
     run_attempt: int
     graph_digest: str
     pull_request: int | None = None
+    flow_id: str | None = None
+    operation_id: str | None = None
 
     def __post_init__(self) -> None:
         """Validate workflow identity and attempt provenance."""
@@ -351,6 +353,13 @@ class Provenance:
         if DIGEST_RE.fullmatch(self.graph_digest) is None:
             message = "graph digest must contain 64 lowercase hexadecimal characters"
             raise ValueError(message)
+        if (self.flow_id is None) != (self.operation_id is None):
+            message = "flow and operation provenance must be supplied together"
+            raise ValueError(message)
+        for identity in (self.flow_id, self.operation_id):
+            if identity is not None and IDENTIFIER_RE.fullmatch(identity) is None:
+                message = "invalid flow or operation provenance identifier"
+                raise ValueError(message)
 
     def to_value(self) -> dict[str, JsonValue]:
         """Serialize provenance into the protocol JSON domain."""
@@ -362,6 +371,8 @@ class Provenance:
             "graphDigest": self.graph_digest,
         }
         _put_optional(value, "pullRequest", self.pull_request)
+        _put_optional(value, "flowId", self.flow_id)
+        _put_optional(value, "operationId", self.operation_id)
         return value
 
     @classmethod
@@ -375,6 +386,8 @@ class Provenance:
             "workflowRunId",
             "runAttempt",
             "graphDigest",
+            "flowId",
+            "operationId",
         }
         _reject_unknown(data, known, "provenance")
         return cls(
@@ -384,6 +397,8 @@ class Provenance:
             _integer(data.get("runAttempt"), "run attempt"),
             _string(data.get("graphDigest"), "graph digest"),
             _optional_integer(data.get("pullRequest"), "pull request"),
+            _optional_string(data.get("flowId"), "flow id"),
+            _optional_string(data.get("operationId"), "operation id"),
         )
 
 

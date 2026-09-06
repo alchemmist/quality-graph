@@ -140,6 +140,7 @@ only_mutate = [
   "packages/python/src/qg_python/triple_quotes.py",
 ]
 also_copy = [
+  "tools/adopter-discovery",
   ".github",
   "apps",
   "tests",

@@ -167,7 +167,20 @@
     },
     "provenance": {
       "additionalProperties": false,
+      "dependentRequired": {
+        "flowId": [
+          "operationId"
+        ],
+        "operationId": [
+          "flowId"
+        ]
+      },
       "properties": {
+        "flowId": {
+          "minLength": 0,
+          "pattern": "^[a-z][a-z0-9-]{0,62}$",
+          "type": "string"
+        },
         "graphDigest": {
           "minLength": 0,
           "pattern": "^[0-9a-f]{64}$",
@@ -176,6 +189,11 @@
         "headSha": {
           "minLength": 0,
           "pattern": "^[0-9a-f]{40}(?:[0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "operationId": {
+          "minLength": 0,
+          "pattern": "^[a-z][a-z0-9-]{0,62}$",
           "type": "string"
         },
         "pullRequest": {

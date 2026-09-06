@@ -21,6 +21,8 @@ nav:
       - Migration: migration.md
   - Reference:
       - Configuration: configuration.md
+      - Operations and flows: flows.md
+      - Release flow contracts: release-flows.md
       - Required checks: required-checks.md
       - Result protocol: result-protocol.md
       - Result adapters: adapters.md

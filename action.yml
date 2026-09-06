@@ -9,6 +9,15 @@ inputs:
     description: Stable graph node identifier
     required: false
     default: ""
+  flow-id:
+    description: Explicit flow identity, empty for legacy graphs
+    default: ""
+  operation-id:
+    description: Reusable operation identity, empty for legacy graphs
+    default: ""
+  presentation:
+    description: Flow presentation adapter
+    default: github-pr
   title:
     description: Human-readable node title
     required: false
@@ -63,6 +72,9 @@ runs:
         GITHUB_TOKEN: ${{ github.token }}
         QG_OPERATION: ${{ inputs.operation }}
         QG_NODE_ID: ${{ inputs.node-id }}
+        QG_FLOW_ID: ${{ inputs.flow-id }}
+        QG_OPERATION_ID: ${{ inputs.operation-id }}
+        QG_PRESENTATION: ${{ inputs.presentation }}
         QG_TITLE: ${{ inputs.title }}
         QG_ADAPTER: ${{ inputs.adapter }}
         QG_REPORT_PATH: ${{ inputs.report-path }}
