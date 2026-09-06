@@ -46,6 +46,7 @@ def test_release_generates_tag_bound_jobs_with_artifact_handoff_and_oidc() -> No
     files = {str(item.path): item.content for item in compiled.files}
     assert set(files) == {".github/workflows/release.yml", ".quality-graph/manifest.json"}
     workflow = yaml.safe_load(files[".github/workflows/release.yml"])
+    assert workflow["name"] == "Release"
     assert workflow["on"] == {"push": {"tags": ["v[0-9]+.[0-9]+.[0-9]+"]}}
     assert workflow["concurrency"] == {
         "group": "quality-graph-publishing",
@@ -189,3 +190,13 @@ def test_primary_step_cannot_disagree_with_the_sequence() -> None:
             graph,
             operations=(replace(graph.operations[0], step=Step(run="true")), graph.operations[1]),
         )
+
+
+def test_release_permissions_can_be_inherited_from_an_isolated_profile() -> None:
+    graph = Graph.from_yaml(RELEASE_SOURCE)
+    graph = replace(
+        graph, profiles=(replace(graph.profiles[0], permissions={"id-token": "write"}),)
+    )
+    files = {str(item.path): item.content for item in compile_graph(graph).files}
+    workflow = yaml.safe_load(files[".github/workflows/release.yml"])
+    assert workflow["jobs"]["build"]["permissions"] == {"id-token": "write"}

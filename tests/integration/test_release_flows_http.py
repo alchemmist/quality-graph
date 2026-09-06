@@ -118,13 +118,18 @@ def test_disabling_release_retires_only_the_compiler_owned_workflow(tmp_path: Pa
     assert project.validate().current
 
 
-def test_generated_release_cannot_write_through_an_escaping_parent(tmp_path: Path) -> None:
+@pytest.mark.parametrize("mode", ["github-actions", "design-only"])
+def test_generated_release_cannot_write_through_an_escaping_parent(
+    tmp_path: Path, mode: str
+) -> None:
     root = tmp_path / "project"
     external = tmp_path / "external"
     external.mkdir()
     (root / ".github").mkdir(parents=True)
     (root / ".github/workflows").symlink_to(external, target_is_directory=True)
-    (root / "qg.yaml").write_text(RELEASE_SOURCE)
+    (root / "qg.yaml").write_text(
+        RELEASE_SOURCE.replace("execution: github-actions", f"execution: {mode}")
+    )
     with pytest.raises(ValueError, match="outside the project root"):
         Project.open(root).generate()
     assert list(external.iterdir()) == []
