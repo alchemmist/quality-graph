@@ -80,6 +80,7 @@ adopters-find:
 	uv run --project tools/adopter-discovery --locked qg-find-adopters
 
 users:
+	@set -a; . ./.env; set +a; \
 	uv run --project tools/adopter-discovery --locked qg-find-adopters --new-only
 
 examples-generate:
