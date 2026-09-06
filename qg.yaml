@@ -7,7 +7,7 @@ provider:
       required: true
     runtime:
       action: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
-      publisher-action: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+      publisher-action: alchemmist/quality-graph@7750de30e0252fe2fa7d3dba5fd834fceef19742
 
 profiles:
   default:
