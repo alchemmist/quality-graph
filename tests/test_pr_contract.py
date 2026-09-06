@@ -14,6 +14,7 @@ def test_pr_contract_keeps_checks_and_governance_but_excludes_pin_revisions() ->
         "provider",
         "configuration",
         "runtimeRepository",
+        "uploadArtifactRepository",
         "nodes",
         "profiles",
         "labels",
@@ -22,6 +23,7 @@ def test_pr_contract_keeps_checks_and_governance_but_excludes_pin_revisions() ->
     assert contract["provider"] == "github"
     assert contract["configuration"] == {}
     assert contract["runtimeRepository"] == "owner/runtime"
+    assert contract["uploadArtifactRepository"] == "actions/upload-artifact"
     assert contract["administration"] == ["admin"]
     assert contract["labels"] == {"enabled": False}
     assert contract["profiles"] == {

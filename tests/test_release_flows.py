@@ -200,3 +200,15 @@ def test_release_permissions_can_be_inherited_from_an_isolated_profile() -> None
     files = {str(item.path): item.content for item in compile_graph(graph).files}
     workflow = yaml.safe_load(files[".github/workflows/release.yml"])
     assert workflow["jobs"]["build"]["permissions"] == {"id-token": "write"}
+
+
+def test_long_release_commands_are_wrapped_without_changing_shell_contents() -> None:
+    command = (
+        'gh release create "$GITHUB_REF_NAME" dist/* --generate-notes '
+        '--verify-tag --repo "$GITHUB_REPOSITORY"'
+    )
+    source = RELEASE_SOURCE.replace("make package", command)
+    files = {str(item.path): item.content for item in compile_graph(Graph.from_yaml(source)).files}
+    text = files[".github/workflows/release.yml"]
+    assert max(len(line) for line in text.splitlines()) <= 100
+    assert yaml.safe_load(text)["jobs"]["build"]["steps"][0]["run"] == command

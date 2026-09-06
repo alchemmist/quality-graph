@@ -8,6 +8,7 @@ provider:
     runtime:
       action: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
       publisher-action: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
+
 profiles:
   default:
     runner: ubuntu-latest

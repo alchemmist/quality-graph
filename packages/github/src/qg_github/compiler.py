@@ -457,7 +457,7 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
             else PUSH_WORKFLOW
         )
         files.append(
-            GeneratedFile(path, _yaml_file(workflow, width=100 if flow.is_release else 1_000))
+            GeneratedFile(path, _yaml_file(workflow, width=80 if flow.is_release else 1_000))
         )
     if any(flow.presentation == "github-pr" for flow in graph.flows):
         files.append(
@@ -620,6 +620,7 @@ def pr_contract(graph: Graph) -> dict[str, JsonValue]:
         "provider": graph.provider.name,
         "configuration": configuration,
         "runtimeRepository": _runtime_action(runtime.get("action"), "runtime").partition("@")[0],
+        "uploadArtifactRepository": _upload_artifact_action(runtime).partition("@")[0],
         "nodes": [_node_value(node, profiles[node.profile]) for node in graph.nodes],
         "profiles": {node.profile: _profile_value(profiles[node.profile]) for node in graph.nodes},
         "labels": _labels_value(graph),

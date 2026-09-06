@@ -93,7 +93,16 @@ def test_equivalent_flow_migration_publishes_without_forging_base_provenance(
 
 
 @pytest.mark.parametrize(
-    "change", ["command", "dependencies", "policy", "roles", "runtime-repository", "presentation"]
+    "change",
+    [
+        "command",
+        "dependencies",
+        "policy",
+        "roles",
+        "runtime-repository",
+        "presentation",
+        "upload-repository",
+    ],
 )
 def test_changed_pr_contract_cannot_use_migration_to_bypass_base_policy(
     fake_github: FakeGitHubScenario, change: str
@@ -111,6 +120,11 @@ def test_changed_pr_contract_cannot_use_migration_to_bypass_base_policy(
         source["administration"] = {"roles": ["write"]}
     elif change == "presentation":
         cast("dict[str, dict[str, JsonValue]]", source["flows"])["review"]["presentation"] = "none"
+    elif change == "upload-repository":
+        provider = cast("dict[str, dict[str, JsonValue]]", source["provider"])
+        cast("dict[str, JsonValue]", provider["configuration"]["runtime"])[
+            "upload-artifact-action"
+        ] = "other/uploader@" + "1" * 40
     else:
         provider = cast("dict[str, dict[str, JsonValue]]", source["provider"])
         provider["configuration"]["runtime"] = {"action": "other/runtime@" + "1" * 40}
