@@ -16,6 +16,14 @@
           "minLength": 0,
           "type": "string"
         },
+        "execution": {
+          "enum": [
+            "design-only",
+            "github-actions"
+          ],
+          "minLength": 0,
+          "type": "string"
+        },
         "nodes": {
           "additionalProperties": {
             "additionalProperties": false,
@@ -105,6 +113,35 @@
                   },
                   "required": [
                     "branches"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "push"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "push": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "tags": {
+                      "items": {
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "maxItems": 100,
+                      "minItems": 1,
+                      "type": "array",
+                      "uniqueItems": true
+                    }
+                  },
+                  "required": [
+                    "tags"
                   ],
                   "type": "object"
                 }
@@ -221,8 +258,17 @@
       "oneOf": [
         {
           "not": {
-            "required": [
-              "uses"
+            "anyOf": [
+              {
+                "required": [
+                  "uses"
+                ]
+              },
+              {
+                "required": [
+                  "steps"
+                ]
+              }
             ]
           },
           "required": [
@@ -231,12 +277,55 @@
         },
         {
           "not": {
-            "required": [
-              "run"
+            "anyOf": [
+              {
+                "required": [
+                  "run"
+                ]
+              },
+              {
+                "required": [
+                  "steps"
+                ]
+              }
             ]
           },
           "required": [
             "uses"
+          ]
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "run"
+                ]
+              },
+              {
+                "required": [
+                  "uses"
+                ]
+              },
+              {
+                "required": [
+                  "with"
+                ]
+              },
+              {
+                "required": [
+                  "shell"
+                ]
+              },
+              {
+                "required": [
+                  "working-directory"
+                ]
+              }
+            ]
+          },
+          "required": [
+            "steps"
           ]
         }
       ],
@@ -246,6 +335,33 @@
             "type": "string"
           },
           "type": "object"
+        },
+        "environment": {
+          "oneOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "url": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            }
+          ]
         },
         "events": {
           "items": {
@@ -286,6 +402,12 @@
           "maxItems": 1000,
           "type": "array"
         },
+        "permissions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
         "policy": {
           "additionalProperties": false,
           "properties": {
@@ -366,6 +488,13 @@
         "shell": {
           "minLength": 1,
           "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/step"
+          },
+          "minItems": 1,
+          "type": "array"
         },
         "timeout-minutes": {
           "maximum": 360,
@@ -400,8 +529,17 @@
       "oneOf": [
         {
           "not": {
-            "required": [
-              "uses"
+            "anyOf": [
+              {
+                "required": [
+                  "uses"
+                ]
+              },
+              {
+                "required": [
+                  "steps"
+                ]
+              }
             ]
           },
           "required": [
@@ -410,12 +548,55 @@
         },
         {
           "not": {
-            "required": [
-              "run"
+            "anyOf": [
+              {
+                "required": [
+                  "run"
+                ]
+              },
+              {
+                "required": [
+                  "steps"
+                ]
+              }
             ]
           },
           "required": [
             "uses"
+          ]
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "run"
+                ]
+              },
+              {
+                "required": [
+                  "uses"
+                ]
+              },
+              {
+                "required": [
+                  "with"
+                ]
+              },
+              {
+                "required": [
+                  "shell"
+                ]
+              },
+              {
+                "required": [
+                  "working-directory"
+                ]
+              }
+            ]
+          },
+          "required": [
+            "steps"
           ]
         }
       ],
@@ -428,6 +609,33 @@
             "type": "string"
           },
           "type": "object"
+        },
+        "environment": {
+          "oneOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "url": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            }
+          ]
         },
         "label": {
           "oneOf": [
@@ -447,6 +655,12 @@
         "name": {
           "minLength": 1,
           "type": "string"
+        },
+        "permissions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
         },
         "policy": {
           "additionalProperties": false,
@@ -528,6 +742,13 @@
         "shell": {
           "minLength": 1,
           "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/step"
+          },
+          "minItems": 1,
+          "type": "array"
         },
         "timeout-minutes": {
           "maximum": 360,
