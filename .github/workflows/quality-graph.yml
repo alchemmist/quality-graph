@@ -5,7 +5,6 @@ name: Quality Graph
   pull_request:
     branches:
       - main
-  workflow_dispatch: {}
 permissions:
   contents: read
 concurrency:
@@ -35,7 +34,7 @@ jobs:
       - name: Collect Workflow graph validation result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: workflow-graph
@@ -43,10 +42,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: workflow-graph
+          presentation: github-pr
       - name: Upload Workflow graph validation result
         if: always()
         uses: actions/upload-artifact@v7
@@ -61,6 +63,12 @@ jobs:
         env:
           EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
         run: exit "${EXIT_CODE:-2}"
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: workflow-graph
+      QG_NODE_ID: workflow-graph
+      QG_NODE_TITLE: Workflow graph validation
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   format:
     name: Format check
     runs-on: ubuntu-latest
@@ -84,7 +92,7 @@ jobs:
       - name: Collect Format check result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: format
@@ -92,10 +100,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: format
+          presentation: github-pr
       - name: Upload Format check result
         if: always()
         uses: actions/upload-artifact@v7
@@ -112,6 +123,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - workflow-graph
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: format
+      QG_NODE_ID: format
+      QG_NODE_TITLE: Format check
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   suppressions:
     name: Lint suppression gate
     runs-on: ubuntu-latest
@@ -135,7 +152,7 @@ jobs:
       - name: Collect Lint suppression gate result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: suppressions
@@ -143,10 +160,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: suppressions
+          presentation: github-pr
       - name: Upload Lint suppression gate result
         if: always()
         uses: actions/upload-artifact@v7
@@ -163,6 +183,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - format
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: suppressions
+      QG_NODE_ID: suppressions
+      QG_NODE_TITLE: Lint suppression gate
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   object-annotations:
     name: Python object annotation gate
     runs-on: ubuntu-latest
@@ -192,7 +218,7 @@ jobs:
       - name: Collect Python object annotation gate result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: object-annotations
@@ -200,10 +226,13 @@ jobs:
           adapter: exit-code
           report-path: reports/object-annotations.log
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'true'
+          flow-id: pull-request
+          operation-id: object-annotations
+          presentation: github-pr
       - name: Upload Python object annotation gate result
         if: always()
         uses: actions/upload-artifact@v7
@@ -220,6 +249,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - format
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: object-annotations
+      QG_NODE_ID: object-annotations
+      QG_NODE_TITLE: Python object annotation gate
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   triple-quotes:
     name: Triple-quoted string style
     runs-on: ubuntu-latest
@@ -243,7 +278,7 @@ jobs:
       - name: Collect Triple-quoted string style result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: triple-quotes
@@ -251,10 +286,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: triple-quotes
+          presentation: github-pr
       - name: Upload Triple-quoted string style result
         if: always()
         uses: actions/upload-artifact@v7
@@ -271,6 +309,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - format
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: triple-quotes
+      QG_NODE_ID: triple-quotes
+      QG_NODE_TITLE: Triple-quoted string style
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   no-comments:
     name: Python no-comments policy
     runs-on: ubuntu-latest
@@ -294,7 +338,7 @@ jobs:
       - name: Collect Python no-comments policy result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: no-comments
@@ -302,10 +346,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: no-comments
+          presentation: github-pr
       - name: Upload Python no-comments policy result
         if: always()
         uses: actions/upload-artifact@v7
@@ -322,6 +369,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - format
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: no-comments
+      QG_NODE_ID: no-comments
+      QG_NODE_TITLE: Python no-comments policy
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -345,7 +398,7 @@ jobs:
       - name: Collect Lint result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: lint
@@ -353,10 +406,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: lint
+          presentation: github-pr
       - name: Upload Lint result
         if: always()
         uses: actions/upload-artifact@v7
@@ -375,6 +431,12 @@ jobs:
       - suppressions
       - triple-quotes
       - no-comments
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: lint
+      QG_NODE_ID: lint
+      QG_NODE_TITLE: Lint
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   type:
     name: Type check
     runs-on: ubuntu-latest
@@ -398,7 +460,7 @@ jobs:
       - name: Collect Type check result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: type
@@ -406,10 +468,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: type
+          presentation: github-pr
       - name: Upload Type check result
         if: always()
         uses: actions/upload-artifact@v7
@@ -426,6 +491,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - object-annotations
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: type
+      QG_NODE_ID: type
+      QG_NODE_TITLE: Type check
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   analyze:
     name: Static analysis
     runs-on: ubuntu-latest
@@ -449,7 +520,7 @@ jobs:
       - name: Collect Static analysis result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: analyze
@@ -457,10 +528,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: analyze
+          presentation: github-pr
       - name: Upload Static analysis result
         if: always()
         uses: actions/upload-artifact@v7
@@ -478,6 +552,12 @@ jobs:
     needs:
       - lint
       - type
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: analyze
+      QG_NODE_ID: analyze
+      QG_NODE_TITLE: Static analysis
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   time-bombs:
     name: Time bomb guardrail
     runs-on: ubuntu-latest
@@ -501,7 +581,7 @@ jobs:
       - name: Collect Time bomb guardrail result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: time-bombs
@@ -509,10 +589,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: time-bombs
+          presentation: github-pr
       - name: Upload Time bomb guardrail result
         if: always()
         uses: actions/upload-artifact@v7
@@ -529,6 +612,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - analyze
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: time-bombs
+      QG_NODE_ID: time-bombs
+      QG_NODE_TITLE: Time bomb guardrail
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   test-fast:
     name: Fast tests
     runs-on: ubuntu-latest
@@ -552,7 +641,7 @@ jobs:
       - name: Collect Fast tests result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: test-fast
@@ -560,10 +649,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: test-fast
+          presentation: github-pr
       - name: Upload Fast tests result
         if: always()
         uses: actions/upload-artifact@v7
@@ -580,6 +672,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - time-bombs
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: test-fast
+      QG_NODE_ID: test-fast
+      QG_NODE_TITLE: Fast tests
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   test-medium:
     name: Medium tests
     runs-on: ubuntu-latest
@@ -603,7 +701,7 @@ jobs:
       - name: Collect Medium tests result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: test-medium
@@ -611,10 +709,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: test-medium
+          presentation: github-pr
       - name: Upload Medium tests result
         if: always()
         uses: actions/upload-artifact@v7
@@ -631,6 +732,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - time-bombs
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: test-medium
+      QG_NODE_ID: test-medium
+      QG_NODE_TITLE: Medium tests
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   coverage:
     name: Coverage and diff coverage
     runs-on: ubuntu-latest
@@ -654,7 +761,7 @@ jobs:
       - name: Collect Coverage and diff coverage result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: coverage
@@ -662,10 +769,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: coverage
+          presentation: github-pr
       - name: Upload Coverage and diff coverage result
         if: always()
         uses: actions/upload-artifact@v7
@@ -683,6 +793,12 @@ jobs:
     needs:
       - test-fast
       - test-medium
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: coverage
+      QG_NODE_ID: coverage
+      QG_NODE_TITLE: Coverage and diff coverage
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   flaky-python:
     name: Changed Python flaky-test detection
     runs-on: ubuntu-latest
@@ -706,7 +822,7 @@ jobs:
       - name: Collect Changed Python flaky-test detection result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: flaky-python
@@ -714,10 +830,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: flaky-python
+          presentation: github-pr
       - name: Upload Changed Python flaky-test detection result
         if: always()
         uses: actions/upload-artifact@v7
@@ -734,6 +853,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - coverage
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: flaky-python
+      QG_NODE_ID: flaky-python
+      QG_NODE_TITLE: Changed Python flaky-test detection
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   mutation:
     name: Changed decision mutation gate
     runs-on: ubuntu-latest
@@ -757,7 +882,7 @@ jobs:
       - name: Collect Changed decision mutation gate result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: mutation
@@ -765,10 +890,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: mutation
+          presentation: github-pr
       - name: Upload Changed decision mutation gate result
         if: always()
         uses: actions/upload-artifact@v7
@@ -785,6 +913,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - flaky-python
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: mutation
+      QG_NODE_ID: mutation
+      QG_NODE_TITLE: Changed decision mutation gate
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   audit:
     name: Dependency and secret audit
     runs-on: ubuntu-latest
@@ -808,7 +942,7 @@ jobs:
       - name: Collect Dependency and secret audit result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: audit
@@ -816,10 +950,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: audit
+          presentation: github-pr
       - name: Upload Dependency and secret audit result
         if: always()
         uses: actions/upload-artifact@v7
@@ -836,6 +973,12 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - mutation
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: audit
+      QG_NODE_ID: audit
+      QG_NODE_TITLE: Dependency and secret audit
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
   package:
     name: Package
     runs-on: ubuntu-latest
@@ -859,7 +1002,7 @@ jobs:
       - name: Collect Package result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
         with:
           operation: collect
           node-id: package
@@ -867,10 +1010,13 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: f9149f56f9614ecf3901d36ae501aec04b5b7cca07b75585fa41f0c11276c533
+          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
           approval-findings: 'true'
           approval-files: 'false'
           approval-node: 'false'
+          flow-id: pull-request
+          operation-id: package
+          presentation: github-pr
       - name: Upload Package result
         if: always()
         uses: actions/upload-artifact@v7
@@ -887,3 +1033,9 @@ jobs:
         run: exit "${EXIT_CODE:-2}"
     needs:
       - audit
+    env:
+      QG_FLOW_ID: pull-request
+      QG_OPERATION_ID: package
+      QG_NODE_ID: package
+      QG_NODE_TITLE: Package
+      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
