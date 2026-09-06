@@ -11,7 +11,16 @@ from typing import TYPE_CHECKING, cast, override
 
 import yaml
 
-from quality_graph_core.graph import DependencyPolicy, Graph, LabelSpec, Node, Profile, Step
+from quality_graph_core.graph import (
+    DependencyPolicy,
+    Flow,
+    FlowNode,
+    Graph,
+    LabelSpec,
+    Node,
+    Profile,
+    Step,
+)
 from quality_graph_core.provider import GeneratedFile, GeneratedProject
 
 if TYPE_CHECKING:
@@ -105,17 +114,12 @@ def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
     if publisher_action.partition("@")[0] != action.partition("@")[0]:
         message = "GitHub publisher action must use the runtime action repository"
         raise ValueError(message)
-    for profile in graph.profiles:
-        _validate_permissions(profile)
-        for step in profile.setup:
-            _validate_step(step)
-    for node in graph.nodes:
-        _validate_step(node.step)
-    titles = [node.title for node in graph.nodes]
-    if len(set(titles)) != len(titles):
-        message = "GitHub dashboard requires unique node titles"
-        raise ValueError(message)
-    _event_projections(graph)
+    _validate_execution_contracts(graph)
+    if graph.flows:
+        _validate_explicit_flows(graph)
+        _validate_merge_presentation(graph, merge_required=merge_required)
+    else:
+        _event_projections(graph)
     return _GitHubConfiguration(
         action,
         publisher_action,
@@ -123,6 +127,30 @@ def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
         default_branch,
         merge_required,
     )
+
+
+def _validate_execution_contracts(graph: Graph) -> None:
+    if graph.flow_id is not None:
+        message = "compile the original declaration, not a resolved flow"
+        raise ValueError(message)
+    for profile in graph.profiles:
+        _validate_permissions(profile)
+        for step in profile.setup:
+            _validate_step(step)
+    for node in graph.nodes:
+        _validate_step(node.step)
+    for operation in graph.operations:
+        _validate_step(operation.step)
+    titles = [node.title for node in graph.nodes]
+    if len(set(titles)) != len(titles):
+        message = "GitHub dashboard requires unique node titles"
+        raise ValueError(message)
+
+
+def _validate_merge_presentation(graph: Graph, *, merge_required: bool) -> None:
+    if merge_required and not any(flow.presentation == "github-pr" for flow in graph.flows):
+        message = "merge.required needs an enabled GitHub PR presentation adapter"
+        raise ValueError(message)
 
 
 def _merge_required(merge: JsonValue) -> bool:
@@ -140,6 +168,16 @@ def _merge_required(merge: JsonValue) -> bool:
 
 
 def _event_projections(graph: Graph) -> tuple[EventProjection, ...]:
+    if graph.flows:
+        return tuple(
+            EventProjection(
+                "push" if flow.trigger == "push" else "pull-request",
+                graph.for_flow(flow.id).nodes,
+                flow.dependencies,
+            )
+            for flow in graph.flows
+            if flow.trigger != "workflow-dispatch"
+        )
     supported = set(SUPPORTED_EVENTS)
     unknown = set(graph.execution) - supported
     for node in graph.nodes:
@@ -182,7 +220,29 @@ def event_projection(graph: Graph, event: str) -> EventProjection:
 
 def project_graph(graph: Graph, event: str) -> Graph:
     """Return one dependency-normalized GitHub event graph."""
+    if graph.flows:
+        for flow in graph.flows:
+            if flow.trigger == event:
+                return graph.for_flow(flow.id)
+        message = f"no flow declares the {event} trigger"
+        raise ValueError(message)
     return replace(graph, nodes=event_projection(graph, event).nodes)
+
+
+def _validate_explicit_flows(graph: Graph) -> None:
+    for trigger in SUPPORTED_EVENTS:
+        selected = [flow for flow in graph.flows if flow.trigger == trigger]
+        if len(selected) > 1:
+            message = f"GitHub supports one {trigger} flow per declaration"
+            raise ValueError(message)
+    for flow in graph.flows:
+        for branch in flow.branches:
+            _default_branch(branch)
+        if flow.presentation == "github-pr":
+            titles = [node.title for node in graph.for_flow(flow.id).nodes]
+            if len(set(titles)) != len(titles):
+                message = "GitHub PR presentation requires unique placement titles"
+                raise ValueError(message)
 
 
 def _default_branch(value: JsonValue) -> str:
@@ -242,6 +302,8 @@ def _validate_step(step: Step) -> None:
 def compile_graph(graph: Graph) -> GeneratedProject:
     """Compile one graph through the public declaration seam."""
     configuration = _validate_github_graph(graph)
+    if graph.flows:
+        return _compile_flows(graph, configuration)
     projections = {item.event: item for item in _event_projections(graph)}
     manifest = _manifest_value(graph, configuration)
     digest = hashlib.sha256(_canonical_json(manifest).encode()).hexdigest()
@@ -277,6 +339,114 @@ def compile_graph(graph: Graph) -> GeneratedProject:
         GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)),
     )
     return GeneratedProject(digest, files)
+
+
+def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> GeneratedProject:
+    manifest = _manifest_value(graph, configuration)
+    profiles = graph.expanded_profiles()
+    manifest.pop("nodes")
+    manifest["manifestVersion"] = 1
+    manifest["operations"] = {
+        operation.id: {
+            **_node_value(
+                operation.place(
+                    FlowNode(operation.id, operation.id),
+                    DependencyPolicy.GRAPH,
+                ),
+                profiles[operation.profile],
+            ),
+            "diffOnly": operation.diff_only,
+        }
+        for operation in graph.operations
+    }
+    manifest["flows"] = {flow.id: _flow_value(flow) for flow in graph.flows}
+    for contract in cast("dict[str, dict[str, JsonValue]]", manifest["operations"]).values():
+        contract.pop("needs")
+    digest = hashlib.sha256(_canonical_json(manifest).encode()).hexdigest()
+    manifest.update({"graphDigest": digest, "_generated": GENERATED_NOTICE})
+    files: list[GeneratedFile] = []
+    for flow in graph.flows:
+        if flow.trigger == "workflow-dispatch":
+            continue
+        projection = EventProjection(flow.trigger, graph.for_flow(flow.id).nodes, flow.dependencies)
+        workflow = _execution_workflow(graph, projection, configuration, digest)
+        if flow.concurrency is not None:
+            workflow["concurrency"] = {
+                "group": f"quality-graph-{flow.concurrency}",
+                "cancel-in-progress": False,
+            }
+        if flow.trigger == "push":
+            workflow["on"] = {"push": {"branches": list(flow.branches)}}
+        else:
+            workflow["on"] = {"pull_request": {"branches": [configuration.default_branch]}}
+        jobs = cast("dict[str, dict[str, JsonValue]]", workflow["jobs"])
+        for node in projection.nodes:
+            environment = cast("dict[str, JsonValue]", jobs[node.id].get("env", {}))
+            environment.update(
+                {
+                    "QG_FLOW_ID": flow.id,
+                    "QG_OPERATION_ID": node.operation_id,
+                    "QG_NODE_ID": node.id,
+                    "QG_NODE_TITLE": node.title,
+                    "QG_GRAPH_DIGEST": digest,
+                }
+            )
+            jobs[node.id]["env"] = environment
+            steps = cast("list[dict[str, JsonValue]]", jobs[node.id]["steps"])
+            collect = cast("dict[str, JsonValue]", steps[-3]["with"])
+            collect.update(
+                {
+                    "flow-id": flow.id,
+                    "operation-id": node.operation_id,
+                    "presentation": flow.presentation,
+                }
+            )
+            if flow.presentation != "github-pr":
+                collect.update(
+                    {
+                        "approval-findings": "false",
+                        "approval-files": "false",
+                        "approval-node": "false",
+                    }
+                )
+        path = EXECUTION_WORKFLOW if flow.trigger == "pull-request" else PUSH_WORKFLOW
+        files.append(GeneratedFile(path, _yaml_file(workflow)))
+    if any(flow.presentation == "github-pr" for flow in graph.flows):
+        files.append(
+            GeneratedFile(
+                PUBLICATION_WORKFLOW,
+                _yaml_file(_publication_workflow(configuration.publisher_action)),
+            )
+        )
+    files.append(GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)))
+    paths = {item.path for item in files}
+    retired = tuple(
+        path
+        for path in (EXECUTION_WORKFLOW, PUSH_WORKFLOW, PUBLICATION_WORKFLOW)
+        if path not in paths
+    )
+    return GeneratedProject(digest, tuple(files), retired)
+
+
+def _flow_value(flow: Flow) -> dict[str, JsonValue]:
+    return {
+        "trigger": flow.trigger,
+        "branches": list(flow.branches),
+        "inputs": dict(flow.inputs),
+        "dependencies": flow.dependencies.value,
+        "presentation": flow.presentation,
+        "concurrency": flow.concurrency,
+        "execution": "design-only" if flow.trigger == "workflow-dispatch" else "github-actions",
+        "nodes": [
+            {
+                "id": node.id,
+                "operation": node.operation,
+                "needs": list(node.needs),
+                "checkpoint": dict(node.checkpoint),
+            }
+            for node in flow.nodes
+        ],
+    }
 
 
 def _manifest_value(

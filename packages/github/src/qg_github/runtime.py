@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from qg_github.annotations import escape_data, publish_annotations
-from qg_github.commands import handle_command
+from qg_github.commands import dispatch_pr_command as handle_command
 from qg_github.github import HttpGitHubPort
 from qg_github.publication import (
     publish_workflow_run,
@@ -48,6 +48,7 @@ class CollectionRequest:
     summary_path: Path | None
     output_path: Path
     approval_policy: ApprovalPolicy
+    presentation: str = "github-pr"
 
     @classmethod
     def from_environment(
@@ -65,6 +66,10 @@ class CollectionRequest:
         )
         summary = environment.get("GITHUB_STEP_SUMMARY")
         provenance = _provenance(environment, event)
+        presentation = environment.get("QG_PRESENTATION") or "github-pr"
+        if presentation not in {"github-pr", "none", "release"}:
+            message = f"unsupported collection presentation: {presentation}"
+            raise ValueError(message)
         context = AdapterContext(
             node_id,
             _required(environment, "QG_TITLE"),
@@ -84,6 +89,7 @@ class CollectionRequest:
                 _boolean(environment, "QG_APPROVAL_FILES"),
                 _boolean(environment, "QG_APPROVAL_NODE"),
             ),
+            presentation,
         )
 
 
@@ -116,6 +122,8 @@ def collect(request: CollectionRequest) -> Result:
 
 
 def _with_policy_controls(request: CollectionRequest, result: Result) -> Result:
+    if request.presentation != "github-pr":
+        return replace(result, controls=())
     controls = policy_controls(result.node_id, result.findings, request.approval_policy)
     return replace(result, controls=controls)
 
@@ -133,7 +141,8 @@ def publish_collection(request: CollectionRequest, result: Result) -> int:
     request.result_path.write_text(result.to_json())
     if request.summary_path is not None:
         append_job_summary(request.summary_path, result)
-    publish_annotations(result.annotations)
+    if request.presentation == "github-pr":
+        publish_annotations(result.annotations)
     exit_code = _result_exit_code(result)
     request.output_path.parent.mkdir(parents=True, exist_ok=True)
     with request.output_path.open("a") as output:
@@ -198,6 +207,8 @@ def _provenance(
         int(_required(environment, "GITHUB_RUN_ATTEMPT")),
         _required(environment, "QG_GRAPH_DIGEST"),
         pull_number,
+        environment.get("QG_FLOW_ID") or None,
+        environment.get("QG_OPERATION_ID") or None,
     )
 
 

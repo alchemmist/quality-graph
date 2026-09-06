@@ -115,9 +115,12 @@ def result_schema_value() -> dict[str, JsonValue]:
             "workflowRunId": {"type": "integer", "minimum": 0},
             "runAttempt": {"type": "integer", "minimum": 1},
             "graphDigest": _string_schema(pattern=r"^[0-9a-f]{64}$"),
+            "flowId": _string_schema(pattern=r"^[a-z][a-z0-9-]{0,62}$"),
+            "operationId": _string_schema(pattern=r"^[a-z][a-z0-9-]{0,62}$"),
         },
         ("repository", "headSha", "workflowRunId", "runAttempt", "graphDigest"),
     )
+    provenance["dependentRequired"] = {"flowId": ["operationId"], "operationId": ["flowId"]}
     properties: dict[str, JsonValue] = {
         "schemaVersion": {"const": 0},
         "nodeId": _string_schema(pattern=r"^[a-z][a-z0-9-]{0,62}$"),
@@ -367,7 +370,7 @@ def graph_schema_value() -> dict[str, JsonValue]:
                 (),
             ),
         },
-        ("version", "profiles", "nodes"),
+        ("version", "profiles"),
     )
     schema.update(
         {
@@ -377,7 +380,111 @@ def graph_schema_value() -> dict[str, JsonValue]:
             "$defs": {"step": step, "profile": profile, "label": label, "node": node},
         }
     )
+    operation_properties = dict(node_properties)
+    operation_properties.pop("needs")
+    operation_properties.pop("events")
+    operation_properties["diff-only"] = {"type": "boolean"}
+    operation = _object_schema(operation_properties, ())
+    operation["oneOf"] = step["oneOf"]
+    properties = cast("dict[str, JsonValue]", schema["properties"])
+    properties["operations"] = {
+        "type": "object",
+        "minProperties": 1,
+        "propertyNames": identifier,
+        "additionalProperties": {"$ref": "#/$defs/operation"},
+    }
+    properties["flows"] = {
+        "type": "object",
+        "minProperties": 1,
+        "propertyNames": identifier,
+        "additionalProperties": {"$ref": "#/$defs/flow"},
+    }
+    schema["oneOf"] = [
+        {
+            "required": ["nodes"],
+            "not": {"anyOf": [{"required": ["operations"]}, {"required": ["flows"]}]},
+        },
+        {
+            "required": ["operations", "flows"],
+            "not": {"anyOf": [{"required": ["nodes"]}, {"required": ["execution"]}]},
+        },
+    ]
+    definitions = cast("dict[str, JsonValue]", schema["$defs"])
+    definitions.update({"operation": operation, "flow": _flow_schema(identifier)})
     return schema
+
+
+def _flow_schema(identifier: dict[str, JsonValue]) -> dict[str, JsonValue]:
+    branches = _array_schema(_string_schema(minimum=1, maximum=255), 100)
+    branches.update({"minItems": 1, "uniqueItems": True})
+    dispatch_input = _object_schema(
+        {
+            "type": _string_schema(enum=("string", "boolean", "number", "choice", "environment")),
+            "description": _string_schema(),
+            "required": {"type": "boolean"},
+            "default": {"type": ["string", "boolean", "number"]},
+            "options": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "uniqueItems": True,
+            },
+        },
+        ("type",),
+    )
+    trigger: dict[str, JsonValue] = {
+        "oneOf": [
+            _string_schema(enum=("pull-request", "workflow-dispatch")),
+            _object_schema(
+                {"push": _object_schema({"branches": branches}, ("branches",))}, ("push",)
+            ),
+            _object_schema(
+                {
+                    "workflow-dispatch": _object_schema(
+                        {
+                            "inputs": {
+                                "type": "object",
+                                "propertyNames": identifier,
+                                "additionalProperties": dispatch_input,
+                            }
+                        },
+                        (),
+                    )
+                },
+                ("workflow-dispatch",),
+            ),
+        ]
+    }
+    placement = _object_schema(
+        {
+            "operation": identifier,
+            "needs": {"type": "array", "items": identifier, "uniqueItems": True},
+            "checkpoint": _object_schema(
+                {
+                    "environment": _string_schema(minimum=1),
+                    "approval": {"type": "boolean"},
+                    "observation-seconds": {"type": "integer", "minimum": 0},
+                },
+                ("environment",),
+            ),
+        },
+        (),
+    )
+    return _object_schema(
+        {
+            "trigger": trigger,
+            "dependencies": _string_schema(enum=("graph", "none")),
+            "presentation": _string_schema(enum=("none", "github-pr", "release")),
+            "concurrency": _string_schema(minimum=1),
+            "nodes": {
+                "type": "object",
+                "minProperties": 1,
+                "propertyNames": identifier,
+                "additionalProperties": placement,
+            },
+        },
+        ("trigger", "nodes"),
+    )
 
 
 def graph_schema_json() -> str:

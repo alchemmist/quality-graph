@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, cast
 from qg_github.approvals import approval_ledger
 from qg_github.artifacts import ArtifactError, ArtifactExpectation, download_results
 from qg_github.comments import find_managed_comment, upsert_managed_comment
-from qg_github.compiler import compile_graph, project_graph
+from qg_github.compiler import compile_graph
 from qg_github.dashboard import (
     DASHBOARD_MARKER,
     DashboardModel,
@@ -25,6 +25,7 @@ from qg_github.dashboard import (
 )
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
 from qg_github.labels import parse_label_state, reconcile_labels
+from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
 from quality_graph_core.policy import effective_graph
 from quality_graph_core.result import JsonValue, ResultStatus
@@ -122,7 +123,10 @@ def _publish_completed_workflow_run(
     graph: Graph,
 ) -> PublicationOutcome:
     compiled = compile_graph(graph)
-    graph = project_graph(graph, "pull-request")
+    projected = pr_presentation_graph(graph)
+    if projected is None:
+        return PublicationOutcome(published=False)
+    graph = projected
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
     model, effective_results = _completed_dashboard(
         port,
@@ -168,7 +172,9 @@ def watch_workflow_run(
     if not _is_latest_run(port, event, number):
         return PublicationOutcome(published=False)
     graph = Graph.from_yaml(_repository_file(port, "qg.yaml", pull.base_sha))
-    projected = project_graph(graph, "pull-request")
+    projected = pr_presentation_graph(graph)
+    if projected is None:
+        return PublicationOutcome(published=False)
     nodes = tuple(DashboardNode(node.id, node.title) for node in projected.nodes)
     run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
     _publish_check(port, pending_dashboard(projected, run))
@@ -178,9 +184,11 @@ def watch_workflow_run(
 
     while not publish_workflow_jobs(port, number, nodes, run, is_current=is_current):
         sleep(poll_interval)
-    if not is_current():
-        return PublicationOutcome(published=False)
-    return _publish_completed_workflow_run(port, event, number, pull, graph)
+    return (
+        _publish_completed_workflow_run(port, event, number, pull, graph)
+        if is_current()
+        else PublicationOutcome(published=False)
+    )
 
 
 def publish_workflow_jobs(
@@ -282,6 +290,8 @@ def _completed_dashboard(
         run.id,
         graph_digest,
         frozenset(node.id for node in graph.nodes),
+        graph.flow_id,
+        {node.id: node.operation_id for node in graph.nodes if node.operation_id is not None},
     )
     try:
         results = download_results(port, expectation)

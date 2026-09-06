@@ -10,9 +10,10 @@ from enum import StrEnum
 
 from qg_github.approvals import ApprovalRecord, append_approval_record
 from qg_github.artifacts import ArtifactExpectation, download_results
-from qg_github.compiler import compile_graph, project_graph
+from qg_github.compiler import compile_graph
 from qg_github.controls import control_states, decode_control_marker
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
+from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
 from quality_graph_core.policy import ApprovalTarget, effective_graph
 from quality_graph_core.result import ControlKind, JsonValue
@@ -178,6 +179,20 @@ def handle_command(port: GitHubPort, event_value: JsonValue) -> CommandOutcome:
     return CommandOutcome(handled=True, authorized=True, changed=True)
 
 
+def dispatch_pr_command(port: GitHubPort, event_value: JsonValue) -> CommandOutcome:
+    """Dispatch comment events only when the trusted declaration enables PR presentation."""
+    request = command_request(event_value)
+    if request is None or request.pull_request is None:
+        return CommandOutcome(handled=False)
+    pull = _object(port.request("GET", f"/pulls/{request.pull_request}"), "pull request")
+    base = _object(pull.get("base"), "pull request base")
+    base_sha = _string(base.get("sha"), "pull request base SHA")
+    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", base_sha))
+    if pr_presentation_graph(graph) is None:
+        return CommandOutcome(handled=False)
+    return handle_command(port, event_value)
+
+
 # pragma: no mutate start
 def _command_context(port: GitHubPort, number: int) -> CommandContext:
     pull = _object(port.request("GET", f"/pulls/{number}"), "pull request")
@@ -187,7 +202,11 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
     base_sha = _string(base.get("sha"), "pull request base SHA")
     graph = Graph.from_yaml(_repository_file(port, "qg.yaml", base_sha))
     compiled = compile_graph(graph)
-    graph = project_graph(graph, "pull-request")
+    projected = pr_presentation_graph(graph)
+    if projected is None:
+        message = "GitHub PR presentation is disabled"
+        raise ValueError(message)
+    graph = projected
     run = _latest_run(port, number)
     run_id = _integer(run.get("id"), "workflow run id")
     attempt = _integer(run.get("run_attempt", 1), "workflow run attempt")
@@ -198,6 +217,8 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
         run_id,
         compiled.graph_digest,
         frozenset(node.id for node in graph.nodes),
+        graph.flow_id,
+        {node.id: node.operation_id for node in graph.nodes if node.operation_id is not None},
     )
     results = download_results(port, expectation)
     if any(result.provenance.run_attempt > attempt for result in results.values()):

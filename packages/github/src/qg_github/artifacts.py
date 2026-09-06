@@ -7,7 +7,7 @@ import io
 import re
 import stat
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
@@ -15,7 +15,7 @@ from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
 from quality_graph_core.result import JsonValue, Result
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
 ARTIFACT_NAME_RE = re.compile(
     r"^quality-result-(?P<node>[a-z][a-z0-9-]{0,62})-"
@@ -40,6 +40,8 @@ class ArtifactExpectation:
     workflow_run_id: int
     graph_digest: str
     node_ids: frozenset[str]
+    flow_id: str | None = None
+    operation_ids: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -174,6 +176,8 @@ def _validate_result(
         expectation.workflow_run_id,
         descriptor.attempt,
         expectation.graph_digest,
+        expectation.flow_id,
+        expectation.operation_ids.get(result.node_id),
     )
     observed = (
         provenance.repository,
@@ -182,6 +186,8 @@ def _validate_result(
         provenance.workflow_run_id,
         provenance.run_attempt,
         provenance.graph_digest,
+        provenance.flow_id,
+        provenance.operation_id,
     )
     if result.node_id != descriptor.node_id or observed != expected:
         message = f"artifact provenance does not match workflow metadata: {descriptor.id}"

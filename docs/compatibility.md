@@ -1,5 +1,9 @@
 # Compatibility policy
 
+The operations/flows refactor retains graph-v0 `nodes`, `events` and `execution` as a supported
+migration path with unchanged legacy workflow generation. See [Operations and flows](flows.md)
+for explicit membership, manifest version 1 and paired flow/operation result provenance.
+
 Quality Graph is a functional pre-release. Package version `0.1.8`, graph version `0`,
 and result schema version `0` carry no backward-compatibility guarantee.
 

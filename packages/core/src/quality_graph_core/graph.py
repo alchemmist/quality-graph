@@ -183,6 +183,7 @@ class Node:
     environment: Mapping[str, str] = field(default_factory=dict)
     timeout_minutes: int | None = None
     events: tuple[str, ...] = ()
+    operation_id: str | None = None
 
     def __post_init__(self) -> None:
         """Validate node identity and local execution overrides."""
@@ -203,6 +204,62 @@ class Node:
         ):
             message = "node timeout must be between 1 and 360 minutes"
             raise ValueError(message)
+
+
+@dataclass(frozen=True)
+class Operation:
+    """Own an executable contract independently of placement and scheduling."""
+
+    id: str
+    title: str
+    step: Step
+    profile: str = "default"
+    result: ResultAdapter = ResultAdapter()
+    policy: NodePolicy = NodePolicy()
+    failing_label: LabelSpec | None | bool = None
+    environment: Mapping[str, str] = field(default_factory=dict)
+    timeout_minutes: int | None = None
+    diff_only: bool = False
+
+    def place(self, placement: FlowNode, dependencies: DependencyPolicy) -> Node:
+        """Resolve this contract at a flow-local identity."""
+        return Node(
+            id=placement.id,
+            title=self.title if placement.id == self.id else f"{self.title} ({placement.id})",
+            step=self.step,
+            profile=self.profile,
+            needs=placement.needs if dependencies is DependencyPolicy.GRAPH else (),
+            result=self.result,
+            policy=self.policy,
+            failing_label=self.failing_label,
+            environment=self.environment,
+            timeout_minutes=self.timeout_minutes,
+            operation_id=self.id,
+        )
+
+
+@dataclass(frozen=True)
+class FlowNode:
+    """Place an operation and its dependencies in exactly one flow."""
+
+    id: str
+    operation: str
+    needs: tuple[str, ...] = ()
+    checkpoint: Mapping[str, JsonValue] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Flow:
+    """Own membership, trigger, scheduling and presentation for an execution."""
+
+    id: str
+    trigger: str
+    nodes: tuple[FlowNode, ...]
+    dependencies: DependencyPolicy = DependencyPolicy.GRAPH
+    presentation: str = "none"
+    branches: tuple[str, ...] = ()
+    inputs: Mapping[str, JsonValue] = field(default_factory=dict)
+    concurrency: str | None = None
 
 
 @dataclass(frozen=True)
@@ -228,6 +285,9 @@ class Graph:
     administrator_roles: tuple[str, ...] = ("admin",)
     version: int = 0
     execution: Mapping[str, DependencyPolicy] = field(default_factory=dict)
+    operations: tuple[Operation, ...] = ()
+    flows: tuple[Flow, ...] = ()
+    flow_id: str | None = None
 
     def __post_init__(self) -> None:
         """Validate cross-reference, graph, and governance invariants."""
@@ -241,6 +301,20 @@ class Graph:
         for event in self.execution:
             _identifier(event, "execution event")
         _validate_administrator_roles(self.administrator_roles)
+        if self.operations or self.flows:
+            _validate_flows(self)
+
+    def for_flow(self, flow_id: str) -> Graph:
+        """Resolve a flow's placements without changing the reusable operations."""
+        flow = next((item for item in self.flows if item.id == flow_id), None)
+        if flow is None:
+            message = f"unknown flow: {flow_id}"
+            raise ValueError(message)
+        operations = {operation.id: operation for operation in self.operations}
+        nodes = tuple(
+            operations[node.operation].place(node, flow.dependencies) for node in flow.nodes
+        )
+        return replace(self, nodes=nodes, operations=(), flows=(), flow_id=flow.id)
 
     def expanded_profiles(self) -> dict[str, Profile]:
         """Return profiles with inheritance resolved in declaration order."""
@@ -310,11 +384,20 @@ def _parse_graph(data: dict[str, JsonValue]) -> Graph:
             "nodes",
             "labels",
             "administration",
+            "operations",
+            "flows",
         },
         "graph",
     )
     profiles = _mapping(data.get("profiles"), "profiles")
-    nodes = _mapping(data.get("nodes"), "nodes")
+    explicit = "operations" in data or "flows" in data
+    if explicit and ("nodes" in data or "execution" in data):
+        message = "operations/flows cannot be combined with legacy nodes/execution"
+        raise ValueError(message)
+    if explicit and (not data.get("operations") or not data.get("flows")):
+        message = "explicit declarations require nonempty operations and flows"
+        raise ValueError(message)
+    nodes = _mapping(data.get("nodes", {}) if explicit else data.get("nodes"), "nodes")
     return Graph(
         _parse_provider(data.get("provider", "github"), data.get("runtime")),
         tuple(
@@ -326,6 +409,14 @@ def _parse_graph(data: dict[str, JsonValue]) -> Graph:
         _parse_administration(_object(data.get("administration", {}), "administration")),
         _integer(data.get("version"), "graph version"),
         _parse_execution(_mapping(data.get("execution", {}), "execution")),
+        tuple(
+            _parse_operation(name, _object(value, f"operation {name}"))
+            for name, value in _mapping(data.get("operations", {}), "operations").items()
+        ),
+        tuple(
+            _parse_flow(name, _object(value, f"flow {name}"))
+            for name, value in _mapping(data.get("flows", {}), "flows").items()
+        ),
     )
 
 
@@ -342,6 +433,205 @@ def _parse_provider(value: JsonValue, legacy_runtime: JsonValue) -> ProviderConf
         _string(data.get("name"), "provider name"),
         _mapping(data.get("configuration", {}), "provider configuration"),
     )
+
+
+def _parse_operation(name: str, data: dict[str, JsonValue]) -> Operation:
+    if "needs" in data or "events" in data:
+        message = f"operation {name} cannot own needs or events; declare flow placements"
+        raise ValueError(message)
+    contract = dict(data)
+    diff_only = _boolean(contract.pop("diff-only", False), f"operation {name} diff-only")
+    node = _parse_node(name, contract)
+    return Operation(
+        node.id,
+        node.title,
+        node.step,
+        node.profile,
+        node.result,
+        node.policy,
+        node.failing_label,
+        node.environment,
+        node.timeout_minutes,
+        diff_only,
+    )
+
+
+def _parse_flow(name: str, data: dict[str, JsonValue]) -> Flow:
+    _reject_unknown(
+        data, {"trigger", "nodes", "dependencies", "presentation", "concurrency"}, f"flow {name}"
+    )
+    trigger, branches, inputs = _parse_trigger(data.get("trigger"))
+    nodes: list[FlowNode] = []
+    for node_id, value in _mapping(data.get("nodes"), f"flow {name} nodes").items():
+        placement = _object(value, f"flow {name} node {node_id}")
+        _reject_unknown(placement, {"operation", "needs", "checkpoint"}, "flow node")
+        nodes.append(
+            FlowNode(
+                node_id,
+                _string(placement.get("operation", node_id), "operation reference"),
+                tuple(
+                    _string(item, "dependency")
+                    for item in _array(placement.get("needs", []), "needs")
+                ),
+                _mapping(placement.get("checkpoint", {}), "checkpoint"),
+            )
+        )
+    return Flow(
+        name,
+        trigger,
+        tuple(nodes),
+        DependencyPolicy(
+            _string(
+                data.get("dependencies", "none" if trigger == "push" else "graph"), "dependencies"
+            )
+        ),
+        _string(data.get("presentation", "none"), "presentation"),
+        branches,
+        inputs,
+        _optional_string(data.get("concurrency"), "flow concurrency"),
+    )
+
+
+def _parse_trigger(value: JsonValue) -> tuple[str, tuple[str, ...], Mapping[str, JsonValue]]:
+    if isinstance(value, str):
+        if value not in {"pull-request", "workflow-dispatch"}:
+            message = "trigger must be pull-request, workflow-dispatch or a push branch mapping"
+            raise ValueError(message)
+        return value, (), {}
+    data = _object(value, "flow trigger")
+    if len(data) != 1 or not set(data) <= {"push", "workflow-dispatch"}:
+        message = "flow trigger must select exactly one supported event"
+        raise ValueError(message)
+    trigger, raw = next(iter(data.items()))
+    configuration = _object(raw, "trigger configuration")
+    if trigger == "push":
+        _reject_unknown(configuration, {"branches"}, "push trigger")
+        branches = tuple(
+            _string(item, "push branch")
+            for item in _array(configuration.get("branches"), "push branches")
+        )
+        if (
+            not branches
+            or len(set(branches)) != len(branches)
+            or any(not item for item in branches)
+        ):
+            message = "push branches must be nonempty and unique"
+            raise ValueError(message)
+        return trigger, branches, {}
+    _reject_unknown(configuration, {"inputs"}, "dispatch trigger")
+    inputs = _mapping(configuration.get("inputs", {}), "dispatch inputs")
+    for name, raw_input in inputs.items():
+        _identifier(name, "dispatch input")
+        _validate_dispatch_input(_object(raw_input, f"input {name}"))
+    return trigger, (), inputs
+
+
+def _validate_dispatch_input(data: dict[str, JsonValue]) -> None:
+    _reject_unknown(
+        data, {"type", "description", "required", "default", "options"}, "dispatch input"
+    )
+    kind = _string(data.get("type"), "input type")
+    if kind not in {"string", "boolean", "number", "choice", "environment"}:
+        message = f"unsupported dispatch input type: {kind}"
+        raise ValueError(message)
+    _string(data.get("description", ""), "input description")
+    _boolean(data.get("required", False), "input required")
+    options = tuple(
+        _string(item, "input option") for item in _array(data.get("options", []), "input options")
+    )
+    if (kind == "choice") != bool(options) or len(set(options)) != len(options):
+        message = "only choice inputs require nonempty unique options"
+        raise ValueError(message)
+    if "default" in data:
+        default = data["default"]
+        valid = (
+            isinstance(default, bool)
+            if kind == "boolean"
+            else isinstance(default, int | float) and not isinstance(default, bool)
+            if kind == "number"
+            else isinstance(default, str) and (kind != "choice" or default in options)
+        )
+        if not valid:
+            message = "dispatch input default must match its type and options"
+            raise ValueError(message)
+
+
+def _validate_flows(graph: Graph) -> None:
+    if graph.nodes or graph.execution or not graph.operations or not graph.flows:
+        message = "explicit declarations require operations and flows, without nodes/execution"
+        raise ValueError(message)
+    operations = {operation.id: operation for operation in graph.operations}
+    if len(operations) != len(graph.operations) or len({flow.id for flow in graph.flows}) != len(
+        graph.flows
+    ):
+        message = "operation and flow identifiers must be unique"
+        raise ValueError(message)
+    for operation in graph.operations:
+        _identifier(operation.id, "operation")
+        operation.place(FlowNode(operation.id, operation.id), DependencyPolicy.GRAPH)
+        if operation.profile not in {profile.id for profile in graph.profiles}:
+            message = f"unknown profile for operation {operation.id}: {operation.profile}"
+            raise ValueError(message)
+    for flow in graph.flows:
+        _validate_flow(flow, operations, graph.profiles)
+
+
+def _validate_flow(
+    flow: Flow, operations: Mapping[str, Operation], profiles: tuple[Profile, ...]
+) -> None:
+    _identifier(flow.id, "flow")
+    if flow.trigger not in {"pull-request", "push", "workflow-dispatch"}:
+        message = f"unsupported flow trigger: {flow.trigger}"
+        raise ValueError(message)
+    if flow.presentation not in {"none", "github-pr", "release"}:
+        message = f"unsupported presentation adapter: {flow.presentation}"
+        raise ValueError(message)
+    if (flow.presentation == "github-pr" and flow.trigger != "pull-request") or (
+        flow.presentation == "release" and flow.trigger != "workflow-dispatch"
+    ):
+        message = "presentation adapter is incompatible with flow trigger"
+        raise ValueError(message)
+    if not flow.nodes:
+        message = f"flow {flow.id} must contain at least one node"
+        raise ValueError(message)
+    if flow.trigger == "workflow-dispatch" and (
+        not flow.concurrency or flow.dependencies is not DependencyPolicy.GRAPH
+    ):
+        message = "release flows require an exclusive concurrency lane and graph dependencies"
+        raise ValueError(message)
+    if flow.concurrency is not None:
+        _identifier(flow.concurrency, "flow concurrency lane")
+    resolved: list[Node] = []
+    for node in flow.nodes:
+        if node.operation not in operations:
+            message = f"unknown operation in flow {flow.id}: {node.operation}"
+            raise ValueError(message)
+        operation = operations[node.operation]
+        if operation.diff_only and flow.trigger != "pull-request":
+            message = f"diff-only operation must remain PR-only: {operation.id}"
+            raise ValueError(message)
+        _validate_checkpoint(node.checkpoint, flow.trigger)
+        resolved.append(operation.place(node, DependencyPolicy.GRAPH))
+    nodes = tuple(resolved)
+    _validate_node_references(
+        nodes, {profile.id: profile for profile in profiles}, _unique_nodes(nodes)
+    )
+
+
+def _validate_checkpoint(data: Mapping[str, JsonValue], trigger: str) -> None:
+    if not data:
+        return
+    if trigger != "workflow-dispatch":
+        message = "checkpoints are only supported in release flow contracts"
+        raise ValueError(message)
+    _reject_unknown(data, {"environment", "approval", "observation-seconds"}, "checkpoint")
+    if not _string(data.get("environment"), "checkpoint environment").strip():
+        message = "checkpoint environment must not be empty"
+        raise ValueError(message)
+    _boolean(data.get("approval", False), "checkpoint approval")
+    if _integer(data.get("observation-seconds", 0), "observation seconds") < 0:
+        message = "observation seconds must not be negative"
+        raise ValueError(message)
 
 
 def _parse_profile(name: str, data: dict[str, JsonValue]) -> Profile:

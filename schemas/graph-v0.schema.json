@@ -1,5 +1,193 @@
 {
   "$defs": {
+    "flow": {
+      "additionalProperties": false,
+      "properties": {
+        "concurrency": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "dependencies": {
+          "enum": [
+            "graph",
+            "none"
+          ],
+          "minLength": 0,
+          "type": "string"
+        },
+        "nodes": {
+          "additionalProperties": {
+            "additionalProperties": false,
+            "properties": {
+              "checkpoint": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval": {
+                    "type": "boolean"
+                  },
+                  "environment": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "observation-seconds": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "environment"
+                ],
+                "type": "object"
+              },
+              "needs": {
+                "items": {
+                  "minLength": 0,
+                  "pattern": "^[a-z][a-z0-9-]{0,62}$",
+                  "type": "string"
+                },
+                "type": "array",
+                "uniqueItems": true
+              },
+              "operation": {
+                "minLength": 0,
+                "pattern": "^[a-z][a-z0-9-]{0,62}$",
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "minProperties": 1,
+          "propertyNames": {
+            "minLength": 0,
+            "pattern": "^[a-z][a-z0-9-]{0,62}$",
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "presentation": {
+          "enum": [
+            "none",
+            "github-pr",
+            "release"
+          ],
+          "minLength": 0,
+          "type": "string"
+        },
+        "trigger": {
+          "oneOf": [
+            {
+              "enum": [
+                "pull-request",
+                "workflow-dispatch"
+              ],
+              "minLength": 0,
+              "type": "string"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "push": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "branches": {
+                      "items": {
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "maxItems": 100,
+                      "minItems": 1,
+                      "type": "array",
+                      "uniqueItems": true
+                    }
+                  },
+                  "required": [
+                    "branches"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "push"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "workflow-dispatch": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "inputs": {
+                      "additionalProperties": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "default": {
+                            "type": [
+                              "string",
+                              "boolean",
+                              "number"
+                            ]
+                          },
+                          "description": {
+                            "minLength": 0,
+                            "type": "string"
+                          },
+                          "options": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "minItems": 1,
+                            "type": "array",
+                            "uniqueItems": true
+                          },
+                          "required": {
+                            "type": "boolean"
+                          },
+                          "type": {
+                            "enum": [
+                              "string",
+                              "boolean",
+                              "number",
+                              "choice",
+                              "environment"
+                            ],
+                            "minLength": 0,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type"
+                        ],
+                        "type": "object"
+                      },
+                      "propertyNames": {
+                        "minLength": 0,
+                        "pattern": "^[a-z][a-z0-9-]{0,62}$",
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "workflow-dispatch"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "required": [
+        "trigger",
+        "nodes"
+      ],
+      "type": "object"
+    },
     "label": {
       "additionalProperties": false,
       "properties": {
@@ -96,6 +284,168 @@
           },
           "maxItems": 1000,
           "type": "array"
+        },
+        "policy": {
+          "additionalProperties": false,
+          "properties": {
+            "approvals": {
+              "additionalProperties": false,
+              "properties": {
+                "files": {
+                  "type": "boolean"
+                },
+                "findings": {
+                  "type": "boolean"
+                },
+                "node": {
+                  "type": "boolean"
+                }
+              },
+              "required": [],
+              "type": "object"
+            },
+            "blocking": {
+              "type": "boolean"
+            },
+            "blocking-severities": {
+              "items": {
+                "enum": [
+                  "notice",
+                  "warning",
+                  "error"
+                ]
+              },
+              "maxItems": 3,
+              "type": "array"
+            }
+          },
+          "required": [],
+          "type": "object"
+        },
+        "profile": {
+          "minLength": 0,
+          "pattern": "^[a-z][a-z0-9-]{0,62}$",
+          "type": "string"
+        },
+        "results": {
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "minProperties": 1,
+          "properties": {
+            "exit-code": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              ]
+            },
+            "junit": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "native": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "sarif": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "run": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "shell": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "timeout-minutes": {
+          "maximum": 360,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "title": {
+          "maxLength": 255,
+          "minLength": 1,
+          "type": "string"
+        },
+        "uses": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "with": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "working-directory": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "operation": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "not": {
+            "required": [
+              "uses"
+            ]
+          },
+          "required": [
+            "run"
+          ]
+        },
+        {
+          "not": {
+            "required": [
+              "run"
+            ]
+          },
+          "required": [
+            "uses"
+          ]
+        }
+      ],
+      "properties": {
+        "diff-only": {
+          "type": "boolean"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/label"
+            }
+          ]
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
         },
         "policy": {
           "additionalProperties": false,
@@ -318,6 +668,47 @@
   "$id": "https://github.com/alchemmist/quality-graph/blob/main/schemas/graph-v0.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "oneOf": [
+    {
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "operations"
+            ]
+          },
+          {
+            "required": [
+              "flows"
+            ]
+          }
+        ]
+      },
+      "required": [
+        "nodes"
+      ]
+    },
+    {
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "nodes"
+            ]
+          },
+          {
+            "required": [
+              "execution"
+            ]
+          }
+        ]
+      },
+      "required": [
+        "operations",
+        "flows"
+      ]
+    }
+  ],
   "properties": {
     "administration": {
       "additionalProperties": false,
@@ -354,6 +745,18 @@
         "type": "object"
       },
       "maxProperties": 100,
+      "propertyNames": {
+        "minLength": 0,
+        "pattern": "^[a-z][a-z0-9-]{0,62}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "flows": {
+      "additionalProperties": {
+        "$ref": "#/$defs/flow"
+      },
+      "minProperties": 1,
       "propertyNames": {
         "minLength": 0,
         "pattern": "^[a-z][a-z0-9-]{0,62}$",
@@ -398,6 +801,18 @@
     "nodes": {
       "additionalProperties": {
         "$ref": "#/$defs/node"
+      },
+      "minProperties": 1,
+      "propertyNames": {
+        "minLength": 0,
+        "pattern": "^[a-z][a-z0-9-]{0,62}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "operations": {
+      "additionalProperties": {
+        "$ref": "#/$defs/operation"
       },
       "minProperties": 1,
       "propertyNames": {
@@ -474,8 +889,7 @@
   },
   "required": [
     "version",
-    "profiles",
-    "nodes"
+    "profiles"
   ],
   "title": "Quality Graph Declaration v0",
   "type": "object"
