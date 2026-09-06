@@ -35,3 +35,8 @@ def test_graph_schema_is_deterministic_and_describes_declaration_contract() -> N
     assert configuration["properties"]["default-branch"]["minLength"] == 1
     assert configuration["properties"]["merge"]["properties"]["required"] == {"type": "boolean"}
     assert configuration["additionalProperties"] is True
+    assert schema["$defs"]["flow"]["properties"]["concurrency"] == {
+        "type": "string",
+        "minLength": 0,
+        "pattern": "^[a-z][a-z0-9-]{0,62}$",
+    }

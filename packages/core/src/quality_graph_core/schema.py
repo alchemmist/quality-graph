@@ -475,7 +475,7 @@ def _flow_schema(identifier: dict[str, JsonValue]) -> dict[str, JsonValue]:
             "trigger": trigger,
             "dependencies": _string_schema(enum=("graph", "none")),
             "presentation": _string_schema(enum=("none", "github-pr", "release")),
-            "concurrency": _string_schema(minimum=1),
+            "concurrency": identifier,
             "nodes": {
                 "type": "object",
                 "minProperties": 1,

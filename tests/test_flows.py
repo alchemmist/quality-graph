@@ -70,6 +70,7 @@ def test_operation_reuse_keeps_flow_membership_and_dependencies_separate() -> No
             "only supported",
         ),
         (("flows", "release", "concurrency"), "", "exclusive concurrency"),
+        (("flows", "release", "concurrency"), "Production", "concurrency lane"),
         (("flows", "release", "dependencies"), "none", "graph dependencies"),
         (("flows", "release", "nodes", "test", "checkpoint"), {"environment": " "}, "not be empty"),
         (

@@ -369,7 +369,7 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
         if flow.trigger == "workflow-dispatch":
             continue
         projection = EventProjection(flow.trigger, graph.for_flow(flow.id).nodes, flow.dependencies)
-        workflow = _execution_workflow(graph, projection, configuration, digest)
+        workflow = _execution_workflow(graph, projection, configuration, digest, flow=flow)
         if flow.concurrency is not None:
             workflow["concurrency"] = {
                 "group": f"quality-graph-{flow.concurrency}",
@@ -379,36 +379,6 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
             workflow["on"] = {"push": {"branches": list(flow.branches)}}
         else:
             workflow["on"] = {"pull_request": {"branches": [configuration.default_branch]}}
-        jobs = cast("dict[str, dict[str, JsonValue]]", workflow["jobs"])
-        for node in projection.nodes:
-            environment = cast("dict[str, JsonValue]", jobs[node.id].get("env", {}))
-            environment.update(
-                {
-                    "QG_FLOW_ID": flow.id,
-                    "QG_OPERATION_ID": node.operation_id,
-                    "QG_NODE_ID": node.id,
-                    "QG_NODE_TITLE": node.title,
-                    "QG_GRAPH_DIGEST": digest,
-                }
-            )
-            jobs[node.id]["env"] = environment
-            steps = cast("list[dict[str, JsonValue]]", jobs[node.id]["steps"])
-            collect = cast("dict[str, JsonValue]", steps[-3]["with"])
-            collect.update(
-                {
-                    "flow-id": flow.id,
-                    "operation-id": node.operation_id,
-                    "presentation": flow.presentation,
-                }
-            )
-            if flow.presentation != "github-pr":
-                collect.update(
-                    {
-                        "approval-findings": "false",
-                        "approval-files": "false",
-                        "approval-node": "false",
-                    }
-                )
         path = EXECUTION_WORKFLOW if flow.trigger == "pull-request" else PUSH_WORKFLOW
         files.append(GeneratedFile(path, _yaml_file(workflow)))
     if any(flow.presentation == "github-pr" for flow in graph.flows):
@@ -565,6 +535,8 @@ def _execution_workflow(
     projection: EventProjection,
     configuration: _GitHubConfiguration,
     digest: str,
+    *,
+    flow: Flow | None = None,
 ) -> dict[str, JsonValue]:
     profiles = graph.expanded_profiles()
     jobs: dict[str, JsonValue] = {
@@ -573,6 +545,7 @@ def _execution_workflow(
             profiles[node.profile],
             configuration,
             digest,
+            flow=flow,
         )
         for node in projection.nodes
     }
@@ -604,6 +577,8 @@ def _execution_job(
     profile: Profile,
     configuration: _GitHubConfiguration,
     graph_digest: str,
+    *,
+    flow: Flow | None = None,
 ) -> dict[str, JsonValue]:
     runner = cast("str", profile.runner)
     command = _workflow_step(node.step)
@@ -614,25 +589,13 @@ def _execution_job(
             "continue-on-error": True,
         }
     )
-    report_path = node.result.path or ""
     result_path = f"${{{{ runner.temp }}}}/quality-graph/{node.id}.json"
     collect: dict[str, JsonValue] = {
         "name": f"Collect {node.title} result",
         "id": "quality-result",
         "if": "always()",
         "uses": configuration.runtime_action,
-        "with": {
-            "operation": "collect",
-            "node-id": node.id,
-            "title": node.title,
-            "adapter": node.result.kind.value,
-            "report-path": report_path,
-            "command-outcome": "${{ steps.quality-command.outcome }}",
-            "graph-digest": graph_digest,
-            "approval-findings": str(node.policy.approvals.findings).lower(),
-            "approval-files": str(node.policy.approvals.files).lower(),
-            "approval-node": str(node.policy.approvals.node).lower(),
-        },
+        "with": _collection_inputs(node, graph_digest, flow),
     }
     upload: dict[str, JsonValue] = {
         "name": f"Upload {node.title} result",
@@ -668,6 +631,16 @@ def _execution_job(
         value["needs"] = list(node.needs)
     environment = _json_string_mapping(profile.environment)
     environment.update(_json_string_mapping(node.environment))
+    if flow is not None:
+        environment.update(
+            {
+                "QG_FLOW_ID": flow.id,
+                "QG_OPERATION_ID": node.operation_id,
+                "QG_NODE_ID": node.id,
+                "QG_NODE_TITLE": node.title,
+                "QG_GRAPH_DIGEST": graph_digest,
+            }
+        )
     if environment:
         value["env"] = environment
     timeout = node.timeout_minutes or profile.timeout_minutes
@@ -676,6 +649,34 @@ def _execution_job(
     if profile.services:
         value["services"] = dict(profile.services)
     return value
+
+
+def _collection_inputs(node: Node, graph_digest: str, flow: Flow | None) -> dict[str, JsonValue]:
+    inputs: dict[str, JsonValue] = {
+        "operation": "collect",
+        "node-id": node.id,
+        "title": node.title,
+        "adapter": node.result.kind.value,
+        "report-path": node.result.path or "",
+        "command-outcome": "${{ steps.quality-command.outcome }}",
+        "graph-digest": graph_digest,
+        "approval-findings": str(node.policy.approvals.findings).lower(),
+        "approval-files": str(node.policy.approvals.files).lower(),
+        "approval-node": str(node.policy.approvals.node).lower(),
+    }
+    if flow is not None:
+        inputs.update(
+            {
+                "flow-id": flow.id,
+                "operation-id": node.operation_id,
+                "presentation": flow.presentation,
+            }
+        )
+        if flow.presentation != "github-pr":
+            inputs.update(
+                {"approval-findings": "false", "approval-files": "false", "approval-node": "false"}
+            )
+    return inputs
 
 
 def _workflow_step(step: Step) -> dict[str, JsonValue]:
