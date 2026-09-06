@@ -83,9 +83,19 @@ every applicable post-merge check and leave diff-only checks in the PR flow. `de
 can opt a push flow into a DAG. Parallel execution still respects the provider's capacity limits.
 
 The GitHub compiler currently supports at most one PR flow and one push flow, with arbitrary
-flow IDs, and any number of release contracts. PR and main flows can be omitted. Push branches
+flow IDs, one executable release flow, and any number of release plans. PR and main flows can be omitted. Push branches
 are explicit literal branch names, not wildcard patterns. The PR trigger targets the configured
 default branch. Explicit PR workflows do not include the legacy manual-dispatch trigger.
+
+Release flows can use `trigger: {push: {tags: ["v*"]}}` and opt into execution with
+`execution: github-actions`. A push trigger selects either branches or tags, never both.
+Tag-triggered flows default to graph dependencies and require a concurrency lane. See
+[Executable release flows](release-flows.md) for permissions, protected environments and retries.
+
+An operation may define `steps` instead of a single `run` or `uses`; mixing the forms is rejected.
+Every step has the same command/action fields as a profile setup step. An operation's optional
+`permissions` replace its profile permissions. Its optional `environment` accepts a literal
+environment name or `{name: ..., url: ...}`. Write permissions and environments are release-only.
 
 An optional literal `concurrency` lane serializes executions without cancelling an in-progress
 run. Without it, PR/main retain the per-workflow/per-ref cancellation policy. Provider concurrency
@@ -144,3 +154,18 @@ At the Python interface, `Graph.operations` and `Graph.flows` retain the declara
 `Graph.for_flow(id)` resolves operation references to nodes for policy evaluation. Compile the
 original declaration; compiling a resolved flow is rejected so release projections cannot
 accidentally become PR workflows.
+
+## Updating a repository's own declaration
+
+The trusted publisher normally validates artifacts against the base-branch declaration. When
+only the declaration digest changes, a publisher containing this migration support can also read
+the immutable PR-head declaration and compare its effective PR contract with the base. Acceptance
+requires identical node identities, commands, adapters, dependencies, effective profiles, labels,
+administrator roles, provider settings and runtime repository. Pin revisions and unrelated flows
+may change. Results must then match the actual head declaration digest and flow/operation IDs;
+the publisher never rewrites results to claim the base digest.
+
+Changes to PR checks or governance do not qualify and still fail closed. Activate the updated
+publisher on the default branch before migrating a repository that runs an older publisher.
+Updating only `publisher-action` and its generated workflow is compatible with existing result
+digests, so this activation can be reviewed and merged before the configuration migration.

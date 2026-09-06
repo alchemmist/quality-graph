@@ -307,10 +307,36 @@ def graph_schema_value() -> dict[str, JsonValue]:
                 ]
             },
             "timeout-minutes": {"type": "integer", "minimum": 1, "maximum": 360},
+            "steps": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/step"}},
+            "permissions": string_mapping,
+            "environment": {
+                "oneOf": [
+                    _string_schema(minimum=1, maximum=255),
+                    _object_schema(
+                        {
+                            "name": _string_schema(minimum=1, maximum=255),
+                            "url": _string_schema(minimum=1),
+                        },
+                        ("name",),
+                    ),
+                ]
+            },
         }
     )
     node = _object_schema(node_properties, ())
-    node["oneOf"] = step["oneOf"]
+    node["oneOf"] = [
+        {"required": ["run"], "not": {"anyOf": [{"required": ["uses"]}, {"required": ["steps"]}]}},
+        {"required": ["uses"], "not": {"anyOf": [{"required": ["run"]}, {"required": ["steps"]}]}},
+        {
+            "required": ["steps"],
+            "not": {
+                "anyOf": [
+                    {"required": [key]}
+                    for key in ("run", "uses", "with", "shell", "working-directory")
+                ]
+            },
+        },
+    ]
     labels = _object_schema(
         {
             "enabled": {"type": "boolean"},
@@ -385,7 +411,7 @@ def graph_schema_value() -> dict[str, JsonValue]:
     operation_properties.pop("events")
     operation_properties["diff-only"] = {"type": "boolean"}
     operation = _object_schema(operation_properties, ())
-    operation["oneOf"] = step["oneOf"]
+    operation["oneOf"] = node["oneOf"]
     properties = cast("dict[str, JsonValue]", schema["properties"])
     properties["operations"] = {
         "type": "object",
@@ -438,6 +464,7 @@ def _flow_schema(identifier: dict[str, JsonValue]) -> dict[str, JsonValue]:
             _object_schema(
                 {"push": _object_schema({"branches": branches}, ("branches",))}, ("push",)
             ),
+            _object_schema({"push": _object_schema({"tags": branches}, ("tags",))}, ("push",)),
             _object_schema(
                 {
                     "workflow-dispatch": _object_schema(
@@ -476,6 +503,7 @@ def _flow_schema(identifier: dict[str, JsonValue]) -> dict[str, JsonValue]:
             "dependencies": _string_schema(enum=("graph", "none")),
             "presentation": _string_schema(enum=("none", "github-pr", "release")),
             "concurrency": identifier,
+            "execution": _string_schema(enum=("design-only", "github-actions")),
             "nodes": {
                 "type": "object",
                 "minProperties": 1,

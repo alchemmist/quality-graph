@@ -35,8 +35,10 @@ GENERATED_HEADER = f"# {GENERATED_NOTICE}\n---\n"
 EXECUTION_WORKFLOW = PurePosixPath(".github/workflows/quality-graph.yml")
 PUSH_WORKFLOW = PurePosixPath(".github/workflows/quality-graph-push.yml")
 PUBLICATION_WORKFLOW = PurePosixPath(".github/workflows/quality-graph-publish.yml")
+RELEASE_WORKFLOW = PurePosixPath(".github/workflows/release.yml")
 GRAPH_MANIFEST = PurePosixPath(".quality-graph/manifest.json")
 DEFAULT_UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@v7"
+RELEASE_UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 ACTION_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?@[A-Za-z0-9_.:/-]+$")
 RUNTIME_ACTION_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$")
 PERMISSION_NAMES = {
@@ -134,13 +136,17 @@ def _validate_execution_contracts(graph: Graph) -> None:
         message = "compile the original declaration, not a resolved flow"
         raise ValueError(message)
     for profile in graph.profiles:
-        _validate_permissions(profile)
+        _validate_permissions(profile, allow_write=bool(graph.flows))
         for step in profile.setup:
             _validate_step(step)
     for node in graph.nodes:
-        _validate_step(node.step)
+        _validate_node_contract(node, graph.expanded_profiles()[node.profile], allow_write=False)
     for operation in graph.operations:
-        _validate_step(operation.step)
+        _validate_node_contract(
+            operation.place(FlowNode(operation.id, operation.id), DependencyPolicy.GRAPH),
+            graph.expanded_profiles()[operation.profile],
+            allow_write=True,
+        )
     titles = [node.title for node in graph.nodes]
     if len(set(titles)) != len(titles):
         message = "GitHub dashboard requires unique node titles"
@@ -176,7 +182,7 @@ def _event_projections(graph: Graph) -> tuple[EventProjection, ...]:
                 flow.dependencies,
             )
             for flow in graph.flows
-            if flow.trigger != "workflow-dispatch"
+            if not flow.is_release
         )
     supported = set(SUPPORTED_EVENTS)
     unknown = set(graph.execution) - supported
@@ -222,7 +228,7 @@ def project_graph(graph: Graph, event: str) -> Graph:
     """Return one dependency-normalized GitHub event graph."""
     if graph.flows:
         for flow in graph.flows:
-            if flow.trigger == event:
+            if flow.trigger == event and not flow.is_release:
                 return graph.for_flow(flow.id)
         message = f"no flow declares the {event} trigger"
         raise ValueError(message)
@@ -231,17 +237,66 @@ def project_graph(graph: Graph, event: str) -> Graph:
 
 def _validate_explicit_flows(graph: Graph) -> None:
     for trigger in SUPPORTED_EVENTS:
-        selected = [flow for flow in graph.flows if flow.trigger == trigger]
+        selected = [flow for flow in graph.flows if flow.trigger == trigger and not flow.is_release]
         if len(selected) > 1:
             message = f"GitHub supports one {trigger} flow per declaration"
             raise ValueError(message)
+    releases = [
+        flow for flow in graph.flows if flow.is_release and flow.execution_mode == "github-actions"
+    ]
+    if len(releases) > 1:
+        message = "GitHub supports one executable release flow per declaration"
+        raise ValueError(message)
     for flow in graph.flows:
         for branch in flow.branches:
             _default_branch(branch)
+        _validate_release_contract(graph, flow)
+        for node in graph.for_flow(flow.id).nodes:
+            _validate_node_contract(
+                node, graph.expanded_profiles()[node.profile], allow_write=flow.is_release
+            )
         if flow.presentation == "github-pr":
             titles = [node.title for node in graph.for_flow(flow.id).nodes]
             if len(set(titles)) != len(titles):
                 message = "GitHub PR presentation requires unique placement titles"
+                raise ValueError(message)
+
+
+def _validate_node_contract(node: Node, profile: Profile, *, allow_write: bool) -> None:
+    effective = (
+        replace(profile, permissions=node.permissions) if node.permissions is not None else profile
+    )
+    _validate_permissions(effective, allow_write=allow_write)
+    if node.deployment_environment and not allow_write:
+        message = "deployment environments are only allowed in release flows"
+        raise ValueError(message)
+    for step in node.steps or (node.step,):
+        _validate_step(step)
+
+
+def _validate_release_contract(graph: Graph, flow: Flow) -> None:
+    for pattern in flow.tags:
+        if (
+            pattern.startswith("!")
+            or "${{" in pattern
+            or re.search(r"[\x00-\x20\x7f]", pattern)
+            or len(pattern) > MAX_BRANCH_NAME_LENGTH
+        ):
+            message = "release tag patterns must be literal nonnegative filters without whitespace"
+            raise ValueError(message)
+    if not flow.is_release or flow.execution_mode != "github-actions":
+        return
+    if any(node.checkpoint for node in flow.nodes):
+        message = (
+            "executable release checkpoints require a resumable provider; use design-only mode"
+        )
+        raise ValueError(message)
+    profiles = graph.expanded_profiles()
+    for node in graph.for_flow(flow.id).nodes:
+        profile = profiles[node.profile]
+        for step in (*profile.setup, *(node.steps or (node.step,))):
+            if step.uses is not None and re.fullmatch(r"[^@]+@[0-9a-f]{40}", step.uses) is None:
+                message = "executable release actions must be pinned to a 40-character commit"
                 raise ValueError(message)
 
 
@@ -280,12 +335,12 @@ def _upload_artifact_action(runtime: Mapping[str, JsonValue]) -> str:
     return _runtime_action(runtime["upload-artifact-action"], "upload artifact")
 
 
-def _validate_permissions(profile: Profile) -> None:
+def _validate_permissions(profile: Profile, *, allow_write: bool = False) -> None:
     for permission, access in profile.permissions.items():
         if permission not in PERMISSION_NAMES:
             message = f"unknown GitHub permission: {permission}"
             raise ValueError(message)
-        if access not in {"none", "read"}:
+        if access not in ({"none", "read", "write"} if allow_write else {"none", "read"}):
             message = f"GitHub execution permission must be none or read: {permission}={access}"
             raise ValueError(message)
 
@@ -366,20 +421,41 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
     manifest.update({"graphDigest": digest, "_generated": GENERATED_NOTICE})
     files: list[GeneratedFile] = []
     for flow in graph.flows:
-        if flow.trigger == "workflow-dispatch":
+        if flow.execution_mode == "design-only":
             continue
         projection = EventProjection(flow.trigger, graph.for_flow(flow.id).nodes, flow.dependencies)
-        workflow = _execution_workflow(graph, projection, configuration, digest, flow=flow)
+        flow_configuration = configuration
+        if (
+            flow.is_release
+            and configuration.upload_artifact_action == DEFAULT_UPLOAD_ARTIFACT_ACTION
+        ):
+            flow_configuration = replace(
+                configuration, upload_artifact_action=RELEASE_UPLOAD_ARTIFACT_ACTION
+            )
+        workflow = _execution_workflow(graph, projection, flow_configuration, digest, flow=flow)
         if flow.concurrency is not None:
             workflow["concurrency"] = {
                 "group": f"quality-graph-{flow.concurrency}",
                 "cancel-in-progress": False,
             }
-        if flow.trigger == "push":
+        if flow.is_release:
+            workflow["name"] = "Release"
+            workflow["on"] = (
+                {"push": {"tags": list(flow.tags)}}
+                if flow.tags
+                else {"workflow_dispatch": {"inputs": dict(flow.inputs)}}
+            )
+        elif flow.trigger == "push":
             workflow["on"] = {"push": {"branches": list(flow.branches)}}
         else:
             workflow["on"] = {"pull_request": {"branches": [configuration.default_branch]}}
-        path = EXECUTION_WORKFLOW if flow.trigger == "pull-request" else PUSH_WORKFLOW
+        path = (
+            RELEASE_WORKFLOW
+            if flow.is_release
+            else EXECUTION_WORKFLOW
+            if flow.trigger == "pull-request"
+            else PUSH_WORKFLOW
+        )
         files.append(GeneratedFile(path, _yaml_file(workflow)))
     if any(flow.presentation == "github-pr" for flow in graph.flows):
         files.append(
@@ -395,18 +471,20 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
         for path in (EXECUTION_WORKFLOW, PUSH_WORKFLOW, PUBLICATION_WORKFLOW)
         if path not in paths
     )
-    return GeneratedProject(digest, tuple(files), retired)
+    return GeneratedProject(
+        digest, tuple(files), retired, () if RELEASE_WORKFLOW in paths else (RELEASE_WORKFLOW,)
+    )
 
 
 def _flow_value(flow: Flow) -> dict[str, JsonValue]:
-    return {
+    value: dict[str, JsonValue] = {
         "trigger": flow.trigger,
         "branches": list(flow.branches),
         "inputs": dict(flow.inputs),
         "dependencies": flow.dependencies.value,
         "presentation": flow.presentation,
         "concurrency": flow.concurrency,
-        "execution": "design-only" if flow.trigger == "workflow-dispatch" else "github-actions",
+        "execution": flow.execution_mode,
         "nodes": [
             {
                 "id": node.id,
@@ -417,6 +495,9 @@ def _flow_value(flow: Flow) -> dict[str, JsonValue]:
             for node in flow.nodes
         ],
     }
+    if flow.tags:
+        value["tags"] = list(flow.tags)
+    return value
 
 
 def _manifest_value(
@@ -493,6 +574,13 @@ def _node_value(node: Node, profile: Profile) -> dict[str, JsonValue]:
         "env": {**profile.environment, **node.environment},
     }
     _put_optional(value, "timeoutMinutes", node.timeout_minutes or profile.timeout_minutes)
+    if node.steps:
+        value.pop("step")
+        value["steps"] = [_step_value(step) for step in node.steps]
+    if node.permissions is not None:
+        value["permissions"] = dict(node.permissions)
+    if node.deployment_environment:
+        value["environment"] = dict(node.deployment_environment)
     if isinstance(node.failing_label, LabelSpec):
         value["failingLabel"] = _label_value(node.failing_label)
     elif node.failing_label is False:
@@ -519,6 +607,22 @@ def _labels_value(graph: Graph) -> dict[str, JsonValue]:
     if graph.labels.failing is not None:
         value["failing"] = _label_value(graph.labels.failing)
     return value
+
+
+def pr_contract(graph: Graph) -> dict[str, JsonValue]:
+    """Describe effective PR checks and governance independently of pin revisions."""
+    profiles = graph.expanded_profiles()
+    configuration = dict(graph.provider.values)
+    runtime = cast("dict[str, JsonValue]", configuration.pop("runtime"))
+    return {
+        "provider": graph.provider.name,
+        "configuration": configuration,
+        "runtimeRepository": _runtime_action(runtime.get("action"), "runtime").partition("@")[0],
+        "nodes": [_node_value(node, profiles[node.profile]) for node in graph.nodes],
+        "profiles": {node.profile: _profile_value(profiles[node.profile]) for node in graph.nodes},
+        "labels": _labels_value(graph),
+        "administration": list(graph.administrator_roles),
+    }
 
 
 def _label_value(label: LabelSpec) -> dict[str, JsonValue]:
@@ -621,7 +725,7 @@ def _execution_job(
         "permissions": dict(profile.permissions),
         "steps": [
             *(_workflow_step(step) for step in profile.setup),
-            command,
+            *([_workflow_step(step) for step in node.steps] if node.steps else [command]),
             collect,
             upload,
             enforce,
@@ -629,6 +733,12 @@ def _execution_job(
     }
     if node.needs:
         value["needs"] = list(node.needs)
+    if node.permissions is not None:
+        value["permissions"] = dict(node.permissions)
+    if node.deployment_environment:
+        value["environment"] = dict(node.deployment_environment)
+    if flow is not None and flow.is_release:
+        value["if"] = "startsWith(github.ref, 'refs/tags/')"
     environment = _json_string_mapping(profile.environment)
     environment.update(_json_string_mapping(node.environment))
     if flow is not None:
@@ -664,6 +774,8 @@ def _collection_inputs(node: Node, graph_digest: str, flow: Flow | None) -> dict
         "approval-files": str(node.policy.approvals.files).lower(),
         "approval-node": str(node.policy.approvals.node).lower(),
     }
+    if node.steps:
+        inputs["command-outcome"] = "${{ job.status }}"
     if flow is not None:
         inputs.update(
             {

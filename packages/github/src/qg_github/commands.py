@@ -9,9 +9,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from qg_github.approvals import ApprovalRecord, append_approval_record
-from qg_github.artifacts import ArtifactExpectation, download_results
+from qg_github.artifacts import ArtifactExpectation
 from qg_github.compiler import compile_graph
 from qg_github.controls import control_states, decode_control_marker
+from qg_github.declarations import read_pr_results
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
 from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
@@ -220,7 +221,7 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
         graph.flow_id,
         {node.id: node.operation_id for node in graph.nodes if node.operation_id is not None},
     )
-    results = download_results(port, expectation)
+    graph, results = read_pr_results(port, graph, expectation)
     if any(result.provenance.run_attempt > attempt for result in results.values()):
         message = "result artifact attempt exceeds the latest workflow attempt"
         raise ValueError(message)

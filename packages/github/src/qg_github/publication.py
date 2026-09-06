@@ -10,7 +10,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
 
 from qg_github.approvals import approval_ledger
-from qg_github.artifacts import ArtifactError, ArtifactExpectation, download_results
+from qg_github.artifacts import ArtifactError, ArtifactExpectation
 from qg_github.comments import find_managed_comment, upsert_managed_comment
 from qg_github.compiler import compile_graph
 from qg_github.dashboard import (
@@ -23,6 +23,7 @@ from qg_github.dashboard import (
     pending_dashboard,
     render_dashboard,
 )
+from qg_github.declarations import read_pr_results
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
 from qg_github.labels import parse_label_state, reconcile_labels
 from qg_github.presentation import pr_presentation_graph
@@ -294,7 +295,7 @@ def _completed_dashboard(
         {node.id: node.operation_id for node in graph.nodes if node.operation_id is not None},
     )
     try:
-        results = download_results(port, expectation)
+        graph, results = read_pr_results(port, graph, expectation)
     except ArtifactError as error:
         nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
         statuses = _workflow_node_statuses(port, nodes, run.id)

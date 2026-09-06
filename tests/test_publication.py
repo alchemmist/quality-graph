@@ -574,6 +574,11 @@ def test_completed_event_surfaces_invalid_artifacts_as_failure() -> None:
 def test_completed_event_preserves_job_statuses_when_artifact_provenance_is_stale() -> None:
     port = MemoryGitHubPort()
     configure_publication(port)
+    port.enqueue(
+        "GET",
+        f"/contents/qg.yaml?ref={'a' * 40}",
+        {"content": base64.b64encode(GRAPH.encode()).decode()},
+    )
     stale = result_archive("format", "Formatting", graph_digest="f" * 64)
     port.enqueue(
         "GET",

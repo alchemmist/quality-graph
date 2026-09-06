@@ -26,6 +26,7 @@ class GeneratedProject:
     graph_digest: str
     files: tuple[GeneratedFile, ...]
     retired_files: tuple[PurePosixPath, ...] = ()
+    retired_if_generated: tuple[PurePosixPath, ...] = ()
 
 
 @runtime_checkable

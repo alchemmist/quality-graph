@@ -1,10 +1,54 @@
-# Release flow provider contract
+# Executable release flows and checkpoint contracts
 
-This refactor ships a validated release declaration and deterministic manifest plan, not a release
-executor or production deployment integration. Manifest flows with `trigger: workflow-dispatch`
-are marked `execution: design-only`. No GitHub release workflow, credentials, deployment, release
-notes or sleeping runner is created. A provider must implement and test the following contract
-before changing that marker to an executable capability.
+GitHub release flows can now generate a working `.github/workflows/release.yml` with ordered
+operation steps, artifact upload/download actions, protected deployment environments, and
+operation-specific permissions. Enable execution explicitly with `execution: github-actions`:
+
+```yaml
+flows:
+  release:
+    trigger:
+      push:
+        tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+    execution: github-actions
+    concurrency: publishing
+    presentation: release
+    nodes:
+      build: {}
+      publish:
+        needs: [build]
+```
+
+The compiler supports one executable release flow per declaration. The workflow path is kept
+stable for PyPI Trusted Publisher bindings. Every release job requires a tag ref; manual dispatch
+is supported when dispatched against a tag. Branch dispatch does not execute release jobs.
+Actions used by executable release operations and their setup profiles must be pinned to commit
+SHAs. PR and main flows cannot inherit release write permissions or deployment environments.
+
+Operations accept either a single `run`/`uses` command or a nonempty `steps` sequence. Steps run
+in declaration order and stop on failure. Put package verification and artifact uploads in the
+build operation, downloads and the PyPI action in publishing operations, and GitHub Release
+creation in the final operation. Use `permissions: {id-token: write}` and a literal `environment`
+for PyPI; grant `contents: write` only to the GitHub Release operation. These permissions replace
+the profile's permissions for that job. Each operation still emits a common result and job
+summary, without PR dashboard publication or PR approval controls.
+
+GitHub's normal dependency scheduling and failed-job reruns provide failure handling and retries.
+Publishing operations must be idempotent or safely reject duplicate publication; generating a
+workflow does not make an arbitrary external action transactional. Retained build artifacts must
+remain available for a rerun. Concurrency serializes active runs and does not cancel an active
+release, but GitHub may replace a pending run and does not provide a durable FIFO queue.
+
+Existing release declarations retain `execution: design-only` by default. Executable flows
+containing checkpoints are rejected: durable leases, observation timers, checkpoint resumption,
+and rollback remain the future provider contract below. No runner-held observation sleep is
+generated. These executable options require a compiler and runtime containing this change;
+the published 0.1.9 runtime supports release plans only.
+
+## Checkpointed provider extension
+
+The remaining sections describe requirements for a future stateful executor, beyond the native
+tag-bound publishing pipeline implemented above.
 
 ## Inputs and lane ownership
 

@@ -30,12 +30,16 @@ class ArtifactError(ValueError):
     """Represent an invalid or incompatible result artifact."""
 
 
+class DeclarationMismatchError(ArtifactError):
+    """Identify a different declaration after workflow identity has been verified."""
+
+
 @dataclass(frozen=True)
 class ArtifactExpectation:
     """Describe trusted workflow provenance required from every result."""
 
     repository: str
-    pull_request: int
+    pull_request: int | None
     head_sha: str
     workflow_run_id: int
     graph_digest: str
@@ -189,7 +193,13 @@ def _validate_result(
         provenance.flow_id,
         provenance.operation_id,
     )
-    if result.node_id != descriptor.node_id or observed != expected:
+    if result.node_id != descriptor.node_id or observed[:5] != expected[:5]:
+        message = f"artifact provenance does not match workflow metadata: {descriptor.id}"
+        raise ArtifactError(message)
+    if provenance.graph_digest != expectation.graph_digest:
+        message = f"artifact provenance does not match workflow metadata: {descriptor.id}"
+        raise DeclarationMismatchError(message)
+    if observed[5:] != expected[5:]:
         message = f"artifact provenance does not match workflow metadata: {descriptor.id}"
         raise ArtifactError(message)
 
