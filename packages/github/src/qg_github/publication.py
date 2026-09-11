@@ -293,6 +293,7 @@ def _completed_dashboard(
         frozenset(node.id for node in graph.nodes),
         graph.flow_id,
         {node.id: node.operation_id for node in graph.nodes if node.operation_id is not None},
+        run.attempt,
     )
     try:
         graph, results = read_pr_results(port, graph, expectation)

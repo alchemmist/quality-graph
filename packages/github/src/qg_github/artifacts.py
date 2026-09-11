@@ -46,6 +46,7 @@ class ArtifactExpectation:
     node_ids: frozenset[str]
     flow_id: str | None = None
     operation_ids: Mapping[str, str] = field(default_factory=dict)
+    run_attempt: int | None = None
 
 
 @dataclass(frozen=True)
@@ -66,13 +67,26 @@ def download_results(
     """Download the newest valid attempt for every expected node."""
     selected: dict[str, tuple[int, Result]] = {}
     for descriptor in _artifact_descriptors(port, expectation.workflow_run_id):
+        if expectation.run_attempt is not None:
+            if descriptor.attempt < expectation.run_attempt:
+                continue
+            if descriptor.attempt > expectation.run_attempt:
+                message = f"artifact targets a future workflow run attempt: {descriptor.id}"
+                raise ArtifactError(message)
         if descriptor.node_id not in expectation.node_ids:
             message = f"artifact targets unknown graph node: {descriptor.node_id}"
+            raise ArtifactError(message)
+        current = selected.get(descriptor.node_id)
+        if (
+            expectation.run_attempt is not None
+            and current is not None
+            and descriptor.attempt == current[0]
+        ):
+            message = f"duplicate result artifact for workflow run attempt: {descriptor.node_id}"
             raise ArtifactError(message)
         archive = port.download(f"/actions/artifacts/{descriptor.id}/zip")
         result = _result_from_archive(archive, descriptor)
         _validate_result(result, descriptor, expectation)
-        current = selected.get(descriptor.node_id)
         if current is None or descriptor.attempt >= current[0]:
             selected[descriptor.node_id] = (descriptor.attempt, result)
     return {node_id: result for node_id, (_, result) in selected.items()}

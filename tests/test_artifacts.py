@@ -48,6 +48,10 @@ def expectation() -> ArtifactExpectation:
     )
 
 
+def current_expectation() -> ArtifactExpectation:
+    return replace(expectation(), run_attempt=2)
+
+
 def artifact(artifact_id: int, name: str, content: bytes) -> dict[str, object]:
     return {
         "id": artifact_id,
@@ -94,6 +98,42 @@ def test_downloader_selects_newest_attempt_and_ignores_unrelated_artifacts() -> 
         "/actions/artifacts/3/zip",
         "/actions/artifacts/4/zip",
     ]
+
+
+def test_downloader_selects_only_the_expected_run_attempt() -> None:
+    port = MemoryGitHubPort()
+    old = archive(result(attempt=1))
+    current = archive(result(attempt=2))
+    port.enqueue(
+        "GET",
+        artifacts_path(),
+        {
+            "artifacts": [
+                artifact(1, "quality-result-lint-1", old),
+                artifact(2, "quality-result-lint-2", current),
+            ]
+        },
+    )
+    port.downloads["/actions/artifacts/2/zip"] = current
+
+    results = download_results(port, current_expectation())
+
+    assert results["lint"].provenance.run_attempt == 2
+    assert port.downloaded == ["/actions/artifacts/2/zip"]
+
+
+@pytest.mark.parametrize("attempt", [2, 3])
+def test_downloader_rejects_duplicate_or_future_expected_attempt(attempt: int) -> None:
+    port = MemoryGitHubPort()
+    content = archive(result(attempt=attempt))
+    artifacts = [artifact(1, f"quality-result-lint-{attempt}", content)]
+    if attempt == 2:
+        artifacts.append(artifact(2, "quality-result-lint-2", content))
+        port.downloads["/actions/artifacts/1/zip"] = content
+    port.enqueue("GET", artifacts_path(), {"artifacts": artifacts})
+
+    with pytest.raises(ArtifactError, match="duplicate|future"):
+        download_results(port, current_expectation())
 
 
 def test_downloader_follows_artifact_pagination() -> None:
