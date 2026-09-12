@@ -17,7 +17,7 @@ from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
 from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
 from quality_graph_core.policy import ApprovalTarget, effective_graph
-from quality_graph_core.result import ControlKind, JsonValue, Provenance
+from quality_graph_core.result import ControlKind, JsonValue
 
 COMMAND_RE = re.compile(
     r"^/qg(?:\s+(help|status|ignore|remove-ignore|ignore-file|remove-ignore-file)"
@@ -220,14 +220,9 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
         frozenset(node.id for node in graph.nodes),
         graph.flow_id,
         {node.id: node.operation_id for node in graph.nodes if node.operation_id is not None},
+        run_attempt=attempt,
     )
     graph, results = read_pr_results(port, graph, expectation)
-    if any(
-        not isinstance(result.provenance, Provenance) or result.provenance.run_attempt > attempt
-        for result in results.values()
-    ):
-        message = "result artifact attempt exceeds the latest workflow attempt"
-        raise ValueError(message)
     state = effective_graph(graph, results, set())
     return CommandContext(graph, run_id, state.targets)
 

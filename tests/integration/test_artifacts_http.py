@@ -80,7 +80,7 @@ def test_artifact_download_selects_newest_attempt_across_http_pages(
 
     results = download_results(
         HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url),
-        expectation(),
+        replace(expectation(), run_attempt=2),
     )
 
     assert results["lint"].provenance.run_attempt == 2

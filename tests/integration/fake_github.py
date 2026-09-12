@@ -46,6 +46,9 @@ class FakeGitHubState:
     permissions: dict[str, str] = field(default_factory=dict)
     workflow_runs: list[dict[str, JsonValue]] = field(default_factory=list)
     workflow_jobs: dict[int, list[dict[str, JsonValue]]] = field(default_factory=dict)
+    workflow_attempt_jobs: dict[int, dict[int, list[dict[str, JsonValue]]]] = field(
+        default_factory=dict
+    )
     workflow_job_snapshots: dict[int, list[list[dict[str, JsonValue]]]] = field(
         default_factory=dict
     )
@@ -56,6 +59,7 @@ class FakeGitHubState:
     contents: dict[str, str] = field(default_factory=dict)
     reruns: list[int] = field(default_factory=list)
     reactions: dict[int, dict[str, JsonValue]] = field(default_factory=dict)
+    raw_responses: dict[str, bytes] = field(default_factory=dict)
     failures: dict[tuple[str, str], int] = field(default_factory=dict)
     delays: dict[tuple[str, str], float] = field(default_factory=dict)
     requests: list[dict[str, JsonValue]] = field(default_factory=list)
@@ -109,6 +113,10 @@ class FakeGitHubState:
         fresh.permissions = _string_mapping(payload.get("permissions", {}))
         fresh.workflow_runs = _object_list(payload.get("workflow_runs", fresh.workflow_runs))
         fresh.workflow_jobs = _integer_object_lists(payload.get("workflow_jobs", {}))
+        fresh.workflow_attempt_jobs = {
+            int(run): _integer_object_lists(attempts)
+            for run, attempts in _object(payload.get("workflow_attempt_jobs", {})).items()
+        }
         fresh.workflow_job_snapshots = _job_snapshots(payload.get("workflow_job_snapshots", {}))
         fresh.active_workflow_job_pages = {}
         fresh.run_artifacts = _integer_object_lists(payload.get("run_artifacts", {}))
@@ -118,6 +126,10 @@ class FakeGitHubState:
         fresh.downloads = {
             int(identifier): base64.b64decode(value)
             for identifier, value in _string_mapping(payload.get("downloads", {})).items()
+        }
+        fresh.raw_responses = {
+            path: base64.b64decode(value)
+            for path, value in _string_mapping(payload.get("raw_responses", {})).items()
         }
         fresh.failures = _failures(payload.get("failures", []))
         fresh.delays = _delays(payload.get("request_delays", []))
@@ -141,6 +153,12 @@ class FakeGitHubState:
             "workflow_jobs": {
                 str(identifier): cast("JsonValue", jobs)
                 for identifier, jobs in self.workflow_jobs.items()
+            },
+            "workflow_attempt_jobs": {
+                str(run): {
+                    str(attempt): cast("JsonValue", jobs) for attempt, jobs in attempts.items()
+                }
+                for run, attempts in self.workflow_attempt_jobs.items()
             },
             "reruns": cast("JsonValue", self.reruns),
             "reactions": cast("JsonValue", list(self.reactions.values())),
@@ -198,6 +216,13 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
             if failure is not None:
                 self._json({"message": "configured failure"}, status=HTTPStatus(failure))
                 return
+            if method == "GET" and parsed.path in self.state.raw_responses:
+                self._send(
+                    HTTPStatus.OK,
+                    self.state.raw_responses[parsed.path],
+                    content_type="application/json",
+                )
+                return
             response = self._special(method, parsed.path, payload)
             if (
                 response is None
@@ -240,7 +265,8 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
             self._pull_routes(method, path, payload, query),
             self._comment_routes(method, path, payload, query),
             self._label_routes(method, path, payload, query),
-            self._action_routes(method, path, query),
+            self._attempt_job_routes(method, path, query)
+            or self._action_routes(method, path, query),
             self._check_routes(method, path, payload, query),
         ):
             if response is not None:
@@ -365,6 +391,31 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
             return _optional(None if permission is None else {"permission": permission})
         return None
 
+    def _attempt_job_routes(
+        self, method: str, path: str, query: dict[str, list[str]]
+    ) -> tuple[HTTPStatus, JsonValue | bytes] | None:
+        if method == "GET" and (
+            match := re.fullmatch(r"/actions/runs/(?P<id>\d+)/attempts/(?P<attempt>\d+)/jobs", path)
+        ):
+            attempts = self.state.workflow_attempt_jobs.get(int(match.group("id")), {})
+            jobs = attempts.get(int(match.group("attempt")))
+            if jobs is None:
+                return _optional(None)
+            return _jobs_page(jobs, query)
+        if method == "GET" and (match := re.fullmatch(r"/actions/runs/(?P<id>\d+)/jobs", path)):
+            attempts = self.state.workflow_attempt_jobs.get(int(match.group("id")))
+            if attempts is not None:
+                selected_filter = query.get("filter", ["latest"])[0]
+                if selected_filter not in {"latest", "all"}:
+                    return HTTPStatus.UNPROCESSABLE_ENTITY, {"message": "invalid jobs filter"}
+                jobs = (
+                    [job for attempt in sorted(attempts) for job in attempts[attempt]]
+                    if selected_filter == "all"
+                    else attempts.get(max(attempts, default=0), [])
+                )
+                return _jobs_page(jobs, query)
+        return None
+
     def _action_routes(
         self, method: str, path: str, query: dict[str, list[str]]
     ) -> tuple[HTTPStatus, JsonValue | bytes] | None:
@@ -399,6 +450,12 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
                     identifier,
                     self.state.workflow_jobs.get(identifier, []),
                 )
+            if query.get("filter", ["latest"])[0] == "latest":
+                latest = max(
+                    (value for job in jobs if isinstance(value := job.get("run_attempt", 1), int)),
+                    default=1,
+                )
+                jobs = [job for job in jobs if job.get("run_attempt", 1) == latest]
             status, page = _page(jobs, query)
             return status, {"total_count": len(jobs), "jobs": page}
         if method == "GET" and (
@@ -444,7 +501,9 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         return None if length == 0 else cast("JsonValue", json.loads(self.rfile.read(length)))
 
-    def _send(self, status: HTTPStatus, value: JsonValue | bytes) -> None:
+    def _send(
+        self, status: HTTPStatus, value: JsonValue | bytes, *, content_type: str | None = None
+    ) -> None:
         if status == HTTPStatus.NO_CONTENT:
             self.send_response(status)
             self.end_headers()
@@ -452,7 +511,8 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
         content = value if isinstance(value, bytes) else json.dumps(value).encode()
         self.send_response(status)
         self.send_header(
-            "Content-Type", "application/zip" if isinstance(value, bytes) else "application/json"
+            "Content-Type",
+            content_type or ("application/zip" if isinstance(value, bytes) else "application/json"),
         )
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
@@ -619,6 +679,15 @@ def _optional(value: JsonValue | bytes) -> tuple[HTTPStatus, JsonValue | bytes]:
         if value is None
         else (HTTPStatus.OK, value)
     )
+
+
+def _jobs_page(
+    jobs: list[dict[str, JsonValue]], query: dict[str, list[str]]
+) -> tuple[HTTPStatus, JsonValue]:
+    status, page = _page(jobs, query)
+    if status != HTTPStatus.OK:
+        return status, page
+    return status, {"total_count": len(jobs), "jobs": page}
 
 
 def _page(

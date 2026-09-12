@@ -26,7 +26,7 @@ from quality_graph_core.result import JsonValue, Provenance, Result, ResultStatu
 from tests.test_graph import GRAPH, NONE_PROJECTION_GRAPH
 
 RUNS_PATH = "/actions/workflows/quality-graph.yml/runs?event=pull_request&per_page=100&page=1"
-JOBS_PATH = "/actions/runs/10/jobs?filter=latest&per_page=100&page=1"
+JOBS_PATH = "/actions/runs/10/jobs?filter=all&per_page=100&page=1"
 
 
 def event(action: str = "in_progress", *, pull: bool = True) -> dict[str, JsonValue]:
@@ -311,8 +311,8 @@ def test_workflow_job_status_rejects_unknown_state() -> None:
 
 def test_workflow_jobs_paginates_complete_job_list() -> None:
     port = MemoryGitHubPort()
-    first = "/actions/runs/10/jobs?filter=latest&per_page=100&page=1"
-    second = "/actions/runs/10/jobs?filter=latest&per_page=100&page=2"
+    first = "/actions/runs/10/jobs?filter=all&per_page=100&page=1"
+    second = "/actions/runs/10/jobs?filter=all&per_page=100&page=2"
     jobs = [{"name": f"job-{index}", "status": "queued"} for index in range(100)]
     port.enqueue("GET", first, {"jobs": jobs})
     port.enqueue("GET", second, {"jobs": [{"name": "last", "status": "queued"}]})
@@ -462,6 +462,7 @@ def test_job_coordinator_preserves_previous_owned_labels() -> None:
 def test_completed_event_downloads_results_and_publishes_success() -> None:
     port = MemoryGitHubPort()
     configure_publication(port)
+    port.enqueue("GET", JOBS_PATH, {"jobs": []})
     format_archive = result_archive("format", "Formatting")
     lint_archive = result_archive("lint", "Lint")
     artifacts_path = "/actions/runs/10/artifacts?per_page=100&page=1"
@@ -492,6 +493,7 @@ def test_completed_event_downloads_results_and_publishes_success() -> None:
 def test_repeated_completed_publication_updates_its_existing_check_run() -> None:
     port = MemoryGitHubPort()
     configure_publication(port)
+    port.enqueue("GET", JOBS_PATH, {"jobs": []})
     external_id = "quality-graph:10:1"
     configure_publication(port, check_runs=[{"id": 100, "external_id": external_id}])
     format_archive = result_archive("format", "Formatting")
@@ -525,6 +527,7 @@ def test_repeated_completed_publication_updates_its_existing_check_run() -> None
 def test_completed_event_accepts_none_projection_with_excluded_dependency() -> None:
     port = MemoryGitHubPort()
     configure_publication(port, source=NONE_PROJECTION_GRAPH)
+    port.enqueue("GET", JOBS_PATH, {"jobs": []})
     lint_archive = result_archive("lint", "Lint", source=NONE_PROJECTION_GRAPH)
     port.enqueue(
         "GET",
@@ -562,6 +565,7 @@ def test_watcher_accepts_none_projection_with_excluded_dependency() -> None:
 def test_completed_event_surfaces_invalid_artifacts_as_failure() -> None:
     port = MemoryGitHubPort()
     configure_publication(port)
+    port.enqueue("GET", JOBS_PATH, {"jobs": []})
     port.enqueue("GET", "/actions/runs/10/artifacts?per_page=100&page=1", {"artifacts": []})
 
     outcome = publish_workflow_run(port, event("completed"))
@@ -611,6 +615,7 @@ def test_completed_event_preserves_job_statuses_when_artifact_provenance_is_stal
 def test_completed_event_preserves_partial_results_when_dependencies_skip() -> None:
     port = MemoryGitHubPort()
     configure_publication(port)
+    port.enqueue("GET", JOBS_PATH, {"jobs": []})
     format_archive = result_archive("format", "Formatting")
     artifacts_path = "/actions/runs/10/artifacts?per_page=100&page=1"
     port.enqueue(
@@ -672,6 +677,7 @@ def test_publisher_resolves_pull_from_commit_and_handles_no_association() -> Non
     resolved = MemoryGitHubPort()
     resolved.enqueue("GET", f"/commits/{'c' * 40}/pulls", [{"number": 41}, {"number": 42}])
     configure_publication(resolved)
+    resolved.enqueue("GET", JOBS_PATH, {"jobs": []})
     resolved.enqueue("GET", "/actions/runs/10/artifacts?per_page=100&page=1", {"artifacts": []})
     assert publish_workflow_run(resolved, event("completed", pull=False)).published is True
 

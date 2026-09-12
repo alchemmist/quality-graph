@@ -20,7 +20,8 @@ Docker adapter:
 make t-medium
 ```
 
-Set `QG_FAKE_GITHUB_PORT` when port `18080` is unavailable.
+Both adapters run even when the first suite fails; the target fails if either suite or Docker
+setup/cleanup fails. Set `QG_FAKE_GITHUB_PORT` when port `18080` is unavailable.
 
 ## Scenario interface
 
@@ -30,6 +31,10 @@ Tests use three operations:
 - `reset(payload)` replaces all repository state and configures failures or request delays;
 - `snapshot()` returns observable repository state and request history.
 
+Use `raw_responses` in the reset payload to map HTTP paths to base64-encoded response bodies for
+malformed JSON and encoding-error scenarios. These GET overrides return HTTP 200 with an
+`application/json` content type.
+
 The fixture selects the Docker adapter when `QG_FAKE_GITHUB_URL` is set. Tests must interact with
 GitHub through `HttpGitHubPort`; direct state access is reserved for constructing legacy in-process
 fixtures and is not available in Docker runs. A slow lane is intentionally not defined yet.
@@ -38,6 +43,31 @@ The fake models pull requests, commit associations, changed files, comparisons, 
 contents, comments, reactions, labels, permissions, workflow runs and jobs, artifacts, check runs,
 reruns, pagination, configured failures, and request delays. Request history supports ordering and
 budget assertions.
+
+## Workflow attempt scenarios
+
+Use `workflow_attempt_jobs` in `reset(payload)` to provide job history as
+`{"10": {"2": [...], "3": [...]}}` (run ID, attempt number, jobs). This explicit history takes
+precedence over legacy `workflow_jobs` and polling snapshots for that run. Include an empty list
+for a known attempt with no jobs. Each job fixture should include its GitHub `id`, `run_id`,
+`run_attempt`, `name`, `status`, and `conclusion`.
+
+The attempt endpoint `/actions/runs/10/attempts/2/jobs` returns only that attempt and returns 404
+for an unknown attempt. `/actions/runs/10/jobs?filter=latest` (also the default) returns the highest
+configured attempt; `filter=all` returns the complete history. Filtering precedes pagination.
+Artifacts remain scoped to the workflow run, so old artifacts can coexist with newer jobs.
+
+The fake does not execute Actions jobs: a rerun request is recorded, and tests explicitly supply
+the resulting attempt history. Artifact fixtures may intentionally contain impossible or
+conflicting metadata to exercise the publisher trust boundary.
+
+`test_publication_attempts_http.py` exercises issue #69 through `publish_workflow_run` and the
+production HTTP transport. It checks the persisted check conclusion with an exact matching
+latest-run response. Stale success after failure/cancellation, future attempts, results on either
+side of the event attempt, and conflicting duplicates (both orders and across pages) are ordinary
+assertions, without skips or expected-failure markers. Current results, retained results for jobs
+not rerun, missing results and wrong provenance provide controls. The regressions cover publisher admission and are also exercised through the watcher and
+administrator command paths.
 
 ## Coverage responsibility
 
@@ -49,6 +79,8 @@ GitHub-facing integration coverage includes:
 
 - publisher live/final recovery, stale-writer rejection, artifacts, check-run idempotence, labels,
   no-op refreshes, and request budgets;
+- dashboard job Logs URLs through live/final updates, retained result attempts, pagination, and
+  explicitly labeled Workflow run fallbacks for missing or ambiguous job metadata;
 - administrator commands, immutable approval records, reactions, reruns, authorization failures,
   and checkbox rollback;
 - managed comments, label ownership, artifact provenance and archive safety;

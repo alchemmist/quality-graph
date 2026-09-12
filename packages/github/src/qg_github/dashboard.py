@@ -32,6 +32,7 @@ class DashboardRow:
     metric: str
     summary_url: str
     logs_url: str
+    logs_label: str = "Logs"
 
 
 @dataclass(frozen=True)
@@ -108,6 +109,8 @@ def final_dashboard(
     graph: Graph,
     results: Mapping[str, Result],
     run: DashboardRun,
+    *,
+    job_urls: Mapping[str, str] | None = None,
 ) -> DashboardModel:
     """Build a final dashboard in declaration order."""
     rows: list[DashboardRow] = []
@@ -122,7 +125,8 @@ def final_dashboard(
                 status,
                 dashboard_metric(result),
                 f"{run.url}#quality-graph-{node.id}",
-                run.url,
+                (job_urls or {}).get(node.id, run.url),
+                "Logs" if node.id in (job_urls or {}) else "Workflow run",
             )
         )
         if result is not None and (result.controls or result.notes):
@@ -163,6 +167,7 @@ def pending_dashboard(
             "—",
             f"{run.url}#quality-graph-{node.id}",
             run.url,
+            "Workflow run",
         )
         for node in graph.nodes
     )
@@ -183,6 +188,7 @@ def live_dashboard(
     run: DashboardRun,
     *,
     managed_labels: tuple[str, ...] = (),
+    job_urls: Mapping[str, str] | None = None,
 ) -> DashboardModel:
     """Build a live dashboard from authoritative GitHub job statuses."""
     rows = tuple(
@@ -192,7 +198,8 @@ def live_dashboard(
             statuses.get(node.node_id, ResultStatus.WAITING),
             "—",
             f"{run.url}#quality-graph-{node.node_id}",
-            run.url,
+            (job_urls or {}).get(node.node_id, run.url),
+            "Logs" if node.node_id in (job_urls or {}) else "Workflow run",
         )
         for node in nodes
     )
@@ -252,7 +259,7 @@ def _render(model: DashboardModel) -> str:
     ]
     lines.extend(
         f"| {_table(row.title)} | {_status_icon(row.status)} {row.status.value} | "
-        f"{row.metric} | [Summary]({row.summary_url}) · [Logs]({row.logs_url}) |"
+        f"{row.metric} | [Summary]({row.summary_url}) · [{row.logs_label}]({row.logs_url}) |"
         for row in model.rows
     )
     if model.control_groups:

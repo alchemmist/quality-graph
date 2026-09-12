@@ -141,3 +141,20 @@ def test_transport_handles_permissions_missing_resources_failures_delays_and_dow
     assert selected.download("/actions/artifacts/7/zip") == archive
     with pytest.raises(GitHubError, match="HTTP 503"):
         selected.request("GET", "/pulls/99")
+
+
+@pytest.mark.parametrize("body", [b'{"jobs": "\xff"}', b"{"])
+def test_transport_normalizes_invalid_json_response_bytes(
+    fake_github: FakeGitHubScenario,
+    body: bytes,
+) -> None:
+    fake_github.reset(
+        {
+            "raw_responses": {
+                "/repos/owner/repository/actions/runs/10/jobs": base64.b64encode(body).decode()
+            }
+        }
+    )
+
+    with pytest.raises(RuntimeError, match="returned invalid JSON"):
+        port(fake_github).request("GET", "/actions/runs/10/jobs")
