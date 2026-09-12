@@ -18,7 +18,7 @@ make gitlab-logs
 make gitlab-down
 ```
 
-The slow suite is explicitly selected from `tests/gitlab/real_scenarios.py`; ordinary
+The slow suite is explicitly selected from `e2e/gitlab_scenarios.py`; ordinary
 unit/HTTP tests do not silently depend on a running GitLab server. A missing or
 broken lab fails the explicit slow suite rather than skipping it.
 

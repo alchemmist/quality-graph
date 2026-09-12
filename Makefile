@@ -1,4 +1,4 @@
-PYTHON_SOURCES := packages apps tests scripts
+PYTHON_SOURCES := packages apps tests scripts e2e
 PYTHON ?= python3
 COMPOSE ?= docker compose
 BASE ?= origin/main
@@ -16,7 +16,7 @@ gitlab-wheels: package
 	uv run --locked --all-packages python scripts/gitlab_lab.py wheels
 
 t-gitlab-e2e: gitlab-seed gitlab-wheels
-	uv run --locked --all-packages --group test pytest -q tests/gitlab/real_scenarios.py
+	uv run --locked --all-packages --group test pytest -q e2e/gitlab_scenarios.py
 
 .PHONY: install tools schemas schemas-check graph-generate graph-validate adopters-find users \
 	fmt fmt-check lint type analyze test t-fast t-medium coverage \
