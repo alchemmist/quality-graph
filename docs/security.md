@@ -11,6 +11,16 @@ checks out pull-request code. Downloaded artifacts are treated as untrusted data
 for metadata digest, archive size, file count, ZIP traversal, symlinks, node identity, pull
 request, head SHA, run, attempt, and graph digest before JSON parsing.
 
+For reruns, result admission uses the last execution of each declared job at or before the
+publication attempt, resolved through GitHub attempt-specific job history. Retained artifacts
+are accepted only for that execution; a rerun with no result cannot reuse an older success.
+Future attempts and conflicting results for the same node and attempt fail validation. Identical
+duplicate results are accepted. Missing, ambiguous, or incomplete job evidence fails closed.
+Raw passed results cannot override failed or cancelled job evidence. Approval policy is applied
+only after admission, preserving approvals of valid quality findings. The publisher, watcher, and
+administrator commands share this admission path. First attempts accept only attempt-1 artifacts
+and need no historical job lookup.
+
 One publisher invocation owns the live dashboard for the complete workflow run. It polls
 authoritative GitHub job state and merges every node by its stable graph identity, so parallel
 jobs cannot overwrite each other's lifecycle. The watcher finalizes artifact-derived state when

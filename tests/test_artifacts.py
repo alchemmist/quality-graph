@@ -86,7 +86,7 @@ def test_downloader_selects_newest_attempt_and_ignores_unrelated_artifacts() -> 
         }
     )
 
-    results = download_results(port, expectation())
+    results = download_results(port, replace(expectation(), run_attempt=2))
 
     assert results["lint"].provenance.run_attempt == 2
     assert port.downloaded == [

@@ -46,6 +46,9 @@ class FakeGitHubState:
     permissions: dict[str, str] = field(default_factory=dict)
     workflow_runs: list[dict[str, JsonValue]] = field(default_factory=list)
     workflow_jobs: dict[int, list[dict[str, JsonValue]]] = field(default_factory=dict)
+    workflow_attempt_jobs: dict[int, dict[int, list[dict[str, JsonValue]]]] = field(
+        default_factory=dict
+    )
     workflow_job_snapshots: dict[int, list[list[dict[str, JsonValue]]]] = field(
         default_factory=dict
     )
@@ -109,6 +112,10 @@ class FakeGitHubState:
         fresh.permissions = _string_mapping(payload.get("permissions", {}))
         fresh.workflow_runs = _object_list(payload.get("workflow_runs", fresh.workflow_runs))
         fresh.workflow_jobs = _integer_object_lists(payload.get("workflow_jobs", {}))
+        fresh.workflow_attempt_jobs = {
+            int(run): _integer_object_lists(attempts)
+            for run, attempts in _object(payload.get("workflow_attempt_jobs", {})).items()
+        }
         fresh.workflow_job_snapshots = _job_snapshots(payload.get("workflow_job_snapshots", {}))
         fresh.active_workflow_job_pages = {}
         fresh.run_artifacts = _integer_object_lists(payload.get("run_artifacts", {}))
@@ -141,6 +148,12 @@ class FakeGitHubState:
             "workflow_jobs": {
                 str(identifier): cast("JsonValue", jobs)
                 for identifier, jobs in self.workflow_jobs.items()
+            },
+            "workflow_attempt_jobs": {
+                str(run): {
+                    str(attempt): cast("JsonValue", jobs) for attempt, jobs in attempts.items()
+                }
+                for run, attempts in self.workflow_attempt_jobs.items()
             },
             "reruns": cast("JsonValue", self.reruns),
             "reactions": cast("JsonValue", list(self.reactions.values())),
@@ -240,7 +253,8 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
             self._pull_routes(method, path, payload, query),
             self._comment_routes(method, path, payload, query),
             self._label_routes(method, path, payload, query),
-            self._action_routes(method, path, query),
+            self._attempt_job_routes(method, path, query)
+            or self._action_routes(method, path, query),
             self._check_routes(method, path, payload, query),
         ):
             if response is not None:
@@ -363,6 +377,31 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
         ):
             permission = self.state.permissions.get(match.group("login"))
             return _optional(None if permission is None else {"permission": permission})
+        return None
+
+    def _attempt_job_routes(
+        self, method: str, path: str, query: dict[str, list[str]]
+    ) -> tuple[HTTPStatus, JsonValue | bytes] | None:
+        if method == "GET" and (
+            match := re.fullmatch(r"/actions/runs/(?P<id>\d+)/attempts/(?P<attempt>\d+)/jobs", path)
+        ):
+            attempts = self.state.workflow_attempt_jobs.get(int(match.group("id")), {})
+            jobs = attempts.get(int(match.group("attempt")))
+            if jobs is None:
+                return _optional(None)
+            return _jobs_page(jobs, query)
+        if method == "GET" and (match := re.fullmatch(r"/actions/runs/(?P<id>\d+)/jobs", path)):
+            attempts = self.state.workflow_attempt_jobs.get(int(match.group("id")))
+            if attempts is not None:
+                selected_filter = query.get("filter", ["latest"])[0]
+                if selected_filter not in {"latest", "all"}:
+                    return HTTPStatus.UNPROCESSABLE_ENTITY, {"message": "invalid jobs filter"}
+                jobs = (
+                    [job for attempt in sorted(attempts) for job in attempts[attempt]]
+                    if selected_filter == "all"
+                    else attempts.get(max(attempts, default=0), [])
+                )
+                return _jobs_page(jobs, query)
         return None
 
     def _action_routes(
@@ -625,6 +664,15 @@ def _optional(value: JsonValue | bytes) -> tuple[HTTPStatus, JsonValue | bytes]:
         if value is None
         else (HTTPStatus.OK, value)
     )
+
+
+def _jobs_page(
+    jobs: list[dict[str, JsonValue]], query: dict[str, list[str]]
+) -> tuple[HTTPStatus, JsonValue]:
+    status, page = _page(jobs, query)
+    if status != HTTPStatus.OK:
+        return status, page
+    return status, {"total_count": len(jobs), "jobs": page}
 
 
 def _page(
