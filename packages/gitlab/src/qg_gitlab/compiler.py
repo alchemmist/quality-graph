@@ -310,14 +310,16 @@ def compile_graph(graph: Graph) -> GeneratedProject:
     files = (
         GeneratedFile(
             PurePosixPath(string(settings["ci-path"], "CI path")),
-            GENERATED_HEADER + yaml.safe_dump(workflow, sort_keys=False, width=100),
+            GENERATED_HEADER
+            + yaml.safe_dump(workflow, sort_keys=False, width=80, explicit_start=True),
         ),
         GeneratedFile(
             PurePosixPath(".qg/gitlab.json"), json.dumps(manifest, indent=2, sort_keys=True) + "\n"
         ),
         GeneratedFile(
             PurePosixPath(".qg/gitlab-publisher.yml"),
-            GENERATED_HEADER + yaml.safe_dump(publisher, sort_keys=False, width=100),
+            GENERATED_HEADER
+            + yaml.safe_dump(publisher, sort_keys=False, width=80, explicit_start=True),
         ),
     )
     return GeneratedProject(digest, files)
