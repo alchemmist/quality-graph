@@ -30,7 +30,7 @@ def render_job_summary(result: Result) -> str:
         )
     if result.findings:
         lines.extend(("", "### Findings", ""))
-        lines.extend(_finding_line(finding) for finding in result.findings[:MAX_SUMMARY_FINDINGS])
+        lines.extend(_finding_lines(result.findings[:MAX_SUMMARY_FINDINGS]))
         omitted = len(result.findings) - MAX_SUMMARY_FINDINGS
         if omitted > 0:
             notice = f"_{omitted} additional findings are available in the result artifact._"
@@ -129,3 +129,12 @@ def _bounded(value: str, maximum: int) -> str:
         if updated == omitted:
             return value[:prefix] + notice
         omitted = updated
+
+
+def _finding_lines(findings: tuple[Finding, ...]) -> list[str]:
+    lines: list[str] = []
+    for group in dict.fromkeys(finding.group for finding in findings):
+        if group:
+            lines.extend((f"#### {html.escape(group)}", ""))
+        lines.extend(_finding_line(finding) for finding in findings if finding.group == group)
+    return lines

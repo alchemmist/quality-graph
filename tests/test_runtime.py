@@ -81,7 +81,7 @@ def test_exit_collector_publishes_captured_command_output_and_node_control(
     result = collect(request)
     publish_collection(request, result)
 
-    assert "src/app.py:7:3" in result.summary
+    assert "src/app.py:7:3" in result.diagnostics[0].detail
     summary = request.summary_path.read_text()
     assert "annotation must be more specific" in summary
     assert "/qg ignore lint" in summary

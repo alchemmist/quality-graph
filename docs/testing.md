@@ -102,3 +102,34 @@ fixture reset and snapshot operations, real HTTP, pagination, fault and delay in
 history, and Docker isolation. It deliberately removes Monori-specific markers, workflow names,
 fixed gate implementations, and package paths. The route and state model are shared by both
 adapters instead of maintaining a separate Docker fake.
+
+## Check reports
+
+`make t-fast` and `make t-medium` write native producer data to `reports/test-fast.json` and
+`reports/test-medium.json`. The repository declaration selects these reports for collection.
+The test runner preserves separate `.in-process.xml` and `.docker.xml` files, namespaces findings
+by execution group, and emits per-group test/failure/skipped counts. The central renderer displays
+test names and assertion traces without requiring pytest to generate GitHub Markdown.
+
+Docker setup and cleanup are recorded even when they fail. Failed setup prevents the Docker test
+run, but preserves in-process results and cleanup diagnostics. Missing, malformed or unsafe JUnit
+reports produce an actionable failure; a stale XML file is removed before each execution. The
+runner exits unsuccessfully when any phase fails, including failures before tests can run.
+
+The shared limit of 100 diagnostics is allocated across execution groups in round-robin order.
+Infrastructure, adapter and protocol errors take priority over test traces; the remaining budget
+is shared among groups with test failures. Every group that loses diagnostics receives an explicit
+omission count in notes. Those notices reserve space within the notes limit. Critical diagnostics
+are rendered first so long test output cannot push Docker setup/cleanup causes out of the report.
+
+Other repository command gates use `scripts/check_report.py --output reports/check.json -- command`
+to preserve bounded command diagnostics in the same data contract. This supplies useful failure
+output, but does not pretend generic logs are source findings. Structured Python gate findings
+remain the separate work tracked in issue #40; standard SARIF output can be selected for analyzers
+that support it. Release step sequences retain their existing reporting configuration.
+
+The end-to-end reporting tests launch real pytest subprocesses and a deterministic stand-in for
+Docker lifecycle commands, then pass the resulting producer file through collection and the Job
+Summary renderer. They assert per-execution counts, failing names, traces, setup/cleanup failures,
+missing/malformed reports, and the minimal exit-code fallback. They run in both integration lanes;
+the outer Docker lane continues to use the real containerized GitHub testkit.
