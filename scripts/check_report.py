@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 COMMAND_NOT_FOUND = 127
 MAX_DIAGNOSTICS = 100
 MAX_NOTES = 100
+MAX_GROUP_CHARACTERS = 255
+MAX_NOTE_CHARACTERS = 1_000
 
 
 def execute(
@@ -52,9 +54,7 @@ def execute(
     if code and report["status"] != "failed":
         report.update(
             status="failed",
-            failureKind="infrastructure"
-            if junit is not None or code == COMMAND_NOT_FOUND
-            else "command",
+            failureKind="infrastructure" if code == COMMAND_NOT_FOUND else "command",
         )
     if code and not report.get("diagnostics"):
         report["diagnostics"] = [
@@ -114,14 +114,19 @@ def combine(reports: list[tuple[str, dict[str, JsonValue]]]) -> dict[str, JsonVa
     for field in ("metrics", "findings", "notes"):
         values: list[JsonValue] = []
         for group, report in reports:
+            display_group = group[:MAX_GROUP_CHARACTERS]
             for original in cast("list[JsonValue]", report.get(field, [])):
-                item = f"{group}: {original}" if field == "notes" else original
+                item = (
+                    f"{display_group}: {original}"[:MAX_NOTE_CHARACTERS]
+                    if field == "notes"
+                    else original
+                )
                 if isinstance(original, dict):
                     item = dict(original)
                     if field == "metrics":
                         item["label"] = f"{group} / {item['label']}"[:100]
                     elif field == "findings":
-                        item["group"] = group
+                        item["group"] = display_group
                         item["id"] = (
                             f"{hashlib.sha256(group.encode()).hexdigest()[:8]}:{item['id']}"
                         )
@@ -147,7 +152,9 @@ def _bounded_diagnostics(
         values = cast("list[dict[str, JsonValue]]", report.get("diagnostics", []))
         totals.append(len(values))
         for original in values:
-            item = original | {"message": f"{group}: {original['message']}"[:1_000]}
+            item = original | {
+                "message": f"{group[:MAX_GROUP_CHARACTERS]}: {original['message']}"[:1_000]
+            }
             critical = original.get("kind") in {
                 "infrastructure",
                 "adapter",
@@ -165,7 +172,7 @@ def _bounded_diagnostics(
                 active.append(queue)
     counts = Counter(index for index, _ in selected)
     notices: list[JsonValue] = [
-        f"{group[:900]}: {total - counts[index]} diagnostics omitted."
+        f"{group[:MAX_GROUP_CHARACTERS]}: {total - counts[index]} diagnostics omitted."
         for index, ((group, _), total) in enumerate(zip(reports, totals, strict=True))
         if total > counts[index]
     ]

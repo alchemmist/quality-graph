@@ -193,3 +193,53 @@ def test_mass_failures_do_not_hide_container_errors(tmp_path: Path, phase: str) 
     if phase == "both":
         assert "container cleanup failed" in rendered
         assert "in-process: 2 diagnostics omitted." in report["notes"]
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [(1, FailureKind.COMMAND), (2, FailureKind.INFRASTRUCTURE)],
+)
+def test_passing_junit_preserves_command_failure_kind(
+    tmp_path: Path,
+    code: int,
+    expected: FailureKind,
+) -> None:
+    command = (
+        "from pathlib import Path; "
+        "Path('tests.xml').write_text('<testsuite><testcase name=\"pass\" /></testsuite>'); "
+        f"raise SystemExit({code})"
+    )
+    outcome = run_report(tmp_path, "--junit", "tests.xml", "--", sys.executable, "-c", command)
+    assert outcome.returncode == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["failureKind"] == expected.value
+    _, failure = summary(tmp_path, outcome.returncode)
+    assert failure is expected
+
+
+@pytest.mark.parametrize("length", [256, 1100])
+def test_long_group_names_produce_valid_native_reports(tmp_path: Path, length: int) -> None:
+    group = "g" * length
+    command = (
+        "from pathlib import Path; "
+        "Path('tests.xml').write_text('<testsuite><testcase name=\"fails\">"
+        "<failure>domain failure</failure></testcase></testsuite>'); raise SystemExit(1)"
+    )
+    outcome = run_report(
+        tmp_path,
+        "--group",
+        group,
+        "--junit",
+        "tests.xml",
+        "--",
+        sys.executable,
+        "-c",
+        command,
+    )
+    assert outcome.returncode == 1
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["findings"][0]["group"] == group[:255]
+    assert all(len(note) <= 1000 for note in report["notes"])
+    rendered, failure = summary(tmp_path, outcome.returncode)
+    assert failure is FailureKind.QUALITY
+    assert "domain failure" in rendered
