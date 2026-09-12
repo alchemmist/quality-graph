@@ -80,6 +80,7 @@ def _ledger(
             ):
                 continue
             note_id = integer(record.get("sourceNoteId"), "source note ID")
+            integer(record.get("actorId"), "approval actor ID")
             if note_id in processed:
                 continue
             targets = record.get("targets", [])

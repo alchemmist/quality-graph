@@ -180,7 +180,9 @@ def test_approval_revoke_removes_only_the_matching_semantic_target(
     assert publish(fake_gitlab) == "failed"
 
 
-@pytest.mark.parametrize("change", ["author", "edited", "project", "mr", "version", "malformed"])
+@pytest.mark.parametrize(
+    "change", ["author", "edited", "project", "mr", "version", "malformed", "missing-actor"]
+)
 def test_forged_or_mismatched_ledger_records_cannot_grant_approval(
     fake_gitlab: FakeGitLabScenario, change: str
 ) -> None:
@@ -200,6 +202,8 @@ def test_forged_or_mismatched_ledger_records_cannot_grant_approval(
         record["mergeRequest"] = 5
     elif change == "version":
         record["version"] = 99
+    elif change == "missing-actor":
+        record.pop("actorId")
     payload = json.dumps(record, separators=(",", ":")) if change != "malformed" else "{invalid}"
     note = {
         "id": 20,
