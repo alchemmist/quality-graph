@@ -6,12 +6,22 @@ from typing import TYPE_CHECKING, cast
 
 import pytest
 
+from qg_github.commands import handle_command
 from qg_github.compiler import compile_graph
 from qg_github.github import HttpGitHubPort
-from qg_github.publication import publish_workflow_run
+from qg_github.publication import publish_workflow_run, watch_workflow_run
 from quality_graph_core.graph import Graph
-from quality_graph_core.result import FailureKind, JsonValue, Provenance, Result, ResultStatus
+from quality_graph_core.result import (
+    FailureKind,
+    Finding,
+    JsonValue,
+    Provenance,
+    Result,
+    ResultStatus,
+    Severity,
+)
 from tests.integration.test_artifacts_http import archive, metadata
+from tests.integration.test_commands_http import event as command_event
 from tests.test_graph import GRAPH
 
 if TYPE_CHECKING:
@@ -37,8 +47,7 @@ def node_result(attempt: int, status: ResultStatus = ResultStatus.PASSED) -> Res
     )
 
 
-def publish(
-    github: FakeGitHubScenario,
+def scenario(
     results: list[Result],
     *,
     conclusion: str = "success",
@@ -104,15 +113,32 @@ def publish(
         if lint_attempt == 3
         else []
     )
-    github.reset(
-        {
-            "contents": {f"{'d' * 40}:qg.yaml": GRAPH},
-            "workflow_runs": [run],
-            "workflow_attempt_jobs": {"10": {"2": old_jobs, "3": current_jobs}},
-            "run_artifacts": {"10": artifacts},
-            "downloads": downloads,
-        }
-    )
+    return {
+        "contents": {f"{'d' * 40}:qg.yaml": GRAPH},
+        "workflow_runs": [run],
+        "workflow_attempt_jobs": {"10": {"2": old_jobs, "3": current_jobs}},
+        "run_artifacts": {"10": artifacts},
+        "downloads": downloads,
+    }
+
+
+def publish(
+    github: FakeGitHubScenario,
+    results: list[Result],
+    *,
+    conclusion: str = "success",
+    lint_attempt: int = 3,
+    paginate: bool = False,
+) -> dict[str, JsonValue]:
+    payload = scenario(results, conclusion=conclusion, lint_attempt=lint_attempt, paginate=paginate)
+    return publish_scenario(github, payload)
+
+
+def publish_scenario(
+    github: FakeGitHubScenario, payload: dict[str, JsonValue]
+) -> dict[str, JsonValue]:
+    github.reset(payload)
+    run = cast("list[JsonValue]", payload["workflow_runs"])[0]
     outcome = publish_workflow_run(
         HttpGitHubPort("owner/repository", "token", base_url=github.base_url),
         {"action": "completed", "workflow_run": run},
@@ -122,7 +148,10 @@ def publish(
     checks = cast("list[dict[str, JsonValue]]", observed["checks"])
     assert len(checks) == 1
     assert checks[0]["status"] == "completed"
-    assert checks[0]["external_id"] == "quality-graph:10:3"
+    assert (
+        checks[0]["external_id"]
+        == f"quality-graph:10:{cast('dict[str, JsonValue]', run)['run_attempt']}"
+    )
     requests = cast("list[dict[str, JsonValue]]", observed["requests"])
     assert any(
         request["path"] == "/repos/owner/repository/actions/workflows/quality-graph.yml/runs"
@@ -194,3 +223,114 @@ def test_publisher_attempt_validation_controls(fake_github: FakeGitHubScenario, 
         result = replace(result, provenance=replace(result.provenance, head_sha="b" * 40))
     check = publish(fake_github, [] if case == "missing" else [result])
     assert check["conclusion"] == "failure"
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "cancelled"])
+def test_current_pass_cannot_override_failed_job(
+    fake_github: FakeGitHubScenario,
+    conclusion: str,
+) -> None:
+    assert publish(fake_github, [node_result(3)], conclusion=conclusion)["conclusion"] == "failure"
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "missing",
+        "unknown-attempt",
+        "duplicate",
+        "wrong-run",
+        "wrong-attempt",
+        "in-progress",
+        "missing-conclusion",
+        "invalid-attempt",
+    ],
+)
+def test_publisher_rejects_unusable_job_evidence(
+    fake_github: FakeGitHubScenario,
+    case: str,
+) -> None:
+    payload = scenario([node_result(3)])
+    history = cast(
+        "dict[str, dict[str, list[dict[str, JsonValue]]]]", payload["workflow_attempt_jobs"]
+    )["10"]
+    current = history["3"][0]
+    if case == "missing":
+        history.update({"1": [], "2": [], "3": []})
+    elif case == "unknown-attempt":
+        del history["3"]
+    elif case == "duplicate":
+        history["3"].append(current | {"id": 31})
+    elif case == "invalid-attempt":
+        cast("list[dict[str, JsonValue]]", payload["workflow_runs"])[0]["run_attempt"] = 0
+    else:
+        field, value = {
+            "wrong-run": ("run_id", 11),
+            "wrong-attempt": ("run_attempt", 4),
+            "in-progress": ("status", "in_progress"),
+            "missing-conclusion": ("conclusion", None),
+        }[case]
+        current[field] = value
+    assert publish_scenario(fake_github, payload)["conclusion"] == "failure"
+
+
+def test_publisher_resolves_job_evidence_across_pages(fake_github: FakeGitHubScenario) -> None:
+    payload = scenario([node_result(3)])
+    history = cast(
+        "dict[str, dict[str, list[dict[str, JsonValue]]]]", payload["workflow_attempt_jobs"]
+    )["10"]
+    history["3"][0:0] = [{"name": f"Other {number}"} for number in range(100)]
+    assert publish_scenario(fake_github, payload)["conclusion"] == "success"
+
+
+@pytest.mark.parametrize("attempt", [2, 3])
+def test_watcher_uses_same_attempt_admission(fake_github: FakeGitHubScenario, attempt: int) -> None:
+    payload = scenario([node_result(attempt)])
+    fake_github.reset(payload)
+    run = cast("list[JsonValue]", payload["workflow_runs"])[0]
+    outcome = watch_workflow_run(
+        HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url),
+        {"action": "requested", "workflow_run": run},
+        sleep=lambda _: None,
+    )
+    assert outcome.status is (ResultStatus.PASSED if attempt == 3 else ResultStatus.FAILED)
+    checks = cast("list[dict[str, JsonValue]]", fake_github.snapshot()["checks"])
+    assert checks[0]["conclusion"] == ("success" if attempt == 3 else "failure")
+
+
+def test_identical_duplicate_results_are_order_independent(fake_github: FakeGitHubScenario) -> None:
+    result = node_result(3)
+    assert publish(fake_github, [result, result], paginate=True)["conclusion"] == "success"
+
+
+@pytest.mark.parametrize("attempt", [2, 3])
+def test_commands_only_approve_findings_from_admitted_attempt(
+    fake_github: FakeGitHubScenario,
+    attempt: int,
+) -> None:
+    result = replace(
+        node_result(attempt, ResultStatus.FAILED),
+        failure_kind=FailureKind.QUALITY,
+        findings=(Finding("finding", Severity.ERROR, "Failure"),),
+    )
+    payload = scenario([result], conclusion="failure")
+    payload["permissions"] = {"admin": "admin"}
+    fake_github.reset(payload)
+    port = HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url)
+    if attempt == 2:
+        with pytest.raises(ValueError, match="unknown or non-approvable"):
+            handle_command(port, command_event("/qg ignore finding"))
+    else:
+        assert handle_command(port, command_event("/qg ignore finding")).changed
+    observed = fake_github.snapshot()
+    assert observed["reruns"] == ([10] if attempt == 3 else [])
+    approvals = [
+        comment
+        for comment in cast("list[dict[str, JsonValue]]", observed["comments"])
+        if "quality-graph:approval" in str(comment["body"])
+    ]
+    assert len(approvals) == (1 if attempt == 3 else 0)
+    if attempt == 3:
+        run = cast("list[JsonValue]", payload["workflow_runs"])[0]
+        publication = publish_workflow_run(port, {"action": "completed", "workflow_run": run})
+        assert publication.status is ResultStatus.PASSED

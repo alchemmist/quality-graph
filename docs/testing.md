@@ -62,8 +62,8 @@ production HTTP transport. It checks the persisted check conclusion with an exac
 latest-run response. Stale success after failure/cancellation, future attempts, results on either
 side of the event attempt, and conflicting duplicates (both orders and across pages) are ordinary
 assertions, without skips or expected-failure markers. Current results, retained results for jobs
-not rerun, missing results and wrong provenance provide controls. The publisher regressions are
-intentionally red until #69 is fixed.
+not rerun, missing results and wrong provenance provide controls. The regressions cover publisher admission and are also exercised through the watcher and
+administrator command paths.
 
 ## Coverage responsibility
 

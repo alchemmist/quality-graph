@@ -12,7 +12,7 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
-from quality_graph_core.result import JsonValue, Result
+from quality_graph_core.result import JsonValue, Result, ResultStatus
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -46,6 +46,9 @@ class ArtifactExpectation:
     node_ids: frozenset[str]
     flow_id: str | None = None
     operation_ids: Mapping[str, str] = field(default_factory=dict)
+    run_attempt: int = 1
+    node_attempts: Mapping[str, int] = field(default_factory=dict)
+    node_conclusions: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -63,19 +66,34 @@ def download_results(
     port: GitHubPort,
     expectation: ArtifactExpectation,
 ) -> dict[str, Result]:
-    """Download the newest valid attempt for every expected node."""
-    selected: dict[str, tuple[int, Result]] = {}
+    """Download results bound to the expected execution of each node."""
+    selected: dict[str, Result] = {}
+    seen: dict[tuple[str, int], Result] = {}
     for descriptor in _artifact_descriptors(port, expectation.workflow_run_id):
         if descriptor.node_id not in expectation.node_ids:
             message = f"artifact targets unknown graph node: {descriptor.node_id}"
             raise ArtifactError(message)
+        if descriptor.attempt > expectation.run_attempt:
+            message = "result artifact attempt exceeds the latest workflow attempt"
+            raise ArtifactError(message)
         archive = port.download(f"/actions/artifacts/{descriptor.id}/zip")
         result = _result_from_archive(archive, descriptor)
         _validate_result(result, descriptor, expectation)
-        current = selected.get(descriptor.node_id)
-        if current is None or descriptor.attempt >= current[0]:
-            selected[descriptor.node_id] = (descriptor.attempt, result)
-    return {node_id: result for node_id, (_, result) in selected.items()}
+        key = (descriptor.node_id, descriptor.attempt)
+        if key in seen and seen[key] != result:
+            message = f"conflicting result artifacts for node {key[0]} attempt {key[1]}"
+            raise ArtifactError(message)
+        seen[key] = result
+        expected_attempt = expectation.node_attempts.get(
+            descriptor.node_id, expectation.run_attempt
+        )
+        if descriptor.attempt == expected_attempt:
+            conclusion = expectation.node_conclusions.get(descriptor.node_id)
+            if result.status is ResultStatus.PASSED and conclusion not in {None, "success"}:
+                message = f"passed result contradicts workflow job state: {descriptor.node_id}"
+                raise ArtifactError(message)
+            selected[descriptor.node_id] = result
+    return selected
 
 
 def _artifact_descriptors(port: GitHubPort, run_id: int) -> tuple[ArtifactDescriptor, ...]:
