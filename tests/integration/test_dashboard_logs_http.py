@@ -110,10 +110,16 @@ def test_partial_rerun_keeps_the_job_attempt_that_produced_each_result(
     jobs.extend(
         [
             jobs[1] | {"id": 202, "run_attempt": 2, "html_url": f"{RUN_URL}/job/202"},
-            jobs[0] | {"id": 201, "run_attempt": 2, "html_url": f"{RUN_URL}/job/201"},
+            jobs[0] | {"id": 301, "run_attempt": 3, "html_url": f"{RUN_URL}/job/301"},
             jobs[1] | {"id": 302, "run_attempt": 3, "html_url": f"{RUN_URL}/job/302"},
         ]
     )
+    fixture["workflow_attempt_jobs"] = {
+        "10": {
+            str(attempt): [job for job in jobs if job["run_attempt"] == attempt]
+            for attempt in (1, 2, 3)
+        }
+    }
     original = Result.from_json(
         zipfile.ZipFile(io.BytesIO(state().downloads[2])).read("lint.json").decode()
     )
@@ -139,7 +145,7 @@ def test_partial_rerun_keeps_the_job_attempt_that_produced_each_result(
     body = dashboard_body(fake_github)
     assert f"[Logs]({FORMAT_URL})" in body
     assert f"[Logs]({RUN_URL}/job/202)" in body
-    assert "/job/201" not in body
+    assert "/job/301" not in body
     assert "/job/302" not in body
     assert f"[Logs]({LINT_URL})" not in body
 
@@ -258,9 +264,11 @@ def test_artifact_failure_keeps_job_specific_logs(fake_github: FakeGitHubScenari
 
 @pytest.mark.parametrize("status_code", [404, 500])
 @pytest.mark.parametrize("lint_passed", [False, True])
+@pytest.mark.parametrize("attempt", [1, 2])
 def test_final_publication_survives_unavailable_job_metadata(
     fake_github: FakeGitHubScenario,
     status_code: int,
+    attempt: int,
     *,
     lint_passed: bool,
 ) -> None:
@@ -275,6 +283,9 @@ def test_final_publication_survives_unavailable_job_metadata(
         artifacts[1].update(
             size_in_bytes=len(content), digest=f"sha256:{hashlib.sha256(content).hexdigest()}"
         )
+    jobs = cast("dict[str, list[dict[str, JsonValue]]]", fixture["workflow_jobs"])["10"]
+    jobs[1]["conclusion"] = "success" if lint_passed else "failure"
+    fixture["workflow_attempt_jobs"] = {"10": {"1": jobs, "2": []}}
     fixture["failures"] = [
         {
             "method": "GET",
@@ -285,7 +296,10 @@ def test_final_publication_survives_unavailable_job_metadata(
     fake_github.reset(fixture)
     port = HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url)
 
-    outcome = publish_workflow_run(port, workflow_event())
+    event = workflow_event()
+    cast("dict[str, JsonValue]", event["workflow_run"])["run_attempt"] = attempt
+
+    outcome = publish_workflow_run(port, event)
 
     expected = ResultStatus.PASSED if lint_passed else ResultStatus.FAILED
     assert outcome.published is True
