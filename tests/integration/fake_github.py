@@ -59,6 +59,7 @@ class FakeGitHubState:
     contents: dict[str, str] = field(default_factory=dict)
     reruns: list[int] = field(default_factory=list)
     reactions: dict[int, dict[str, JsonValue]] = field(default_factory=dict)
+    raw_responses: dict[str, bytes] = field(default_factory=dict)
     failures: dict[tuple[str, str], int] = field(default_factory=dict)
     delays: dict[tuple[str, str], float] = field(default_factory=dict)
     requests: list[dict[str, JsonValue]] = field(default_factory=list)
@@ -125,6 +126,10 @@ class FakeGitHubState:
         fresh.downloads = {
             int(identifier): base64.b64decode(value)
             for identifier, value in _string_mapping(payload.get("downloads", {})).items()
+        }
+        fresh.raw_responses = {
+            path: base64.b64decode(value)
+            for path, value in _string_mapping(payload.get("raw_responses", {})).items()
         }
         fresh.failures = _failures(payload.get("failures", []))
         fresh.delays = _delays(payload.get("request_delays", []))
@@ -210,6 +215,13 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
             failure = self.state.failures.get((method, parsed.path))
             if failure is not None:
                 self._json({"message": "configured failure"}, status=HTTPStatus(failure))
+                return
+            if method == "GET" and parsed.path in self.state.raw_responses:
+                self._send(
+                    HTTPStatus.OK,
+                    self.state.raw_responses[parsed.path],
+                    content_type="application/json",
+                )
                 return
             response = self._special(method, parsed.path, payload)
             if (
@@ -438,6 +450,12 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
                     identifier,
                     self.state.workflow_jobs.get(identifier, []),
                 )
+            if query.get("filter", ["latest"])[0] == "latest":
+                latest = max(
+                    (value for job in jobs if isinstance(value := job.get("run_attempt", 1), int)),
+                    default=1,
+                )
+                jobs = [job for job in jobs if job.get("run_attempt", 1) == latest]
             status, page = _page(jobs, query)
             return status, {"total_count": len(jobs), "jobs": page}
         if method == "GET" and (
@@ -483,7 +501,9 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         return None if length == 0 else cast("JsonValue", json.loads(self.rfile.read(length)))
 
-    def _send(self, status: HTTPStatus, value: JsonValue | bytes) -> None:
+    def _send(
+        self, status: HTTPStatus, value: JsonValue | bytes, *, content_type: str | None = None
+    ) -> None:
         if status == HTTPStatus.NO_CONTENT:
             self.send_response(status)
             self.end_headers()
@@ -491,7 +511,8 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
         content = value if isinstance(value, bytes) else json.dumps(value).encode()
         self.send_response(status)
         self.send_header(
-            "Content-Type", "application/zip" if isinstance(value, bytes) else "application/json"
+            "Content-Type",
+            content_type or ("application/zip" if isinstance(value, bytes) else "application/json"),
         )
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()

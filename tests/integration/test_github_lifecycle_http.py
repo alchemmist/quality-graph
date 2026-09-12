@@ -203,7 +203,7 @@ def test_live_watcher_avoids_noop_patches_and_stays_within_request_budget() -> N
         for request in requests
         if request["method"] == "PATCH" and "/issues/comments/" in str(request["path"])
     ]
-    assert len(job_reads) == 3
+    assert len(job_reads) == 4
     assert len(comment_patches) == 1
 
 

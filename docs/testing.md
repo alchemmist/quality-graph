@@ -31,6 +31,10 @@ Tests use three operations:
 - `reset(payload)` replaces all repository state and configures failures or request delays;
 - `snapshot()` returns observable repository state and request history.
 
+Use `raw_responses` in the reset payload to map HTTP paths to base64-encoded response bodies for
+malformed JSON and encoding-error scenarios. These GET overrides return HTTP 200 with an
+`application/json` content type.
+
 The fixture selects the Docker adapter when `QG_FAKE_GITHUB_URL` is set. Tests must interact with
 GitHub through `HttpGitHubPort`; direct state access is reserved for constructing legacy in-process
 fixtures and is not available in Docker runs. A slow lane is intentionally not defined yet.
@@ -75,6 +79,8 @@ GitHub-facing integration coverage includes:
 
 - publisher live/final recovery, stale-writer rejection, artifacts, check-run idempotence, labels,
   no-op refreshes, and request budgets;
+- dashboard job Logs URLs through live/final updates, retained result attempts, pagination, and
+  explicitly labeled Workflow run fallbacks for missing or ambiguous job metadata;
 - administrator commands, immutable approval records, reactions, reruns, authorization failures,
   and checkbox rollback;
 - managed comments, label ownership, artifact provenance and archive safety;
