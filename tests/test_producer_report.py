@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -8,6 +11,9 @@ from quality_graph_core.adapters import AdapterError, adapt_junit, adapt_native
 from quality_graph_core.result import FailureKind, ResultStatus
 from quality_graph_core.schema import producer_schema_json
 from tests.test_adapters import context
+
+if TYPE_CHECKING:
+    from quality_graph_core.result import JsonValue
 
 
 def test_producer_report_receives_trusted_identity() -> None:
@@ -40,7 +46,7 @@ def test_producer_cannot_override_framework_fields(field: str) -> None:
         {"reportVersion": 0, "status": "passed", "unknown": "value"},
     ],
 )
-def test_invalid_producer_data_fails_validation(data: dict[str, object]) -> None:
+def test_invalid_producer_data_fails_validation(data: dict[str, JsonValue]) -> None:
     with pytest.raises(AdapterError):
         adapt_native(context(), json.dumps(data).encode())
 

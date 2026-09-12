@@ -68,7 +68,8 @@ def execute(
         report.update(status="failed", failureKind="infrastructure")
     if report["status"] == "failed":
         code = code or 1
-    report["notes"] = [f"{group}: {'failed' if code else 'passed'}"]
+    notes = cast("list[JsonValue]", report.get("notes", []))
+    report["notes"] = [*notes, "failed" if code else "passed"]
     return code, report
 
 
@@ -112,7 +113,7 @@ def combine(reports: list[tuple[str, dict[str, JsonValue]]]) -> dict[str, JsonVa
         values: list[JsonValue] = []
         for group, report in reports:
             for original in cast("list[JsonValue]", report.get(field, [])):
-                item = original
+                item = f"{group}: {original}" if field == "notes" else original
                 if isinstance(original, dict):
                     item = dict(original)
                     if field == "metrics":
