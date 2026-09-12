@@ -81,6 +81,7 @@ def test_both_pytest_reports_reach_rendered_summary(tmp_path: Path, *, fail: boo
 @pytest.mark.parametrize("phase", ["up", "down"])
 def test_container_failures_are_actionable_without_junit(tmp_path: Path, phase: str) -> None:
     compose = configure_pytest(tmp_path, fail=False)
+    (tmp_path / "report.docker.xml").write_text("stale results")
     compose.write_text(
         "import sys\n"
         "print('container service unavailable')\n"

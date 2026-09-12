@@ -22,7 +22,7 @@ COMMAND_NOT_FOUND = 127
 
 
 def execute(
-    command: list[str], group: str, junit: Path | None = None, *, infrastructure: bool = False
+    command: list[str], junit: Path | None = None, *, infrastructure: bool = False
 ) -> tuple[int, dict[str, JsonValue]]:
     """Execute an explicit argv and collect bounded domain diagnostics."""
     if junit is not None:
@@ -149,12 +149,13 @@ def main() -> int:
     def run(
         command: list[str], group: str, junit: Path | None = None, *, infrastructure: bool = False
     ) -> int:
-        code, report = execute(command, group, junit, infrastructure=infrastructure)
+        code, report = execute(command, junit, infrastructure=infrastructure)
         reports.append((group, report))
         codes.append(code)
         return code
 
     if args.suite:
+        args.output.with_suffix(".docker.xml").unlink(missing_ok=True)
         junit = args.output.with_suffix(".in-process.xml")
         selection = "not integration" if args.suite == "fast" else "integration"
         command = [sys.executable, "-m", "pytest", "-q", "-m", selection]
