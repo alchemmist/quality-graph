@@ -79,6 +79,11 @@ def begin(lab: LabClient, command: str, *, adapter: str | None = None) -> Case:
     projects = json.loads((STATE / "projects.json").read_text())
     consumer = int(projects["consumer"])
     publisher = int(projects["publisher"])
+    for state in ("running", "pending"):
+        for pipeline in items(
+            lab.request("GET", f"/projects/{consumer}/pipelines?status={state}&per_page=100")
+        ):
+            lab.request("POST", f"/projects/{consumer}/pipelines/{pipeline['id']}/cancel")
     for mr in items(lab.request("GET", f"/projects/{consumer}/merge_requests?state=opened")):
         lab.request(
             "PUT", f"/projects/{consumer}/merge_requests/{mr['iid']}", {"state_event": "close"}

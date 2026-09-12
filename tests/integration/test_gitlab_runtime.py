@@ -16,6 +16,7 @@ from quality_graph_core.result import FailureKind, Result, ResultStatus
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from quality_graph_core.result import JsonValue
     from tests.integration.fake_gitlab import FakeGitLabScenario
 
 pytestmark = pytest.mark.integration
@@ -49,6 +50,13 @@ def prepare(
         monkeypatch.setenv("CI_MERGE_REQUEST_IID", "4")
         monkeypatch.setenv("CI_MERGE_REQUEST_PROJECT_ID", "1")
     return Graph.from_yaml(source)
+
+
+def reset(fake: FakeGitLabScenario, values: dict[str, JsonValue]) -> None:
+    values["merge_requests"] = {
+        "1:4": {"state": "opened", "sha": "a" * 40, "head_pipeline": {"id": 200}}
+    }
+    fake.reset(values)
 
 
 def test_gitlab_runtime_executes_the_command_once(
@@ -111,24 +119,26 @@ def test_gitlab_runtime_requires_the_current_job_acknowledgement(
 ) -> None:
     graph = prepare(tmp_path, monkeypatch, "true", server=fake_gitlab.base_url, mr=True)
     digest = graph_digest(graph)
-    fake_gitlab.reset(
+    reset(
+        fake_gitlab,
         {
             "notes": {
                 "1:4": [
                     {"id": 1, "author": {"id": 7}, "body": execution_marker(1, 200, 90, digest)}
                 ]
             }
-        }
+        },
     )
     assert runtime.execute(tmp_path, "mr", "quality") == 0
-    fake_gitlab.reset(
+    reset(
+        fake_gitlab,
         {
             "notes": {
                 "1:4": [
                     {"id": 1, "author": {"id": 7}, "body": execution_marker(1, 200, 89, digest)}
                 ]
             }
-        }
+        },
     )
     clock = iter((0, 0, 300))
     monkeypatch.setattr(runtime, "monotonic", lambda: next(clock, 300))
@@ -141,9 +151,9 @@ def test_gitlab_gate_checks_the_author_of_the_installed_status_acknowledgement(
 ) -> None:
     graph = prepare(tmp_path, monkeypatch, "true", server=fake_gitlab.base_url, mr=True)
     marker = gate_marker(1, 200, "mr", graph_digest(graph))
-    fake_gitlab.reset({"notes": {"1:4": [{"id": 1, "author": {"id": 7}, "body": marker}]}})
+    reset(fake_gitlab, {"notes": {"1:4": [{"id": 1, "author": {"id": 7}, "body": marker}]}})
     assert runtime.main(["gate", "--root", str(tmp_path), "--flow", "mr"]) == 0
-    fake_gitlab.reset({"notes": {"1:4": [{"id": 1, "author": {"id": 8}, "body": marker}]}})
+    reset(fake_gitlab, {"notes": {"1:4": [{"id": 1, "author": {"id": 8}, "body": marker}]}})
     clock = iter((0, 0, 300))
     monkeypatch.setattr(runtime, "monotonic", lambda: next(clock, 300))
     monkeypatch.setattr(runtime, "sleep", lambda _seconds: None)
@@ -177,3 +187,52 @@ def test_gitlab_runtime_requires_an_available_shell(
     monkeypatch.setattr(runtime.shutil, "which", lambda _name: None)
     with pytest.raises(ValueError, match="available shell"):
         runtime.execute(tmp_path, "push", "quality")
+
+
+@pytest.mark.parametrize("change", ["closed", "new-head", "new-pipeline"])
+def test_superseded_jobs_release_runner_capacity_without_waiting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_gitlab: FakeGitLabScenario, change: str
+) -> None:
+    prepare(tmp_path, monkeypatch, "true", server=fake_gitlab.base_url, mr=True)
+    mr: dict[str, JsonValue] = {"state": "opened", "sha": "a" * 40, "head_pipeline": {"id": 200}}
+    if change == "closed":
+        mr["state"] = "closed"
+    elif change == "new-head":
+        mr["sha"] = "b" * 40
+    else:
+        mr["head_pipeline"] = {"id": 201}
+    fake_gitlab.reset({"merge_requests": {"1:4": mr}})
+    waits: list[float] = []
+    monkeypatch.setattr(runtime, "sleep", waits.append)
+    assert runtime.execute(tmp_path, "mr", "quality") == 1
+    assert waits == []
+
+
+def test_new_job_waits_for_mr_pipeline_registration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_gitlab: FakeGitLabScenario
+) -> None:
+    graph = prepare(tmp_path, monkeypatch, "true", server=fake_gitlab.base_url, mr=True)
+    current: dict[str, JsonValue] = {
+        "state": "opened",
+        "sha": "a" * 40,
+        "head_pipeline": {"id": 200},
+    }
+    fake_gitlab.reset(
+        {
+            "merge_requests": {"1:4": current},
+            "mr_snapshots": {"1:4": [{**current, "head_pipeline": {"id": 199}}, current]},
+            "notes": {
+                "1:4": [
+                    {
+                        "id": 1,
+                        "author": {"id": 7},
+                        "body": gate_marker(1, 200, "mr", graph_digest(graph)),
+                    }
+                ]
+            },
+        }
+    )
+    waits: list[float] = []
+    monkeypatch.setattr(runtime, "sleep", waits.append)
+    assert runtime.gate(tmp_path, "mr") == 0
+    assert waits == [runtime.GATE_INTERVAL_SECONDS]

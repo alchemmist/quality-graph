@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import anyio
 
-from qg_gitlab.api import HttpGitLab, integer, string
+from qg_gitlab.api import HttpGitLab, integer, object_value, string
 from qg_gitlab.compiler import (
     QUALITY_EXIT_CODE,
     configuration,
@@ -186,6 +186,25 @@ def _acknowledged(graph: Graph, marker: str) -> bool:
         os.environ["CI_SERVER_URL"], os.environ["CI_JOB_TOKEN"], api_url=endpoint, job_token=True
     ) as api:
         while monotonic() < deadline:
+            current = object_value(
+                api.request("GET", f"/projects/{project}/merge_requests/{mr}"),
+                "current merge request",
+            )
+            head = current.get("head_pipeline")
+            if current.get("state") != "opened":
+                return False
+            expected_pipeline = int(os.environ["CI_PIPELINE_ID"])
+            if (
+                not isinstance(head, dict)
+                or integer(head.get("id"), "MR pipeline ID") < expected_pipeline
+            ):
+                sleep(GATE_INTERVAL_SECONDS)
+                continue
+            if (
+                head.get("id") != expected_pipeline
+                or current.get("sha") != os.environ["CI_COMMIT_SHA"]
+            ):
+                return False
             for note in api.pages(f"/projects/{project}/merge_requests/{mr}/notes"):
                 author = note.get("author")
                 body = note.get("body")

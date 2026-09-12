@@ -8,6 +8,7 @@ import os
 import platform
 import secrets
 import shutil
+import subprocess
 import sys
 import tomllib
 from datetime import UTC, datetime, timedelta
@@ -186,8 +187,13 @@ class LabClient:
                 output.write(source)
         service = "publisher-runner" if protected else "execution-runner"
         compose("--profile", "runners", "up", "-d", service)
-        compose("cp", str(path), f"{service}:/etc/gitlab-runner/config.toml")
-        compose("restart", service)
+        try:
+            installed = compose("exec", "-T", service, "cat", "/etc/gitlab-runner/config.toml")
+        except subprocess.CalledProcessError:
+            installed = b""
+        if installed != path.read_bytes():
+            compose("cp", str(path), f"{service}:/etc/gitlab-runner/config.toml")
+            compose("restart", service)
 
     def user(self, name: str) -> int:
         """Create a local test account without email delivery."""
