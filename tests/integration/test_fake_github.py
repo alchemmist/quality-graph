@@ -9,6 +9,7 @@ from tests.integration.fake_github import FakeGitHubServer
 
 if TYPE_CHECKING:
     from quality_graph_core.result import JsonValue
+    from tests.integration.fake_github import FakeGitHubScenario
 
 pytestmark = pytest.mark.integration
 
@@ -95,3 +96,37 @@ def test_workflow_job_pages_share_one_snapshot_per_poll() -> None:
     assert len(cast("list[JsonValue]", page_one["jobs"])) == 100
     assert cast("list[dict[str, JsonValue]]", page_two["jobs"])[0]["name"] == "Job 101"
     assert cast("list[dict[str, JsonValue]]", next_poll["jobs"])[0]["name"] == "Next poll"
+
+
+@pytest.mark.parametrize("selection", ["latest", "all", "attempt"])
+def test_attempt_job_history_filters_before_pagination(
+    fake_github: FakeGitHubScenario, selection: str
+) -> None:
+    old = [{"id": 1, "run_attempt": 2, "name": "Retained", "conclusion": "success"}]
+    current = [
+        {"id": identifier, "run_attempt": 3, "name": f"Job {identifier}"}
+        for identifier in range(2, 103)
+    ]
+    fake_github.reset({"workflow_attempt_jobs": {"10": {"2": old, "3": current}}})
+    port = HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url)
+    path = (
+        "/actions/runs/10/attempts/3/jobs"
+        if selection == "attempt"
+        else f"/actions/runs/10/jobs?filter={selection}"
+    )
+    separator = "&" if "?" in path else "?"
+    first = port.request("GET", f"{path}{separator}per_page=100&page=1")
+    second = port.request("GET", f"{path}{separator}per_page=100&page=2")
+    assert isinstance(first, dict)
+    assert isinstance(second, dict)
+    expected = old + current if selection == "all" else current
+    assert first["total_count"] == len(expected)
+    assert first["jobs"] + second["jobs"] == expected
+    assert port.request("GET", "/actions/runs/10/attempts/2/jobs") == {
+        "total_count": 1,
+        "jobs": old,
+    }
+    assert port.request("GET", "/actions/runs/10/attempts/4/jobs") is None
+    assert fake_github.snapshot()["workflow_attempt_jobs"] == {"10": {"2": old, "3": current}}
+    fake_github.reset()
+    assert fake_github.snapshot()["workflow_attempt_jobs"] == {}
