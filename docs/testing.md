@@ -49,6 +49,8 @@ GitHub-facing integration coverage includes:
 
 - publisher live/final recovery, stale-writer rejection, artifacts, check-run idempotence, labels,
   no-op refreshes, and request budgets;
+- dashboard job Logs URLs through live/final updates, retained result attempts, pagination, and
+  explicitly labeled Workflow run fallbacks for missing or ambiguous job metadata;
 - administrator commands, immutable approval records, reactions, reruns, authorization failures,
   and checkbox rollback;
 - managed comments, label ownership, artifact provenance and archive safety;

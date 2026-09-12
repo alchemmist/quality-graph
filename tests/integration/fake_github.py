@@ -399,6 +399,12 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
                     identifier,
                     self.state.workflow_jobs.get(identifier, []),
                 )
+            if query.get("filter", ["latest"])[0] == "latest":
+                latest = max(
+                    (value for job in jobs if isinstance(value := job.get("run_attempt", 1), int)),
+                    default=1,
+                )
+                jobs = [job for job in jobs if job.get("run_attempt", 1) == latest]
             status, page = _page(jobs, query)
             return status, {"total_count": len(jobs), "jobs": page}
         if method == "GET" and (

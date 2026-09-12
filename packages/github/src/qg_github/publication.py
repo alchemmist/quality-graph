@@ -6,6 +6,7 @@ import base64
 import json
 import time
 import urllib.parse
+from collections import Counter
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
 
@@ -201,18 +202,35 @@ def publish_workflow_jobs(
     is_current: Callable[[], bool] = lambda: True,
 ) -> bool:
     """Merge authoritative job lifecycle into the single live dashboard."""
-    statuses = _workflow_node_statuses(port, nodes, run.id)
-    terminal = len(statuses) == len(nodes) and all(
-        status not in {ResultStatus.WAITING, ResultStatus.IN_PROGRESS}
-        for status in statuses.values()
+    jobs = _workflow_jobs(port, run.id)
+    selected = _workflow_node_jobs(nodes, jobs, run)
+    statuses = {node_id: _workflow_job_status(job) for node_id, job in selected.items()}
+    current_attempt = run.attempt == 1 or any(
+        job.get("run_attempt") == run.attempt for job in selected.values()
+    )
+    terminal = (
+        current_attempt
+        and len(statuses) == len(nodes)
+        and all(
+            status not in {ResultStatus.WAITING, ResultStatus.IN_PROGRESS}
+            for status in statuses.values()
+        )
     )
     if terminal or not is_current():
         return True
-    if len(statuses) < len(nodes) and _workflow_run_completed(port, run.id):
+    if (len(statuses) < len(nodes) or not current_attempt) and _workflow_run_completed(
+        port, run.id
+    ):
         return True
     existing = find_managed_comment(port, number, DASHBOARD_MARKER)
     previous_labels = parse_label_state(existing.body) if existing is not None else frozenset()
-    model = live_dashboard(nodes, statuses, run, managed_labels=tuple(sorted(previous_labels)))
+    model = live_dashboard(
+        nodes,
+        statuses,
+        run,
+        managed_labels=tuple(sorted(previous_labels)),
+        job_urls=_workflow_job_urls(selected, run),
+    )
     upsert_managed_comment(port, number, DASHBOARD_MARKER, render_dashboard(model))
     return terminal
 
@@ -229,8 +247,7 @@ def _workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:
         response = _object(
             port.request(
                 "GET",
-                f"/actions/runs/{run_id}/jobs?filter=latest"
-                f"&per_page={GITHUB_PAGE_SIZE}&page={page}",
+                f"/actions/runs/{run_id}/jobs?filter=all&per_page={GITHUB_PAGE_SIZE}&page={page}",
             ),
             "workflow jobs",
         )
@@ -239,23 +256,6 @@ def _workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:
         if len(values) < GITHUB_PAGE_SIZE:
             return tuple(jobs)
         page += 1
-
-
-def _workflow_node_statuses(
-    port: GitHubPort,
-    nodes: tuple[DashboardNode, ...],
-    run_id: int,
-) -> dict[str, ResultStatus]:
-    """Map declared nodes to authoritative GitHub workflow job statuses."""
-    by_title = {node.title: node.node_id for node in nodes}
-    statuses: dict[str, ResultStatus] = {}
-    for value in _workflow_jobs(port, run_id):
-        job = _object(value, "workflow job")
-        name = _string(job.get("name"), "workflow job name")
-        node_id = by_title.get(name)
-        if node_id is not None:
-            statuses[node_id] = _workflow_job_status(job)
-    return statuses
 
 
 def _workflow_job_status(job: Mapping[str, JsonValue]) -> ResultStatus:
@@ -298,8 +298,9 @@ def _completed_dashboard(
         graph, results = read_pr_results(port, graph, expectation)
     except ArtifactError as error:
         nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
-        statuses = _workflow_node_statuses(port, nodes, run.id)
-        fallback = live_dashboard(nodes, statuses, run)
+        selected = _workflow_node_jobs(nodes, _workflow_jobs(port, run.id), run)
+        statuses = {node_id: _workflow_job_status(job) for node_id, job in selected.items()}
+        fallback = live_dashboard(nodes, statuses, run, job_urls=_workflow_job_urls(selected, run))
         return (
             replace(
                 fallback,
@@ -310,7 +311,16 @@ def _completed_dashboard(
         )
     approvals = approval_ledger(port, pull.number)
     effective = effective_graph(graph, results, approvals)
-    model = final_dashboard(graph, effective.results, run)
+    nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
+    selected = _workflow_node_jobs(
+        nodes,
+        _workflow_jobs(port, run.id),
+        run,
+        attempts={node_id: result.provenance.run_attempt for node_id, result in results.items()},
+    )
+    model = final_dashboard(
+        graph, effective.results, run, job_urls=_workflow_job_urls(selected, run)
+    )
     missing = expectation.node_ids - results.keys()
     if missing:
         model = replace(
@@ -392,7 +402,7 @@ def _publish_check(port: GitHubPort, model: DashboardModel) -> None:
         "head_sha": model.head_sha,
         "external_id": external_id,
         "status": "completed" if completed else "in_progress",
-        "details_url": next((row.logs_url for row in model.rows), ""),
+        "details_url": next((row.summary_url.split("#", 1)[0] for row in model.rows), ""),
         "output": {
             "title": "Quality Graph",
             "summary": model.message,
@@ -465,3 +475,69 @@ def _integer(value: JsonValue, context: str) -> int:
 
 def _optional_integer(value: JsonValue, context: str) -> int | None:
     return None if value is None else _integer(value, context)
+
+
+def _workflow_node_jobs(
+    nodes: tuple[DashboardNode, ...],
+    jobs: tuple[JsonValue, ...],
+    run: DashboardRun,
+    *,
+    attempts: Mapping[str, int] | None = None,
+) -> dict[str, dict[str, JsonValue]]:
+    titles = Counter(node.title for node in nodes)
+    selected: dict[str, dict[str, JsonValue]] = {}
+    for node in nodes:
+        if titles[node.title] != 1:
+            continue
+        candidates = [
+            job
+            for job in jobs
+            if isinstance(job, dict)
+            and job.get("name") == node.title
+            and job.get("run_id", run.id) == run.id
+            and isinstance(attempt := job.get("run_attempt", run.attempt), int)
+            and not isinstance(attempt, bool)
+            and 0 < attempt <= run.attempt
+            and (attempts is None or attempt == attempts.get(node.node_id, run.attempt))
+        ]
+        newest = max(
+            (
+                value
+                for job in candidates
+                if isinstance(value := job.get("run_attempt", run.attempt), int)
+            ),
+            default=0,
+        )
+        matches = [job for job in candidates if job.get("run_attempt", run.attempt) == newest]
+        if len(matches) == 1:
+            selected[node.node_id] = matches[0]
+    return selected
+
+
+def _workflow_job_urls(
+    jobs: Mapping[str, Mapping[str, JsonValue]], run: DashboardRun
+) -> dict[str, str]:
+    urls: dict[str, str] = {}
+    for node_id, job in jobs.items():
+        url = job.get("html_url")
+        identifier = job.get("id")
+        attempt = job.get("run_attempt")
+        if (
+            job.get("run_id") != run.id
+            or not isinstance(identifier, int)
+            or isinstance(identifier, bool)
+            or identifier <= 0
+            or not isinstance(attempt, int)
+            or isinstance(attempt, bool)
+            or not 0 < attempt <= run.attempt
+            or not isinstance(url, str)
+        ):
+            continue
+        parsed = urllib.parse.urlsplit(url)
+        if (
+            parsed.scheme == "https"
+            and parsed.netloc
+            and not any(char in url for char in "\n\r()|")
+        ):
+            urls[node_id] = url
+    return urls

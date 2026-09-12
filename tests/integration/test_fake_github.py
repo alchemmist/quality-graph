@@ -78,15 +78,15 @@ def test_workflow_job_pages_share_one_snapshot_per_poll() -> None:
 
         page_one = selected.request(
             "GET",
-            "/actions/runs/10/jobs?filter=latest&per_page=100&page=1",
+            "/actions/runs/10/jobs?filter=all&per_page=100&page=1",
         )
         page_two = selected.request(
             "GET",
-            "/actions/runs/10/jobs?filter=latest&per_page=100&page=2",
+            "/actions/runs/10/jobs?filter=all&per_page=100&page=2",
         )
         next_poll = selected.request(
             "GET",
-            "/actions/runs/10/jobs?filter=latest&per_page=100&page=1",
+            "/actions/runs/10/jobs?filter=all&per_page=100&page=1",
         )
 
     assert isinstance(page_one, dict)
