@@ -145,15 +145,16 @@ t-fast:
 	uv run --locked --all-packages --group test pytest -q -m "not integration"
 
 t-medium:
-	uv run --locked --all-packages --group test pytest -q -m integration
-	@compose="tests/integration/docker-compose.yml"; status=0; \
-	$(COMPOSE) -f "$$compose" up -d --build --wait || status=$$?; \
-	if [ "$$status" -eq 0 ]; then \
+	@status=0; \
+	uv run --locked --all-packages --group test pytest -q -m integration || status=$$?; \
+	compose="tests/integration/docker-compose.yml"; container_status=0; \
+	$(COMPOSE) -f "$$compose" up -d --build --wait || container_status=$$?; \
+	if [ "$$container_status" -eq 0 ]; then \
 		QG_FAKE_GITHUB_URL="http://127.0.0.1:$${QG_FAKE_GITHUB_PORT:-18080}" \
-			uv run --locked --all-packages --group test pytest -q -m integration || status=$$?; \
+			uv run --locked --all-packages --group test pytest -q -m integration || container_status=$$?; \
 	fi; \
-	$(COMPOSE) -f "$$compose" down; \
-	exit "$$status"
+	$(COMPOSE) -f "$$compose" down || container_status=$$?; \
+	exit $$((status || container_status))
 
 coverage:
 	uv run --locked --all-packages --group test pytest -q --cov=quality_graph_core \
