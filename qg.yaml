@@ -6,8 +6,8 @@ provider:
     merge:
       required: true
     runtime:
-      action: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
-      publisher-action: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
+      action: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
+      publisher-action: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
 profiles:
   default:
     runner: ubuntu-latest

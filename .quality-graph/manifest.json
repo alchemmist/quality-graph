@@ -372,7 +372,7 @@
       "trigger": "push"
     }
   },
-  "graphDigest": "c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9",
+  "graphDigest": "12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -1139,6 +1139,6 @@
   "provider": "github",
   "resultSchemaVersion": 0,
   "runtime": {
-    "action": "alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1"
+    "action": "alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277"
   }
 }

@@ -48,7 +48,7 @@ jobs:
       - name: Collect Release Build (build) result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
+        uses: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
         with:
           operation: collect
           node-id: build
@@ -56,7 +56,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+          graph-digest: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -83,7 +83,7 @@ jobs:
       QG_OPERATION_ID: release-build
       QG_NODE_ID: build
       QG_NODE_TITLE: Release Build (build)
-      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+      QG_GRAPH_DIGEST: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
   publish-core:
     name: Publish Core
     runs-on: ubuntu-latest
@@ -98,7 +98,7 @@ jobs:
       - name: Collect Publish Core result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
+        uses: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
         with:
           operation: collect
           node-id: publish-core
@@ -106,7 +106,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+          graph-digest: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -138,7 +138,7 @@ jobs:
       QG_OPERATION_ID: publish-core
       QG_NODE_ID: publish-core
       QG_NODE_TITLE: Publish Core
-      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+      QG_GRAPH_DIGEST: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
   publish-python:
     name: Publish Python
     runs-on: ubuntu-latest
@@ -153,7 +153,7 @@ jobs:
       - name: Collect Publish Python result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
+        uses: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
         with:
           operation: collect
           node-id: publish-python
@@ -161,7 +161,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+          graph-digest: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -193,7 +193,7 @@ jobs:
       QG_OPERATION_ID: publish-python
       QG_NODE_ID: publish-python
       QG_NODE_TITLE: Publish Python
-      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+      QG_GRAPH_DIGEST: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
   publish-github:
     name: Publish Github
     runs-on: ubuntu-latest
@@ -208,7 +208,7 @@ jobs:
       - name: Collect Publish Github result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
+        uses: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
         with:
           operation: collect
           node-id: publish-github
@@ -216,7 +216,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+          graph-digest: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -249,7 +249,7 @@ jobs:
       QG_OPERATION_ID: publish-github
       QG_NODE_ID: publish-github
       QG_NODE_TITLE: Publish Github
-      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+      QG_GRAPH_DIGEST: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
   publish-cli:
     name: Publish Cli
     runs-on: ubuntu-latest
@@ -264,7 +264,7 @@ jobs:
       - name: Collect Publish Cli result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
+        uses: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
         with:
           operation: collect
           node-id: publish-cli
@@ -272,7 +272,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+          graph-digest: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -305,7 +305,7 @@ jobs:
       QG_OPERATION_ID: publish-cli
       QG_NODE_ID: publish-cli
       QG_NODE_TITLE: Publish Cli
-      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+      QG_GRAPH_DIGEST: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
   release:
     name: Github Release (release)
     runs-on: ubuntu-latest
@@ -325,7 +325,7 @@ jobs:
       - name: Collect Github Release (release) result
         id: quality-result
         if: always()
-        uses: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
+        uses: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
         with:
           operation: collect
           node-id: release
@@ -333,7 +333,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+          graph-digest: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -365,4 +365,4 @@ jobs:
       QG_OPERATION_ID: github-release
       QG_NODE_ID: release
       QG_NODE_TITLE: Github Release (release)
-      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
+      QG_GRAPH_DIGEST: 12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d
