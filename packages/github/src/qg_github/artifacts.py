@@ -12,7 +12,7 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
-from quality_graph_core.result import JsonValue, Result
+from quality_graph_core.result import JsonValue, Provenance, Result
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -173,6 +173,9 @@ def _validate_result(
     expectation: ArtifactExpectation,
 ) -> None:
     provenance = result.provenance
+    if not isinstance(provenance, Provenance):
+        message = "GitHub artifact contains foreign provider provenance"
+        raise ArtifactError(message)
     expected = (
         expectation.repository,
         expectation.pull_request,

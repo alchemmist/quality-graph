@@ -38,3 +38,12 @@ class Provider(Protocol):
     def generate(self, graph: Graph) -> GeneratedProject:
         """Return every deterministic platform output for the graph."""
         ...
+
+
+@runtime_checkable
+class ProviderInitializer(Protocol):
+    """Optionally supply provider-native starter declarations."""
+
+    def starter_configuration(self, default_branch: str, preset: str) -> str:
+        """Return a declaration that can be validated before writing."""
+        ...

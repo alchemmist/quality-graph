@@ -24,11 +24,12 @@ def parser() -> argparse.ArgumentParser:
     commands = result.add_subparsers(dest="command")
     initialize = commands.add_parser("init", help="Create a starter Quality Graph declaration")
     initialize.add_argument("--root", default=".")
-    initialize.add_argument("--runtime-action", required=True)
+    initialize.add_argument("--runtime-action", default="")
+    initialize.add_argument("--provider", default="github")
     initialize.add_argument("--default-branch", default="main")
     initialize.add_argument("--preset", choices=("oss", "internal"), default="oss")
     initialize.add_argument("--force", action="store_true")
-    generate = commands.add_parser("generate", help="Generate committed GitHub workflows")
+    generate = commands.add_parser("generate", help="Generate committed provider CI configuration")
     generate.add_argument("--root", default=".")
     validate_project = commands.add_parser("validate", help="Validate declaration freshness")
     validate_project.add_argument("--root", default=".")
@@ -54,6 +55,7 @@ def parser() -> argparse.ArgumentParser:
     validate.add_argument("path", help="JSON file path or - for stdin")
     schema = result_commands.add_parser("schema", help="Render the result JSON Schema")
     schema.add_argument("--output", default="-", help="Output path or - for stdout")
+    schema.add_argument("--schema-version", type=int, choices=(0, 1), default=0)
     emit = result_commands.add_parser("emit", help="Emit a minimal native result")
     emit.add_argument("--node-id", required=True)
     emit.add_argument("--title", required=True)
@@ -115,6 +117,7 @@ def _project_command(args: argparse.Namespace) -> int:
             default_branch=args.default_branch,
             preset=args.preset,
             force=args.force,
+            provider_name=args.provider,
         )
         return 0
     if args.command == "generate":
@@ -139,7 +142,7 @@ def _result_command(command_parser: argparse.ArgumentParser, args: argparse.Name
         Result.from_json(_read_text(args.path))
         return 0
     if args.result_command == "schema":
-        _write_text(args.output, result_schema_json())
+        _write_text(args.output, result_schema_json(args.schema_version))
         return 0
     if args.result_command == "emit":
         _write_text(args.output, _emitted_result(args).to_json())

@@ -78,6 +78,7 @@
           "enum": [
             "none",
             "github-pr",
+            "gitlab-mr",
             "release"
           ],
           "minLength": 0,

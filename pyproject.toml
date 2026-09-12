@@ -2,6 +2,7 @@
 members = [
   "packages/core",
   "packages/github",
+  "packages/gitlab",
   "packages/python",
   "apps/qg",
   "tools/adopter-discovery",
@@ -59,6 +60,7 @@ line-length = 100
 src = [
   "packages/core/src",
   "packages/github/src",
+  "packages/gitlab/src",
   "packages/python/src",
   "apps/qg/src",
   "tests",
@@ -81,6 +83,7 @@ python_version = "3.12"
 files = [
   "packages/core/src",
   "packages/github/src",
+  "packages/gitlab/src",
   "packages/python/src",
   "apps/qg/src",
   "scripts",
@@ -88,6 +91,7 @@ files = [
 mypy_path = [
   "packages/core/src",
   "packages/github/src",
+  "packages/gitlab/src",
   "packages/python/src",
   "apps/qg/src",
 ]

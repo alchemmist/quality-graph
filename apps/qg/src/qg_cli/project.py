@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Literal, Self
 
 from qg_cli.providers import load_provider
 from quality_graph_core.graph import Graph
+from quality_graph_core.provider import ProviderInitializer
 
 if TYPE_CHECKING:
     from quality_graph_core.provider import GeneratedProject, Provider
@@ -166,19 +167,26 @@ class Project:
     def initialize(
         cls,
         root: Path,
-        runtime_action: str,
+        runtime_action: str = "",
         *,
         default_branch: str = "main",
         preset: Literal["oss", "internal"] = "oss",
         force: bool = False,
+        provider_name: str = "github",
     ) -> Self:
         """Create one understandable starter declaration."""
         configuration = _configuration_path(root)
         if configuration.exists() and not force:
             message = f"Refusing to replace existing declaration: {configuration}"
             raise FileExistsError(message)
-        provider = load_provider("github")
-        source = _starter_configuration(runtime_action, default_branch, preset)
+        provider = load_provider(provider_name)
+        if isinstance(provider, ProviderInitializer):
+            source = provider.starter_configuration(default_branch, preset)
+        elif provider_name == "github":
+            source = _starter_configuration(runtime_action, default_branch, preset)
+        else:
+            message = f"Provider '{provider_name}' does not provide initialization"
+            raise ValueError(message)
         graph = Graph.from_yaml(source)
         provider.generate(graph)
         root.mkdir(parents=True, exist_ok=True)

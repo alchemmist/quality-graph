@@ -627,10 +627,10 @@ def _validate_flow_settings(flow: Flow) -> None:
     if flow.trigger not in {"pull-request", "push", "workflow-dispatch"}:
         message = f"unsupported flow trigger: {flow.trigger}"
         raise ValueError(message)
-    if flow.presentation not in {"none", "github-pr", "release"}:
+    if flow.presentation not in {"none", "github-pr", "gitlab-mr", "release"}:
         message = f"unsupported presentation adapter: {flow.presentation}"
         raise ValueError(message)
-    if (flow.presentation == "github-pr" and flow.trigger != "pull-request") or (
+    if (flow.presentation in {"github-pr", "gitlab-mr"} and flow.trigger != "pull-request") or (
         flow.presentation == "release" and not flow.is_release
     ):
         message = "presentation adapter is incompatible with flow trigger"

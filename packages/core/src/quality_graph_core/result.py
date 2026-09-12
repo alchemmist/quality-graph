@@ -403,13 +403,124 @@ class Provenance:
 
 
 @dataclass(frozen=True)
+class GitLabProvenance:
+    """Bind a GitLab result to a project, pipeline and exact job execution."""
+
+    server_url: str
+    project_id: int
+    head_sha: str
+    pipeline_id: int
+    job_id: int
+    graph_digest: str
+    target_project_id: int | None = None
+    merge_request: int | None = None
+    flow_id: str | None = None
+    operation_id: str | None = None
+
+    def __post_init__(self) -> None:
+        """Reject ambiguous instance, execution and merge-request identities."""
+        url = urllib.parse.urlsplit(self.server_url)
+        if (
+            url.scheme not in {"http", "https"}
+            or not url.hostname
+            or url.username is not None
+            or url.password is not None
+            or url.query
+            or url.fragment
+            or self.server_url.endswith("/")
+        ):
+            message = "GitLab server URL must be an absolute HTTP(S) URL without credentials"
+            raise ValueError(message)
+        for name, number in (
+            ("project", self.project_id),
+            ("pipeline", self.pipeline_id),
+            ("job", self.job_id),
+            ("target project", self.target_project_id),
+            ("merge request", self.merge_request),
+        ):
+            if number is not None and (_integer(number, name) < 1):
+                message = f"GitLab {name} identity must be positive"
+                raise ValueError(message)
+        if GIT_SHA_RE.fullmatch(self.head_sha) is None:
+            message = "head SHA must contain 40 or 64 lowercase hexadecimal characters"
+            raise ValueError(message)
+        if DIGEST_RE.fullmatch(self.graph_digest) is None:
+            message = "graph digest must contain 64 lowercase hexadecimal characters"
+            raise ValueError(message)
+        if (self.target_project_id is None) != (self.merge_request is None):
+            message = "GitLab target project and merge request must be supplied together"
+            raise ValueError(message)
+        if (self.flow_id is None) != (self.operation_id is None):
+            message = "flow and operation provenance must be supplied together"
+            raise ValueError(message)
+        for identity in (self.flow_id, self.operation_id):
+            if identity is not None and IDENTIFIER_RE.fullmatch(identity) is None:
+                message = "invalid flow or operation provenance identifier"
+                raise ValueError(message)
+
+    def to_value(self) -> dict[str, JsonValue]:
+        """Serialize native GitLab execution identity without workflow attempts."""
+        value: dict[str, JsonValue] = {
+            "provider": "gitlab",
+            "serverUrl": self.server_url,
+            "projectId": self.project_id,
+            "headSha": self.head_sha,
+            "pipelineId": self.pipeline_id,
+            "jobId": self.job_id,
+            "graphDigest": self.graph_digest,
+        }
+        _put_optional(value, "targetProjectId", self.target_project_id)
+        _put_optional(value, "mergeRequest", self.merge_request)
+        _put_optional(value, "flowId", self.flow_id)
+        _put_optional(value, "operationId", self.operation_id)
+        return value
+
+    @classmethod
+    def from_value(cls, value: JsonValue) -> Self:
+        """Parse the GitLab variant of version-one result provenance."""
+        data = _object(value, "GitLab provenance")
+        _reject_unknown(
+            data,
+            {
+                "provider",
+                "serverUrl",
+                "projectId",
+                "headSha",
+                "pipelineId",
+                "jobId",
+                "graphDigest",
+                "targetProjectId",
+                "mergeRequest",
+                "flowId",
+                "operationId",
+            },
+            "GitLab provenance",
+        )
+        if data.get("provider") != "gitlab":
+            message = "version-one provenance requires the gitlab provider"
+            raise ValueError(message)
+        return cls(
+            _string(data.get("serverUrl"), "GitLab server URL"),
+            _integer(data.get("projectId"), "GitLab project"),
+            _string(data.get("headSha"), "head SHA"),
+            _integer(data.get("pipelineId"), "GitLab pipeline"),
+            _integer(data.get("jobId"), "GitLab job"),
+            _string(data.get("graphDigest"), "graph digest"),
+            _optional_integer(data.get("targetProjectId"), "GitLab target project"),
+            _optional_integer(data.get("mergeRequest"), "GitLab merge request"),
+            _optional_string(data.get("flowId"), "flow id"),
+            _optional_string(data.get("operationId"), "operation id"),
+        )
+
+
+@dataclass(frozen=True)
 class Result:
     """Carry one node's complete portable Quality Graph result."""
 
     node_id: str
     title: str
     status: ResultStatus
-    provenance: Provenance
+    provenance: Provenance | GitLabProvenance
     failure_kind: FailureKind | None = None
     summary: str = ""
     metrics: tuple[Metric, ...] = ()
@@ -422,7 +533,10 @@ class Result:
 
     def __post_init__(self) -> None:
         """Validate result identity, bounds, and lifecycle consistency."""
-        if self.schema_version != 0:
+        if isinstance(self.provenance, GitLabProvenance) and self.schema_version == 0:
+            object.__setattr__(self, "schema_version", 1)
+        expected_version = int(isinstance(self.provenance, GitLabProvenance))
+        if self.schema_version != expected_version:
             message = f"unsupported result schema version: {self.schema_version}"
             raise ValueError(message)
         if IDENTIFIER_RE.fullmatch(self.node_id) is None:
@@ -491,7 +605,11 @@ class Result:
             _string(data.get("nodeId"), "node id"),
             _string(data.get("title"), "result title"),
             ResultStatus(_string(data.get("status"), "result status")),
-            Provenance.from_value(data.get("provenance")),
+            (
+                GitLabProvenance.from_value(data.get("provenance"))
+                if data.get("schemaVersion") == 1
+                else Provenance.from_value(data.get("provenance"))
+            ),
             FailureKind(failure_kind) if failure_kind is not None else None,
             _string(data.get("summary", ""), "result summary"),
             tuple(Metric.from_value(item) for item in _array(data.get("metrics", []), "metrics")),

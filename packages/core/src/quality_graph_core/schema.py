@@ -188,9 +188,49 @@ def result_schema_value() -> dict[str, JsonValue]:
     return schema
 
 
-def result_schema_json() -> str:
+def gitlab_result_schema_value() -> dict[str, JsonValue]:
+    """Describe GitLab results with native project, pipeline and job identity."""
+    schema = result_schema_value()
+    schema["$id"] = (
+        "https://github.com/alchemmist/quality-graph/blob/main/schemas/result-v1.schema.json"
+    )
+    schema["title"] = "Quality Graph Result v1"
+    properties = cast("dict[str, JsonValue]", schema["properties"])
+    properties["schemaVersion"] = {"const": 1}
+    definitions = cast("dict[str, JsonValue]", schema["$defs"])
+    provenance = _object_schema(
+        {
+            "provider": {"const": "gitlab"},
+            "serverUrl": {"type": "string", "format": "uri"},
+            "projectId": {"type": "integer", "minimum": 1},
+            "targetProjectId": {"type": "integer", "minimum": 1},
+            "mergeRequest": {"type": "integer", "minimum": 1},
+            "pipelineId": {"type": "integer", "minimum": 1},
+            "jobId": {"type": "integer", "minimum": 1},
+            "headSha": _string_schema(pattern=r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$"),
+            "graphDigest": _string_schema(pattern=r"^[0-9a-f]{64}$"),
+            "flowId": _string_schema(pattern=r"^[a-z][a-z0-9-]{0,62}$"),
+            "operationId": _string_schema(pattern=r"^[a-z][a-z0-9-]{0,62}$"),
+        },
+        ("provider", "serverUrl", "projectId", "pipelineId", "jobId", "headSha", "graphDigest"),
+    )
+    provenance["dependentRequired"] = {
+        "flowId": ["operationId"],
+        "operationId": ["flowId"],
+        "targetProjectId": ["mergeRequest"],
+        "mergeRequest": ["targetProjectId"],
+    }
+    definitions["provenance"] = provenance
+    return schema
+
+
+def result_schema_json(version: int = 0) -> str:
     """Serialize the result JSON Schema deterministically."""
-    return json.dumps(result_schema_value(), indent=2, sort_keys=True) + "\n"
+    if version not in {0, 1}:
+        message = f"unsupported result schema version: {version}"
+        raise ValueError(message)
+    schema = result_schema_value() if version == 0 else gitlab_result_schema_value()
+    return json.dumps(schema, indent=2, sort_keys=True) + "\n"
 
 
 def graph_schema_value() -> dict[str, JsonValue]:
@@ -501,7 +541,7 @@ def _flow_schema(identifier: dict[str, JsonValue]) -> dict[str, JsonValue]:
         {
             "trigger": trigger,
             "dependencies": _string_schema(enum=("graph", "none")),
-            "presentation": _string_schema(enum=("none", "github-pr", "release")),
+            "presentation": _string_schema(enum=("none", "github-pr", "gitlab-mr", "release")),
             "concurrency": identifier,
             "execution": _string_schema(enum=("design-only", "github-actions")),
             "nodes": {

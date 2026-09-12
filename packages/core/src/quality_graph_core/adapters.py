@@ -15,6 +15,7 @@ from quality_graph_core.result import (
     DiagnosticKind,
     FailureKind,
     Finding,
+    GitLabProvenance,
     JsonValue,
     Metric,
     Provenance,
@@ -63,7 +64,7 @@ class AdapterContext:
     node_id: str
     title: str
     command_succeeded: bool
-    provenance: Provenance
+    provenance: Provenance | GitLabProvenance
 
 
 def adapt_exit(context: AdapterContext, output: str = "") -> Result:

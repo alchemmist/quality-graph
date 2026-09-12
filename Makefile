@@ -7,6 +7,14 @@ MARKDOWN_SOURCES := README.md CONTEXT.md $(wildcard docs/*.md packages/*/README.
 
 .DEFAULT_GOAL := check
 
+.PHONY: gitlab-up gitlab-seed gitlab-status gitlab-logs gitlab-down gitlab-wheels
+
+gitlab-up gitlab-seed gitlab-status gitlab-logs gitlab-down:
+	uv run --locked --all-packages python scripts/gitlab_lab.py $(patsubst gitlab-%,%,$@)
+
+gitlab-wheels: package
+	uv run --locked --all-packages python scripts/gitlab_lab.py wheels
+
 .PHONY: install tools schemas schemas-check graph-generate graph-validate adopters-find users \
 	fmt fmt-check lint type analyze test t-fast t-medium coverage \
 	python-suppressions python-object-annotations python-triple-quotes \
@@ -60,6 +68,7 @@ precommit-uninstall:
 schemas:
 	uv run --locked --all-packages qg schema --output schemas/graph-v0.schema.json
 	uv run --locked --all-packages qg result schema --output schemas/result-v0.schema.json
+	uv run --locked --all-packages qg result schema --schema-version 1 --output schemas/result-v1.schema.json
 
 schemas-check:
 	@graph_schema=$$(mktemp); result_schema=$$(mktemp); \
@@ -69,6 +78,10 @@ schemas-check:
 	cmp schemas/result-v0.schema.json "$$result_schema"; result_status=$$?; \
 	rm -f "$$graph_schema" "$$result_schema"; \
 	exit $$((graph_status || result_status))
+	@result_schema=$$(mktemp); \
+	uv run --locked --all-packages qg result schema --schema-version 1 --output "$$result_schema"; \
+	cmp schemas/result-v1.schema.json "$$result_schema"; result_status=$$?; \
+	rm -f "$$result_schema"; exit $$result_status
 
 graph-generate:
 	uv run --locked --all-packages qg generate
@@ -145,15 +158,17 @@ t-fast:
 	uv run --locked --all-packages --group test pytest -q -m "not integration"
 
 t-medium:
-	uv run --locked --all-packages --group test pytest -q -m integration
-	@compose="tests/integration/docker-compose.yml"; status=0; \
-	$(COMPOSE) -f "$$compose" up -d --build --wait || status=$$?; \
-	if [ "$$status" -eq 0 ]; then \
+	@status=0; \
+	uv run --locked --all-packages --group test pytest -q -m integration || status=$$?; \
+	compose="tests/integration/docker-compose.yml"; container_status=0; \
+	$(COMPOSE) -f "$$compose" up -d --build --wait || container_status=$$?; \
+	if [ "$$container_status" -eq 0 ]; then \
 		QG_FAKE_GITHUB_URL="http://127.0.0.1:$${QG_FAKE_GITHUB_PORT:-18080}" \
-			uv run --locked --all-packages --group test pytest -q -m integration || status=$$?; \
+		QG_FAKE_GITLAB_URL="http://127.0.0.1:$${QG_FAKE_GITLAB_PORT:-18081}" \
+			uv run --locked --all-packages --group test pytest -q -m integration || container_status=$$?; \
 	fi; \
-	$(COMPOSE) -f "$$compose" down; \
-	exit "$$status"
+	$(COMPOSE) -f "$$compose" down || container_status=$$?; \
+	exit $$((status || container_status))
 
 coverage:
 	uv run --locked --all-packages --group test pytest -q --cov=quality_graph_core \
