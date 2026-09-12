@@ -72,6 +72,8 @@ ignore = ["COM812", "D203", "D212"]
 known-first-party = ["quality_graph_core", "qg_github", "qg_cli", "qg_python"]
 
 [tool.ruff.lint.per-file-ignores]
+"scripts/check_report.py" = ["S603"]
+"tests/integration/test_check_reporting.py" = ["S603"]
 "tests/**/*.py" = ["D100", "D101", "D102", "D103", "PLR2004", "S101"]
 "tests/integration/test_formatter_contract.py" = ["S603"]
 "tests/integration/fake_github.py" = ["C901", "PLR0911", "S104"]

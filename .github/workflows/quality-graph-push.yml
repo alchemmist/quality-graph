@@ -27,7 +27,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make graph-validate
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/workflow-graph.json -- make graph-validate
         name: Run Workflow graph validation
         id: quality-command
         continue-on-error: true
@@ -39,10 +39,10 @@ jobs:
           operation: collect
           node-id: workflow-graph
           title: Workflow graph validation
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/workflow-graph.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -68,7 +68,7 @@ jobs:
       QG_OPERATION_ID: workflow-graph
       QG_NODE_ID: workflow-graph
       QG_NODE_TITLE: Workflow graph validation
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   format:
     name: Format check
     runs-on: ubuntu-latest
@@ -85,7 +85,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make fmt-check
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/format.json -- make fmt-check
         name: Run Format check
         id: quality-command
         continue-on-error: true
@@ -97,10 +97,10 @@ jobs:
           operation: collect
           node-id: format
           title: Format check
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/format.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -128,7 +128,7 @@ jobs:
       QG_OPERATION_ID: format
       QG_NODE_ID: format
       QG_NODE_TITLE: Format check
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   suppressions:
     name: Lint suppression gate
     runs-on: ubuntu-latest
@@ -145,7 +145,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make python-suppressions
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/suppressions.json -- make python-suppressions
         name: Run Lint suppression gate
         id: quality-command
         continue-on-error: true
@@ -157,10 +157,10 @@ jobs:
           operation: collect
           node-id: suppressions
           title: Lint suppression gate
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/suppressions.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -188,7 +188,7 @@ jobs:
       QG_OPERATION_ID: suppressions
       QG_NODE_ID: suppressions
       QG_NODE_TITLE: Lint suppression gate
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   object-annotations:
     name: Python object annotation gate
     runs-on: ubuntu-latest
@@ -205,13 +205,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: 'mkdir -p reports
-
-          set -o pipefail
-
-          make python-object-annotations 2>&1 | tee reports/object-annotations.log
-
-          '
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/object-annotations.json -- make python-object-annotations
         name: Run Python object annotation gate
         id: quality-command
         continue-on-error: true
@@ -223,10 +217,10 @@ jobs:
           operation: collect
           node-id: object-annotations
           title: Python object annotation gate
-          adapter: exit-code
-          report-path: reports/object-annotations.log
+          adapter: native
+          report-path: reports/object-annotations.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -254,7 +248,7 @@ jobs:
       QG_OPERATION_ID: object-annotations
       QG_NODE_ID: object-annotations
       QG_NODE_TITLE: Python object annotation gate
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   triple-quotes:
     name: Triple-quoted string style
     runs-on: ubuntu-latest
@@ -271,7 +265,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make python-triple-quotes
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/triple-quotes.json -- make python-triple-quotes
         name: Run Triple-quoted string style
         id: quality-command
         continue-on-error: true
@@ -283,10 +277,10 @@ jobs:
           operation: collect
           node-id: triple-quotes
           title: Triple-quoted string style
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/triple-quotes.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -314,7 +308,7 @@ jobs:
       QG_OPERATION_ID: triple-quotes
       QG_NODE_ID: triple-quotes
       QG_NODE_TITLE: Triple-quoted string style
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   no-comments:
     name: Python no-comments policy
     runs-on: ubuntu-latest
@@ -331,7 +325,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make python-no-comments
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/no-comments.json -- make python-no-comments
         name: Run Python no-comments policy
         id: quality-command
         continue-on-error: true
@@ -343,10 +337,10 @@ jobs:
           operation: collect
           node-id: no-comments
           title: Python no-comments policy
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/no-comments.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -374,7 +368,7 @@ jobs:
       QG_OPERATION_ID: no-comments
       QG_NODE_ID: no-comments
       QG_NODE_TITLE: Python no-comments policy
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -391,7 +385,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make lint
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/lint.json -- make lint
         name: Run Lint
         id: quality-command
         continue-on-error: true
@@ -403,10 +397,10 @@ jobs:
           operation: collect
           node-id: lint
           title: Lint
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/lint.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -436,7 +430,7 @@ jobs:
       QG_OPERATION_ID: lint
       QG_NODE_ID: lint
       QG_NODE_TITLE: Lint
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   type:
     name: Type check
     runs-on: ubuntu-latest
@@ -453,7 +447,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make type
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/type.json -- make type
         name: Run Type check
         id: quality-command
         continue-on-error: true
@@ -465,10 +459,10 @@ jobs:
           operation: collect
           node-id: type
           title: Type check
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/type.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -496,7 +490,7 @@ jobs:
       QG_OPERATION_ID: type
       QG_NODE_ID: type
       QG_NODE_TITLE: Type check
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   analyze:
     name: Static analysis
     runs-on: ubuntu-latest
@@ -513,7 +507,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make analyze
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/analyze.json -- make analyze
         name: Run Static analysis
         id: quality-command
         continue-on-error: true
@@ -525,10 +519,10 @@ jobs:
           operation: collect
           node-id: analyze
           title: Static analysis
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/analyze.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -557,7 +551,7 @@ jobs:
       QG_OPERATION_ID: analyze
       QG_NODE_ID: analyze
       QG_NODE_TITLE: Static analysis
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   time-bombs:
     name: Time bomb guardrail
     runs-on: ubuntu-latest
@@ -574,7 +568,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make python-time-bombs
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/time-bombs.json -- make python-time-bombs
         name: Run Time bomb guardrail
         id: quality-command
         continue-on-error: true
@@ -586,10 +580,10 @@ jobs:
           operation: collect
           node-id: time-bombs
           title: Time bomb guardrail
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/time-bombs.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -617,7 +611,7 @@ jobs:
       QG_OPERATION_ID: time-bombs
       QG_NODE_ID: time-bombs
       QG_NODE_TITLE: Time bomb guardrail
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   test-fast:
     name: Fast tests
     runs-on: ubuntu-latest
@@ -646,10 +640,10 @@ jobs:
           operation: collect
           node-id: test-fast
           title: Fast tests
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/test-fast.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -677,7 +671,7 @@ jobs:
       QG_OPERATION_ID: test-fast
       QG_NODE_ID: test-fast
       QG_NODE_TITLE: Fast tests
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   test-medium:
     name: Medium tests
     runs-on: ubuntu-latest
@@ -706,10 +700,10 @@ jobs:
           operation: collect
           node-id: test-medium
           title: Medium tests
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/test-medium.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -737,7 +731,7 @@ jobs:
       QG_OPERATION_ID: test-medium
       QG_NODE_ID: test-medium
       QG_NODE_TITLE: Medium tests
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   coverage:
     name: Coverage and diff coverage
     runs-on: ubuntu-latest
@@ -754,7 +748,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make coverage-diff
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/coverage.json -- make coverage-diff
         name: Run Coverage and diff coverage
         id: quality-command
         continue-on-error: true
@@ -766,10 +760,10 @@ jobs:
           operation: collect
           node-id: coverage
           title: Coverage and diff coverage
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/coverage.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -798,7 +792,7 @@ jobs:
       QG_OPERATION_ID: coverage
       QG_NODE_ID: coverage
       QG_NODE_TITLE: Coverage and diff coverage
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   flaky-python:
     name: Changed Python flaky-test detection
     runs-on: ubuntu-latest
@@ -815,7 +809,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make flaky-python
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/flaky-python.json -- make flaky-python
         name: Run Changed Python flaky-test detection
         id: quality-command
         continue-on-error: true
@@ -827,10 +821,10 @@ jobs:
           operation: collect
           node-id: flaky-python
           title: Changed Python flaky-test detection
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/flaky-python.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -858,7 +852,7 @@ jobs:
       QG_OPERATION_ID: flaky-python
       QG_NODE_ID: flaky-python
       QG_NODE_TITLE: Changed Python flaky-test detection
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   mutation:
     name: Changed decision mutation gate
     runs-on: ubuntu-latest
@@ -875,7 +869,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make mutation-diff
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/mutation.json -- make mutation-diff
         name: Run Changed decision mutation gate
         id: quality-command
         continue-on-error: true
@@ -887,10 +881,10 @@ jobs:
           operation: collect
           node-id: mutation
           title: Changed decision mutation gate
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/mutation.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -918,7 +912,7 @@ jobs:
       QG_OPERATION_ID: mutation
       QG_NODE_ID: mutation
       QG_NODE_TITLE: Changed decision mutation gate
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   audit:
     name: Dependency and secret audit
     runs-on: ubuntu-latest
@@ -935,7 +929,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make audit
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/audit.json -- make audit
         name: Run Dependency and secret audit
         id: quality-command
         continue-on-error: true
@@ -947,10 +941,10 @@ jobs:
           operation: collect
           node-id: audit
           title: Dependency and secret audit
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/audit.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -978,7 +972,7 @@ jobs:
       QG_OPERATION_ID: audit
       QG_NODE_ID: audit
       QG_NODE_TITLE: Dependency and secret audit
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
   package:
     name: Package
     runs-on: ubuntu-latest
@@ -995,7 +989,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked dependencies
         run: uv sync --locked --all-groups --all-packages
-      - run: make package
+      - run: uv run --locked --all-packages python scripts/check_report.py --output reports/package.json -- make package
         name: Run Package
         id: quality-command
         continue-on-error: true
@@ -1007,10 +1001,10 @@ jobs:
           operation: collect
           node-id: package
           title: Package
-          adapter: exit-code
-          report-path: ''
+          adapter: native
+          report-path: reports/package.json
           command-outcome: ${{ steps.quality-command.outcome }}
-          graph-digest: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+          graph-digest: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -1038,4 +1032,4 @@ jobs:
       QG_OPERATION_ID: package
       QG_NODE_ID: package
       QG_NODE_TITLE: Package
-      QG_GRAPH_DIGEST: d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47
+      QG_GRAPH_DIGEST: c20a30c4667a53e26ae5bc39bf376bc14e5a578db97aa03ca6b215b5159e83b9

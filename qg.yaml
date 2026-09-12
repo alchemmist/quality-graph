@@ -8,7 +8,6 @@ provider:
     runtime:
       action: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
       publisher-action: alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1
-
 profiles:
   default:
     runner: ubuntu-latest
@@ -32,82 +31,123 @@ operations:
   workflow-graph:
     title: Workflow graph validation
     profile: python
-    run: make graph-validate
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/workflow-graph.json
+      -- make graph-validate
+    results:
+      native: reports/workflow-graph.json
   format:
     title: Format check
     profile: python
-    run: make fmt-check
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/format.json --
+      make fmt-check
+    results:
+      native: reports/format.json
   suppressions:
     title: Lint suppression gate
     profile: python
-    run: make python-suppressions
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/suppressions.json
+      -- make python-suppressions
+    results:
+      native: reports/suppressions.json
   object-annotations:
     title: Python object annotation gate
     profile: python
-    run: 'mkdir -p reports
-
-      set -o pipefail
-
-      make python-object-annotations 2>&1 | tee reports/object-annotations.log
-
-      '
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/object-annotations.json
+      -- make python-object-annotations
     results:
-      exit-code: reports/object-annotations.log
+      native: reports/object-annotations.json
     policy:
       approvals:
         node: true
   triple-quotes:
     title: Triple-quoted string style
     profile: python
-    run: make python-triple-quotes
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/triple-quotes.json
+      -- make python-triple-quotes
+    results:
+      native: reports/triple-quotes.json
   no-comments:
     title: Python no-comments policy
     profile: python
-    run: make python-no-comments
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/no-comments.json
+      -- make python-no-comments
+    results:
+      native: reports/no-comments.json
   lint:
     title: Lint
     profile: python
-    run: make lint
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/lint.json -- make
+      lint
+    results:
+      native: reports/lint.json
   type:
     title: Type check
     profile: python
-    run: make type
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/type.json -- make
+      type
+    results:
+      native: reports/type.json
   analyze:
     title: Static analysis
     profile: python
-    run: make analyze
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/analyze.json --
+      make analyze
+    results:
+      native: reports/analyze.json
   time-bombs:
     title: Time bomb guardrail
     profile: python
-    run: make python-time-bombs
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/time-bombs.json
+      -- make python-time-bombs
+    results:
+      native: reports/time-bombs.json
   test-fast:
     title: Fast tests
     profile: python
     run: make t-fast
+    results:
+      native: reports/test-fast.json
   test-medium:
     title: Medium tests
     profile: python
     run: make t-medium
+    results:
+      native: reports/test-medium.json
   coverage:
     title: Coverage and diff coverage
     profile: python
-    run: make coverage-diff
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/coverage.json
+      -- make coverage-diff
+    results:
+      native: reports/coverage.json
   flaky-python:
     title: Changed Python flaky-test detection
     profile: python
-    run: make flaky-python
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/flaky-python.json
+      -- make flaky-python
+    results:
+      native: reports/flaky-python.json
   mutation:
     title: Changed decision mutation gate
     profile: python
-    run: make mutation-diff
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/mutation.json
+      -- make mutation-diff
+    results:
+      native: reports/mutation.json
   audit:
     title: Dependency and secret audit
     profile: python
-    run: make audit
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/audit.json --
+      make audit
+    results:
+      native: reports/audit.json
   package:
     title: Package
     profile: python
-    run: make package
+    run: uv run --locked --all-packages python scripts/check_report.py --output reports/package.json --
+      make package
+    results:
+      native: reports/package.json
   release-build:
     profile: release
     steps:
@@ -202,9 +242,7 @@ operations:
     - name: Create immutable GitHub release
       env:
         GH_TOKEN: ${{ github.token }}
-      run: >-
-        gh release create "$GITHUB_REF_NAME" dist/* --generate-notes
-        --verify-tag --repo "$GITHUB_REPOSITORY"
+      run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --verify-tag --repo "$GITHUB_REPOSITORY"
     permissions:
       contents: write
 flows:

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from qg_cli import __version__
 from qg_cli.project import Project
 from quality_graph_core.result import FailureKind, Metric, Provenance, Result, ResultStatus
-from quality_graph_core.schema import graph_schema_json, result_schema_json
+from quality_graph_core.schema import graph_schema_json, producer_schema_json, result_schema_json
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -53,6 +53,7 @@ def parser() -> argparse.ArgumentParser:
     validate = result_commands.add_parser("validate", help="Validate native result JSON")
     validate.add_argument("path", help="JSON file path or - for stdin")
     schema = result_commands.add_parser("schema", help="Render the result JSON Schema")
+    schema.add_argument("--producer", action="store_true", help="Render the producer input schema")
     schema.add_argument("--output", default="-", help="Output path or - for stdout")
     emit = result_commands.add_parser("emit", help="Emit a minimal native result")
     emit.add_argument("--node-id", required=True)
@@ -139,7 +140,7 @@ def _result_command(command_parser: argparse.ArgumentParser, args: argparse.Name
         Result.from_json(_read_text(args.path))
         return 0
     if args.result_command == "schema":
-        _write_text(args.output, result_schema_json())
+        _write_text(args.output, producer_schema_json() if args.producer else result_schema_json())
         return 0
     if args.result_command == "emit":
         _write_text(args.output, _emitted_result(args).to_json())

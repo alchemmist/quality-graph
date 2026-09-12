@@ -518,3 +518,17 @@ def _flow_schema(identifier: dict[str, JsonValue]) -> dict[str, JsonValue]:
 def graph_schema_json() -> str:
     """Serialize the graph declaration JSON Schema deterministically."""
     return json.dumps(graph_schema_value(), indent=2, sort_keys=True) + "\n"
+
+
+def producer_schema_json() -> str:
+    """Render the data-only native producer input schema."""
+    schema = result_schema_value()
+    properties = cast("dict[str, JsonValue]", schema["properties"])
+    for name in ("nodeId", "title", "provenance", "controls", "schemaVersion"):
+        properties.pop(name)
+    properties["reportVersion"] = {"const": 0}
+    properties["status"] = _string_schema(enum=("passed", "failed", "skipped", "cancelled"))
+    schema["required"] = ["reportVersion", "status"]
+    schema["$id"] = "https://quality-graph.xyz/schemas/producer-v0.schema.json"
+    schema["title"] = "Quality Graph producer report v0"
+    return json.dumps(schema, indent=2, sort_keys=True) + "\n"
