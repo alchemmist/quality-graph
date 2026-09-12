@@ -313,3 +313,34 @@ def test_final_publication_survives_unavailable_job_metadata(
     assert len(checks) == 1
     assert checks[0]["status"] == "completed"
     assert checks[0]["conclusion"] == ("success" if lint_passed else "failure")
+
+
+@pytest.mark.parametrize("body", [b'{"jobs": "\xff"}', b"{"])
+@pytest.mark.parametrize("expired", [False, True])
+def test_final_publication_survives_malformed_job_responses(
+    fake_github: FakeGitHubScenario,
+    body: bytes,
+    *,
+    expired: bool,
+) -> None:
+    fixture = scenario()
+    fixture["raw_responses"] = {
+        "/repos/owner/repository/actions/runs/10/jobs": base64.b64encode(body).decode()
+    }
+    artifacts = cast("dict[str, list[dict[str, JsonValue]]]", fixture["run_artifacts"])["10"]
+    artifacts[0]["expired"] = expired
+    fake_github.reset(fixture)
+    port = HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url)
+
+    outcome = publish_workflow_run(port, workflow_event())
+
+    assert outcome.published is True
+    assert outcome.status is ResultStatus.FAILED
+    rendered = dashboard_body(fake_github)
+    assert rendered.count("[Workflow run](https://example.test/run/10)") == 2
+    assert "[Logs]" not in rendered
+    assert ("could not be assembled" in rendered) is expired
+    checks = cast("list[dict[str, JsonValue]]", fake_github.snapshot()["checks"])
+    assert len(checks) == 1
+    assert checks[0]["status"] == "completed"
+    assert checks[0]["conclusion"] == "failure"

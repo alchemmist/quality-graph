@@ -95,7 +95,7 @@ class HttpGitHubPort:
             raise GitHubError(method, path, response.status_code)
         try:
             return cast("JsonValue", response.json())
-        except json.JSONDecodeError as error:
+        except (json.JSONDecodeError, UnicodeDecodeError) as error:
             message = f"GitHub {method} {path} returned invalid JSON"
             raise RuntimeError(message) from error
 
