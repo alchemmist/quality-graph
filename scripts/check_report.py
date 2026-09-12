@@ -9,7 +9,7 @@ import os
 import shlex
 import subprocess
 import sys
-from collections import deque
+from collections import Counter, deque
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -19,6 +19,8 @@ if TYPE_CHECKING:
     from quality_graph_core.result import JsonValue
 
 COMMAND_NOT_FOUND = 127
+MAX_DIAGNOSTICS = 100
+MAX_NOTES = 100
 
 
 def execute(
@@ -109,7 +111,7 @@ def combine(reports: list[tuple[str, dict[str, JsonValue]]]) -> dict[str, JsonVa
                 "quality",
             ),
         )
-    for field in ("metrics", "findings", "diagnostics", "notes"):
+    for field in ("metrics", "findings", "notes"):
         values: list[JsonValue] = []
         for group, report in reports:
             for original in cast("list[JsonValue]", report.get(field, [])):
@@ -123,12 +125,57 @@ def combine(reports: list[tuple[str, dict[str, JsonValue]]]) -> dict[str, JsonVa
                         item["id"] = (
                             f"{hashlib.sha256(group.encode()).hexdigest()[:8]}:{item['id']}"
                         )
-                    else:
-                        item["message"] = f"{group}: {item['message']}"[:1_000]
                 values.append(item)
         limit = 10_000 if field == "findings" else 100
         output[field] = values[:limit]
+    diagnostics, notices = _bounded_diagnostics(reports)
+    output["diagnostics"] = diagnostics
+    notes = cast("list[JsonValue]", output["notes"])
+    output["notes"] = [*notes[: MAX_NOTES - len(notices)], *notices]
     return output
+
+
+def _bounded_diagnostics(
+    reports: list[tuple[str, dict[str, JsonValue]]],
+) -> tuple[list[JsonValue], list[JsonValue]]:
+    priority: list[deque[tuple[int, JsonValue]]] = []
+    ordinary: list[deque[tuple[int, JsonValue]]] = []
+    totals: list[int] = []
+    for index, (group, report) in enumerate(reports):
+        priority.append(deque())
+        ordinary.append(deque())
+        values = cast("list[dict[str, JsonValue]]", report.get("diagnostics", []))
+        totals.append(len(values))
+        for original in values:
+            item = original | {"message": f"{group}: {original['message']}"[:1_000]}
+            critical = original.get("kind") in {
+                "infrastructure",
+                "adapter",
+                "protocol",
+            } or report.get("failureKind") in {"infrastructure", "adapter", "protocol"}
+            target = priority if critical else ordinary
+            target[index].append((index, item))
+    selected: list[tuple[int, JsonValue]] = []
+    for queues in (priority, ordinary):
+        active = deque(queue for queue in queues if queue)
+        while active and len(selected) < MAX_DIAGNOSTICS:
+            queue = active.popleft()
+            selected.append(queue.popleft())
+            if queue:
+                active.append(queue)
+    counts = Counter(index for index, _ in selected)
+    notices: list[JsonValue] = [
+        f"{group[:900]}: {total - counts[index]} diagnostics omitted."
+        for index, ((group, _), total) in enumerate(zip(reports, totals, strict=True))
+        if total > counts[index]
+    ]
+    if len(notices) > MAX_NOTES:
+        notices = [
+            *notices[: MAX_NOTES - 1],
+            f"Diagnostic omission details for {len(notices) - MAX_NOTES + 1} "
+            "additional groups omitted.",
+        ]
+    return [item for _, item in selected], notices
 
 
 def main() -> int:

@@ -155,3 +155,41 @@ def test_unconfigured_exit_failure_is_not_repeated(tmp_path: Path) -> None:
     publish_collection(request, result)
     rendered = (tmp_path / "summary.md").read_text()
     assert rendered.count("The declared command failed.") == 1
+
+
+@pytest.mark.parametrize("phase", ["up", "down", "both"])
+def test_mass_failures_do_not_hide_container_errors(tmp_path: Path, phase: str) -> None:
+    compose = configure_pytest(tmp_path, fail=True)
+    (tmp_path / "test_probe.py").write_text(
+        "import pytest\npytestmark = pytest.mark.integration\n"
+        "@pytest.mark.parametrize('case', range(100))\n"
+        "def test_expected_value(case):\n"
+        "    assert False, f'domain mismatch {case}'\n"
+    )
+    compose.write_text(
+        "import sys\n"
+        "print('container health check timed out' if 'up' in sys.argv "
+        "else 'container cleanup failed')\n"
+        f"raise SystemExit(7 if {phase!r} == 'both' or {phase!r} in sys.argv else 0)\n"
+    )
+    outcome = run_report(tmp_path, "--suite", "medium", "--compose", f"{sys.executable} {compose}")
+    assert outcome.returncode == 1
+    reason = "container cleanup failed" if phase == "down" else "container health check timed out"
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert len(report["diagnostics"]) == 100
+    assert any(reason in item["detail"] for item in report["diagnostics"])
+    assert any("in-process" in note and "omitted" in note for note in report["notes"])
+    if phase == "down":
+        groups = [item["message"].split(":", 1)[0] for item in report["diagnostics"]]
+        assert abs(groups.count("in-process") - groups.count("docker")) <= 1
+        assert any("docker" in note and "omitted" in note for note in report["notes"])
+    rendered, failure = summary(tmp_path, outcome.returncode)
+    assert failure is FailureKind.INFRASTRUCTURE
+    assert reason in rendered
+    assert "omitted" in rendered
+    artifact = json.loads((tmp_path / "runner/quality-graph/lint.json").read_text())
+    assert any(reason in item["detail"] for item in artifact["diagnostics"])
+
+    if phase == "both":
+        assert "container cleanup failed" in rendered
+        assert "in-process: 2 diagnostics omitted." in report["notes"]

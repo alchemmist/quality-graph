@@ -116,6 +116,12 @@ run, but preserves in-process results and cleanup diagnostics. Missing, malforme
 reports produce an actionable failure; a stale XML file is removed before each execution. The
 runner exits unsuccessfully when any phase fails, including failures before tests can run.
 
+The shared limit of 100 diagnostics is allocated across execution groups in round-robin order.
+Infrastructure, adapter and protocol errors take priority over test traces; the remaining budget
+is shared among groups with test failures. Every group that loses diagnostics receives an explicit
+omission count in notes. Those notices reserve space within the notes limit. Critical diagnostics
+are rendered first so long test output cannot push Docker setup/cleanup causes out of the report.
+
 Other repository command gates use `scripts/check_report.py --output reports/check.json -- command`
 to preserve bounded command diagnostics in the same data contract. This supplies useful failure
 output, but does not pretend generic logs are source findings. Structured Python gate findings
