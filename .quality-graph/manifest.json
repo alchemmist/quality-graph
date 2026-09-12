@@ -372,7 +372,7 @@
       "trigger": "push"
     }
   },
-  "graphDigest": "12f89838d3c498cb664251858c882cea2d795d148e7ea4fffd680407a381b79d",
+  "graphDigest": "34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -400,7 +400,7 @@
         "path": "reports/analyze.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/analyze.json -- make analyze"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/analyze.json -- make analyze"
       },
       "title": "Static analysis"
     },
@@ -425,7 +425,7 @@
         "path": "reports/audit.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/audit.json -- make audit"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/audit.json -- make audit"
       },
       "title": "Dependency and secret audit"
     },
@@ -450,7 +450,7 @@
         "path": "reports/coverage.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/coverage.json -- make coverage-diff"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/coverage.json -- make coverage-diff"
       },
       "title": "Coverage and diff coverage"
     },
@@ -475,7 +475,7 @@
         "path": "reports/flaky-python.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/flaky-python.json -- make flaky-python"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/flaky-python.json -- make flaky-python"
       },
       "title": "Changed Python flaky-test detection"
     },
@@ -500,7 +500,7 @@
         "path": "reports/format.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/format.json -- make fmt-check"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/format.json -- make fmt-check"
       },
       "title": "Format check"
     },
@@ -566,7 +566,7 @@
         "path": "reports/lint.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/lint.json -- make lint"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/lint.json -- make lint"
       },
       "title": "Lint"
     },
@@ -591,7 +591,7 @@
         "path": "reports/mutation.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/mutation.json -- make mutation-diff"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/mutation.json -- make mutation-diff"
       },
       "title": "Changed decision mutation gate"
     },
@@ -616,7 +616,7 @@
         "path": "reports/no-comments.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/no-comments.json -- make python-no-comments"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/no-comments.json -- make python-no-comments"
       },
       "title": "Python no-comments policy"
     },
@@ -641,7 +641,7 @@
         "path": "reports/object-annotations.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/object-annotations.json -- make python-object-annotations"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/object-annotations.json -- make python-object-annotations"
       },
       "title": "Python object annotation gate"
     },
@@ -666,7 +666,7 @@
         "path": "reports/package.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/package.json -- make package"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/package.json -- make package"
       },
       "title": "Package"
     },
@@ -925,7 +925,7 @@
         "path": "reports/suppressions.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/suppressions.json -- make python-suppressions"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/suppressions.json -- make python-suppressions"
       },
       "title": "Lint suppression gate"
     },
@@ -1000,7 +1000,7 @@
         "path": "reports/time-bombs.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/time-bombs.json -- make python-time-bombs"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/time-bombs.json -- make python-time-bombs"
       },
       "title": "Time bomb guardrail"
     },
@@ -1025,7 +1025,7 @@
         "path": "reports/triple-quotes.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/triple-quotes.json -- make python-triple-quotes"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/triple-quotes.json -- make python-triple-quotes"
       },
       "title": "Triple-quoted string style"
     },
@@ -1050,7 +1050,7 @@
         "path": "reports/type.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/type.json -- make type"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/type.json -- make type"
       },
       "title": "Type check"
     },
@@ -1075,7 +1075,7 @@
         "path": "reports/workflow-graph.json"
       },
       "step": {
-        "run": "uv run --locked --all-packages python scripts/check_report.py --output reports/workflow-graph.json -- make graph-validate"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/workflow-graph.json -- make graph-validate"
       },
       "title": "Workflow graph validation"
     }

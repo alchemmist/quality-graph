@@ -69,7 +69,7 @@ def test_own_migration_does_not_weaken_or_reorder_quality_checks(event: str) -> 
             command
             if new.id in {"test-fast", "test-medium"}
             else (
-                "uv run --locked --all-packages python scripts/check_report.py "
+                "uv run --locked --all-packages python scripts/check_report.py \\\n"
                 f"--output reports/{new.id}.json -- {command}"
             )
         )
