@@ -43,6 +43,7 @@ def configuration(graph: Graph) -> dict[str, JsonValue]:
         "publisher-user-id",
         "publisher-tags",
         "image",
+        "ci-path",
     }
     if unknown:
         message = f"unknown GitLab configuration: {', '.join(sorted(unknown))}"
@@ -75,6 +76,11 @@ def configuration(graph: Graph) -> dict[str, JsonValue]:
             raise ValueError(message)
         values[name] = [string(tag, name) for tag in tags]
     values["image"] = string(values.get("image", DEFAULT_IMAGE), "execution image")
+    path = values.get("ci-path", ".gitlab-ci.yml")
+    if path not in {".gitlab-ci.yml", ".qg/gitlab-ci.yml"}:
+        message = "GitLab ci-path must be .gitlab-ci.yml or .qg/gitlab-ci.yml"
+        raise ValueError(message)
+    values["ci-path"] = path
     return values
 
 
@@ -94,6 +100,12 @@ def execution_graphs(graph: Graph) -> tuple[tuple[str, str, Graph], ...]:
                 raise ValueError(message)
             if flow.presentation not in {"none", "gitlab-mr"}:
                 message = "GitLab flows require none or gitlab-mr presentation"
+                raise ValueError(message)
+            if flow.concurrency is not None or flow.execution != "design-only":
+                message = (
+                    "GitLab quality flows do not support custom concurrency "
+                    "or release execution overrides"
+                )
                 raise ValueError(message)
             events.add(flow.trigger)
             result.append((flow.id, flow.trigger, graph.for_flow(flow.id)))
@@ -120,6 +132,18 @@ def execution_graphs(graph: Graph) -> tuple[tuple[str, str, Graph], ...]:
 def job_name(flow_id: str, node_id: str) -> str:
     """Return the compiler-owned stable native job name."""
     return f"qg:{flow_id}:{node_id}"
+
+
+def admission_job_name(flow_id: str) -> str:
+    """Reserve an internal job namespace that cannot collide with user nodes."""
+    return f"qg-internal:admission:{flow_id}"
+
+
+def publishes_mr(graph: Graph, flow_id: str) -> bool:
+    """Respect explicit presentation opt-out while retaining legacy MR publication."""
+    return not graph.flows or any(
+        flow.id == flow_id and flow.presentation == "gitlab-mr" for flow in graph.flows
+    )
 
 
 def graph_digest(graph: Graph) -> str:
@@ -173,10 +197,10 @@ def _execution_job(
     environment = {**profile.environment, **node.environment}
     if environment:
         item["variables"] = dict(environment)
-    if event == "pull-request":
-        item["allow_failure"] = {"exit_codes": [QUALITY_EXIT_CODE]}
-    elif not node.policy.blocking:
+    if not node.policy.blocking:
         item["allow_failure"] = True
+    elif event == "pull-request":
+        item["allow_failure"] = {"exit_codes": [QUALITY_EXIT_CODE]}
     return item
 
 
@@ -186,8 +210,12 @@ def compile_graph(graph: Graph) -> GeneratedProject:
     digest = graph_digest(graph)
     profiles = graph.expanded_profiles()
     flows = execution_graphs(graph)
+    if not flows:
+        message = "GitLab requires at least one executable MR or branch flow"
+        raise ValueError(message)
     workflow: dict[str, JsonValue] = {
         "workflow": {
+            "auto_cancel": {"on_new_commit": "interruptible"},
             "rules": [
                 {"if": '$CI_PIPELINE_SOURCE == "merge_request_event"'},
                 {
@@ -199,7 +227,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
                 },
                 {"if": '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH'},
                 {"when": "never"},
-            ]
+            ],
         },
         "stages": ["quality"],
         "default": {
@@ -215,6 +243,9 @@ def compile_graph(graph: Graph) -> GeneratedProject:
             if event == "pull-request"
             else '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH'
         )
+        if event == "pull-request":
+            target_branch = json.dumps(settings["default-branch"])
+            rule += f" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == {target_branch}"
         if graph.flows and event == "push":
             declared = next(flow for flow in graph.flows if flow.id == flow_id)
             if declared.branches:
@@ -226,14 +257,16 @@ def compile_graph(graph: Graph) -> GeneratedProject:
             profile = profiles[node.profile]
             _validate_node(node, profile)
             identifier = job_name(flow_id, node.id)
-            workflow[identifier] = _execution_job(node, profile, flow_id, event, rule)
-        if event == "pull-request":
-            workflow[f"qg:{flow_id}:admission"] = {
+            mode = event if publishes_mr(graph, flow_id) else "none"
+            workflow[identifier] = _execution_job(node, profile, flow_id, mode, rule)
+        if event == "pull-request" and publishes_mr(graph, flow_id):
+            workflow[admission_job_name(flow_id)] = {
                 "stage": "quality",
                 "rules": [{"if": rule}],
                 "needs": [],
                 "script": [f"qg-gitlab gate --flow {flow_id}"],
                 "timeout": "5 minutes",
+                "interruptible": True,
             }
         manifests.append(
             {
@@ -255,7 +288,8 @@ def compile_graph(graph: Graph) -> GeneratedProject:
             "rules": [
                 {
                     "if": (
-                        '$CI_COMMIT_REF_PROTECTED == "true" && ('
+                        '$CI_COMMIT_REF_PROTECTED == "true" && '
+                        "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && ("
                         '$CI_PIPELINE_SOURCE == "trigger" || '
                         '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "web")'
                     )
@@ -275,7 +309,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
     }
     files = (
         GeneratedFile(
-            PurePosixPath(".gitlab-ci.yml"),
+            PurePosixPath(string(settings["ci-path"], "CI path")),
             GENERATED_HEADER + yaml.safe_dump(workflow, sort_keys=False, width=100),
         ),
         GeneratedFile(

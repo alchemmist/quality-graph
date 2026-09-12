@@ -248,6 +248,9 @@ def _validate_explicit_flows(graph: Graph) -> None:
         message = "GitHub supports one executable release flow per declaration"
         raise ValueError(message)
     for flow in graph.flows:
+        if flow.presentation == "gitlab-mr":
+            message = "GitHub cannot use GitLab MR presentation"
+            raise ValueError(message)
         for branch in flow.branches:
             _default_branch(branch)
         _validate_release_contract(graph, flow)

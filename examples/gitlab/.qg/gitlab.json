@@ -1,0 +1,28 @@
+{
+  "flows": [
+    {
+      "event": "pull-request",
+      "id": "mr",
+      "nodes": [
+        {
+          "id": "test",
+          "job": "qg:mr:test",
+          "operation": null
+        }
+      ]
+    },
+    {
+      "event": "push",
+      "id": "push",
+      "nodes": [
+        {
+          "id": "test",
+          "job": "qg:push:test",
+          "operation": null
+        }
+      ]
+    }
+  ],
+  "graphDigest": "f4133708ec2823084330948ccfd3e145fd36c1b82c544cff7576e8147026214a",
+  "version": 1
+}

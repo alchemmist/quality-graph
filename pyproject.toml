@@ -47,7 +47,7 @@ markers = ["integration: exercises a real local external dependency"]
 
 [tool.coverage.run]
 branch = true
-source = ["quality_graph_core", "qg_github", "qg_cli", "qg_python"]
+source = ["quality_graph_core", "qg_github", "qg_gitlab", "qg_cli", "qg_python"]
 
 [tool.coverage.report]
 fail_under = 90
@@ -71,7 +71,7 @@ select = ["ALL"]
 ignore = ["COM812", "D203", "D212"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["quality_graph_core", "qg_github", "qg_cli", "qg_python"]
+known-first-party = ["quality_graph_core", "qg_github", "qg_gitlab", "qg_cli", "qg_python"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D100", "D101", "D102", "D103", "PLR2004", "S101"]
@@ -122,7 +122,7 @@ enable_error_code = [
 exclude_dirs = ["tests", ".venv", "build", "mutants"]
 
 [tool.vulture]
-paths = ["packages/core/src", "packages/github/src", "packages/python/src", "apps/qg/src"]
+paths = ["packages/core/src", "packages/github/src", "packages/gitlab/src", "packages/python/src", "apps/qg/src"]
 exclude = ["*/.venv/*", "*/build/*", "*/mutants/*"]
 min_confidence = 80
 
@@ -130,11 +130,13 @@ min_confidence = 80
 source_paths = [
   "packages/core/src/quality_graph_core",
   "packages/github/src/qg_github",
+  "packages/gitlab/src/qg_gitlab",
   "packages/python/src/qg_python",
 ]
 only_mutate = [
   "packages/github/src/qg_github/compiler.py",
   "packages/github/src/qg_github/commands.py",
+  "packages/gitlab/src/qg_gitlab/admission.py",
   "packages/core/src/quality_graph_core/graph.py",
   "packages/core/src/quality_graph_core/policy.py",
   "packages/core/src/quality_graph_core/result.py",
@@ -160,6 +162,8 @@ also_copy = [
   "packages/core/README.md",
   "packages/github/pyproject.toml",
   "packages/github/README.md",
+  "packages/gitlab/pyproject.toml",
+  "packages/gitlab/README.md",
   "packages/python/pyproject.toml",
   "packages/python/README.md",
 ]

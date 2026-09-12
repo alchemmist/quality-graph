@@ -6,15 +6,22 @@ import argparse
 import os
 import shutil
 import sys
-import time
 from functools import partial
 from pathlib import Path
+from time import monotonic, sleep
 from typing import TYPE_CHECKING
 
 import anyio
 
-from qg_gitlab.api import HttpGitLab, integer
-from qg_gitlab.compiler import QUALITY_EXIT_CODE, configuration, execution_graphs, graph_digest
+from qg_gitlab.api import HttpGitLab, integer, string
+from qg_gitlab.compiler import (
+    QUALITY_EXIT_CODE,
+    configuration,
+    execution_graphs,
+    graph_digest,
+    publishes_mr,
+)
+from qg_gitlab.markers import execution_marker, gate_marker
 from qg_gitlab.publication import publish_from_environment
 from quality_graph_core.adapters import (
     AdapterContext,
@@ -59,6 +66,9 @@ def provenance(
 ) -> GitLabProvenance:
     """Collect native execution identities from the GitLab runner environment."""
     mr = environment.get("CI_MERGE_REQUEST_IID")
+    if environment["CI_SERVER_URL"].rstrip("/") != configuration(graph)["server-url"]:
+        message = "GitLab execution server does not match the declaration"
+        raise ValueError(message)
     if mr and environment.get("CI_MERGE_REQUEST_EVENT_TYPE", "detached") != "detached":
         message = "GitLab merged-results and merge-train pipelines are not supported"
         raise ValueError(message)
@@ -102,11 +112,8 @@ def collect(context: AdapterContext, node: Node, root: Path) -> Result:
     """Adapt the existing command execution without rerunning any checks."""
     if node.result.kind is AdapterKind.EXIT_CODE:
         return adapt_exit(context)
-    if node.result.path is None:
-        message = "structured GitLab results require a report path"
-        return adapter_failure(context, AdapterError(message))
     try:
-        report = read_report(root, node.result.path)
+        report = read_report(root, node.result.path or "")
         adapters = {
             AdapterKind.NATIVE: adapt_native,
             AdapterKind.JUNIT: adapt_junit,
@@ -121,6 +128,13 @@ def execute(root: Path, flow_id: str, node_id: str) -> int:
     """Execute each step once and persist one versioned result for this job."""
     graph, _projected, node, profile = execution(root, flow_id, node_id)
     context = provenance(graph, flow_id, node, os.environ)
+    if context.merge_request is not None and publishes_mr(graph, flow_id):
+        marker = execution_marker(
+            context.project_id, context.pipeline_id, context.job_id, context.graph_digest
+        )
+        if not _acknowledged(graph, marker):
+            sys.stderr.write("Publisher did not acknowledge the current job execution.\n")
+            return 1
     output = root / ".qg/results" / flow_id / f"{node_id}.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.unlink(missing_ok=True)
@@ -129,6 +143,7 @@ def execute(root: Path, flow_id: str, node_id: str) -> int:
         **profile.environment,
         **node.environment,
         "QG_NODE_ID": node_id,
+        "QG_NODE_TITLE": node.title,
         "QG_FLOW_ID": flow_id,
         "QG_OPERATION_ID": node.operation_id or node_id,
         "QG_GRAPH_DIGEST": context.graph_digest,
@@ -147,16 +162,30 @@ def execute(root: Path, flow_id: str, node_id: str) -> int:
 def gate(root: Path, flow_id: str) -> int:
     """Hold the native pipeline until its trusted external status is installed."""
     graph = Graph.from_yaml((root / "qg.yaml").read_text())
+    pipeline = int(os.environ["CI_PIPELINE_ID"])
+    digest = graph_digest(graph)
+    marker = gate_marker(int(os.environ["CI_PROJECT_ID"]), pipeline, flow_id, digest)
+    if _acknowledged(graph, marker):
+        return 0
+    sys.stderr.write("Trusted Quality Graph status was not installed before the gate deadline.\n")
+    return 1
+
+
+def _acknowledged(graph: Graph, marker: str) -> bool:
     settings = configuration(graph)
     actor = integer(settings.get("publisher-user-id"), "publisher-user-id")
     project = int(os.environ["CI_MERGE_REQUEST_PROJECT_ID"])
     mr = int(os.environ["CI_MERGE_REQUEST_IID"])
-    pipeline = int(os.environ["CI_PIPELINE_ID"])
-    digest = graph_digest(graph)
-    marker = f"<!-- qg:gitlab:gate:{os.environ['CI_PROJECT_ID']}:{pipeline}:{flow_id}:{digest} -->"
-    deadline = time.monotonic() + GATE_TIMEOUT_SECONDS
-    with HttpGitLab(os.environ["CI_SERVER_URL"], os.environ["CI_JOB_TOKEN"], job_token=True) as api:
-        while time.monotonic() < deadline:
+    deadline = monotonic() + GATE_TIMEOUT_SECONDS
+    endpoint = (
+        string(settings["api-url"], "API URL")
+        if "api-url" in settings
+        else os.environ.get("CI_API_V4_URL")
+    )
+    with HttpGitLab(
+        os.environ["CI_SERVER_URL"], os.environ["CI_JOB_TOKEN"], api_url=endpoint, job_token=True
+    ) as api:
+        while monotonic() < deadline:
             for note in api.pages(f"/projects/{project}/merge_requests/{mr}/notes"):
                 author = note.get("author")
                 body = note.get("body")
@@ -166,10 +195,9 @@ def gate(root: Path, flow_id: str) -> int:
                     and isinstance(body, str)
                     and marker in body
                 ):
-                    return 0
-            time.sleep(GATE_INTERVAL_SECONDS)
-    sys.stderr.write("Trusted Quality Graph status was not installed before the gate deadline.\n")
-    return 1
+                    return True
+            sleep(GATE_INTERVAL_SECONDS)
+    return False
 
 
 def main(arguments: Sequence[str] | None = None) -> int:

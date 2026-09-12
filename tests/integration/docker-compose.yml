@@ -12,7 +12,13 @@ services:
     ports:
       - '127.0.0.1:${QG_FAKE_GITLAB_PORT:-18081}:8080'
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health').read()"]
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8080/health').read()
       interval: 1s
       timeout: 2s
       retries: 20

@@ -26,11 +26,14 @@ def test_own_release_preserves_every_original_step_and_privilege(tmp_path: Path)
     generated = yaml.safe_load((tmp_path / ".github/workflows/release.yml").read_text())
     assert generated["on"] == original["on"]
     assert generated["permissions"] == original["permissions"]
-    assert set(generated["jobs"]) == set(original["jobs"])
+    assert set(generated["jobs"]) == {*original["jobs"], "publish-gitlab"}
     for identifier, before in original["jobs"].items():
         after = generated["jobs"][identifier]
         needs = before.get("needs", [])
-        assert after.get("needs", []) == ([needs] if isinstance(needs, str) else needs)
+        expected_needs = [needs] if isinstance(needs, str) else needs
+        if identifier == "release":
+            expected_needs = [*expected_needs, "publish-gitlab"]
+        assert after.get("needs", []) == expected_needs
         assert after["permissions"] == before.get("permissions", original["permissions"])
         assert after.get("environment") == before.get("environment")
         expected: list[dict[str, JsonValue]] = []
@@ -43,7 +46,14 @@ def test_own_release_preserves_every_original_step_and_privilege(tmp_path: Path)
                 }
             expected.append(item)
         assert after["steps"][: len(expected)] == expected
-        collection = after["steps"][len(expected)]
+        offset = len(expected)
+        if identifier == "build":
+            upload = after["steps"][offset]
+            assert upload["with"]["name"] == "quality-graph-gitlab"
+            assert upload["with"]["path"] == "dist/quality_graph_gitlab-*"
+            assert upload["with"]["if-no-files-found"] == "error"
+            offset += 1
+        collection = after["steps"][offset]
         assert collection["with"]["operation"] == "collect"
         assert collection["with"]["presentation"] == "release"
         assert collection["if"] == "always()"

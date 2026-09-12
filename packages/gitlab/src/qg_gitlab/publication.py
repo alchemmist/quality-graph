@@ -11,9 +11,10 @@ import urllib.parse
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from qg_gitlab.admission import Expectation, NodeEvidence, admit
+from qg_gitlab.admission import BOOTSTRAP_KEY, Expectation, NodeEvidence, admit
 from qg_gitlab.api import GitLabError, HttpGitLab, integer, object_value, string
-from qg_gitlab.compiler import configuration, execution_graphs, graph_digest
+from qg_gitlab.compiler import configuration, execution_graphs, graph_digest, publishes_mr
+from qg_gitlab.markers import execution_marker, gate_marker
 from quality_graph_core.graph import Graph, LabelSpec
 from quality_graph_core.policy import ApprovalTarget, effective_graph
 from quality_graph_core.result import ControlKind, ResultStatus
@@ -55,7 +56,7 @@ def _owned(note: Mapping[str, JsonValue], actor: int) -> bool:
 
 
 def _ledger(
-    notes: tuple[dict[str, JsonValue], ...], actor: int
+    notes: tuple[dict[str, JsonValue], ...], actor: int, expected: Expectation
 ) -> tuple[set[ApprovalTarget], set[int]]:
     approvals: set[ApprovalTarget] = set()
     processed: set[int] = set()
@@ -72,7 +73,15 @@ def _ledger(
             continue
         try:
             record = object_value(json.loads(match.group(1)), "approval record")
+            if (
+                integer(record.get("version"), "record version") != 1
+                or integer(record.get("projectId"), "record project") != expected.target_project_id
+                or integer(record.get("mergeRequest"), "record MR") != expected.merge_request
+            ):
+                continue
             note_id = integer(record.get("sourceNoteId"), "source note ID")
+            if note_id in processed:
+                continue
             targets = record.get("targets", [])
             if not isinstance(targets, list) or not all(
                 isinstance(target, str) for target in targets
@@ -105,6 +114,8 @@ class ApprovalAction:
 def _record(api: HttpGitLab, expected: Expectation, action: ApprovalAction) -> None:
     record: dict[str, JsonValue] = {
         "version": 1,
+        "projectId": expected.target_project_id,
+        "mergeRequest": expected.merge_request,
         "sourceNoteId": action.note_id,
         "actorId": action.actor,
         "operation": action.operation,
@@ -171,7 +182,7 @@ def _commands(
     bot: int,
     notes: tuple[dict[str, JsonValue], ...],
 ) -> set[ApprovalTarget]:
-    approvals, processed = _ledger(notes, bot)
+    approvals, processed = _ledger(notes, bot, expected)
     results = {key: item.result for key, item in evidence.items() if item.result is not None}
     available = effective_graph(expected.graph, results, approvals).targets
     for note in sorted(notes, key=lambda item: integer(item.get("id"), "note ID")):
@@ -251,19 +262,28 @@ def _commands(
 def _state(
     graph: Graph, evidence: Mapping[str, NodeEvidence], results: Mapping[str, Result]
 ) -> str:
+    bootstrap = evidence.get(BOOTSTRAP_KEY)
+    if bootstrap is None or bootstrap.status is ResultStatus.FAILED:
+        return "failed"
     if any(
         item.status in {ResultStatus.IN_PROGRESS, ResultStatus.WAITING}
         for item in evidence.values()
     ):
         return "pending"
+    canceled = any(item.status is ResultStatus.CANCELLED for item in evidence.values())
     for node in graph.nodes:
+        item = evidence[node.id]
+        if item.status is ResultStatus.CANCELLED:
+            continue
+        if canceled and item.status is ResultStatus.SKIPPED:
+            continue
         effective = results.get(node.id)
         if effective is None or (
             node.policy.blocking
             and effective.status not in {ResultStatus.PASSED, ResultStatus.SKIPPED}
         ):
             return "failed"
-    return "success"
+    return "canceled" if canceled else "success"
 
 
 def _summary(
@@ -272,13 +292,15 @@ def _summary(
     results: Mapping[str, Result],
     state: str,
 ) -> str:
-    gate = (
-        f"<!-- qg:gitlab:gate:{expected.project_id}:{expected.pipeline_id}:"
-        f"{expected.flow_id}:{graph_digest(expected.declaration)} -->"
-    )
+    digest = graph_digest(expected.declaration)
     lines = [
         SUMMARY_MARKER,
-        gate,
+        gate_marker(expected.project_id, expected.pipeline_id, expected.flow_id, digest),
+        *(
+            execution_marker(expected.project_id, expected.pipeline_id, item.job_id, digest)
+            for item in evidence.values()
+            if item.job_id is not None
+        ),
         "## Quality Graph",
         "",
         f"Pipeline **{expected.pipeline_id}**: **{state}**",
@@ -286,19 +308,24 @@ def _summary(
         "| Check | Execution | Effective result |",
         "| --- | --- | --- |",
     ]
+    details: list[str] = []
+    bootstrap = evidence.get(BOOTSTRAP_KEY)
+    if bootstrap is not None and bootstrap.reason:
+        details.extend(("", f"**Publisher admission:** {html.escape(bootstrap.reason)}"))
     for node in expected.graph.nodes:
         item = evidence[node.id]
         result = results.get(node.id)
         label = html.escape(node.title).replace("|", "\\|")
         effective = result.status.value if result is not None else item.status.value
-        lines.append(f"| {label} | {item.status.value} | {effective} |")
+        lines.append(f"| {label} | {item.native_status or item.status.value} | {effective} |")
         if item.reason:
-            lines.extend(("", f"**{label}:** {html.escape(item.reason)}"))
+            details.extend(("", f"**{label}:** {html.escape(item.reason)}"))
         if result is not None:
             for finding in result.findings[:100]:
-                lines.extend(("", f"- `{finding.id}`: {html.escape(finding.message)}"))
+                details.extend(("", f"- `{finding.id}`: {html.escape(finding.message)}"))
         if item.job_url:
-            lines.extend(("", f"[Job logs: {label}]({item.job_url})"))
+            details.extend(("", f"[Job logs: {label}]({item.job_url})"))
+    lines.extend(details)
     lines.extend(("", "Use new `/qg` comments to approve or revoke findings, files and nodes."))
     return "\n".join(lines)[:900_000]
 
@@ -319,30 +346,48 @@ def _still_current(api: HttpGitLab, expected: Expectation) -> bool:
     )
 
 
+def _status_identity(value: Mapping[str, JsonValue], expected: Expectation, bot: int) -> bool:
+    if value.get("name") != STATUS_NAME:
+        return False
+    if (
+        integer(value.get("pipeline_id"), "status pipeline") != expected.pipeline_id
+        or value.get("sha") != expected.head_sha
+    ):
+        return False
+    author = object_value(value.get("author"), "status author")
+    if integer(author.get("id"), "status author ID") != bot:
+        message = "The Quality Graph status is owned by another GitLab actor"
+        raise ValueError(message)
+    return True
+
+
 def _status(api: HttpGitLab, expected: Expectation, state: str, bot: int) -> bool:
     path = (
         f"/projects/{expected.project_id}/repository/commits/{expected.head_sha}/statuses"
         f"?pipeline_id={expected.pipeline_id}"
     )
-    for current in api.pages(path):
-        author = current.get("author")
-        if (
-            current.get("name") == STATUS_NAME
-            and isinstance(author, dict)
-            and author.get("id") == bot
-            and current.get("status") == state
-        ):
-            return False
-    api.request(
-        "POST",
-        f"/projects/{expected.project_id}/statuses/{expected.head_sha}",
-        {
-            "state": state,
-            "name": STATUS_NAME,
-            "pipeline_id": expected.pipeline_id,
-            "description": "Quality Graph admitted result policy",
-        },
+    matches = [value for value in api.pages(path) if _status_identity(value, expected, bot)]
+    if len(matches) > 1:
+        message = "GitLab returned ambiguous current Quality Graph statuses"
+        raise ValueError(message)
+    if matches and matches[0].get("status") == state:
+        return False
+    created = object_value(
+        api.request(
+            "POST",
+            f"/projects/{expected.project_id}/statuses/{expected.head_sha}",
+            {
+                "state": state,
+                "name": STATUS_NAME,
+                "pipeline_id": expected.pipeline_id,
+                "description": "Quality Graph admitted result policy",
+            },
+        ),
+        "created status",
     )
+    if not _status_identity(created, expected, bot) or created.get("status") != state:
+        message = "GitLab did not confirm the requested pipeline status"
+        raise ValueError(message)
     return True
 
 
@@ -432,21 +477,42 @@ def expectation(api: HttpGitLab, project: int, mr_id: int) -> Expectation | None
     head = mr.get("head_pipeline")
     if mr.get("state") != "opened" or not isinstance(head, dict):
         return None
+    execution_project = integer(head.get("project_id", project), "pipeline project")
+    pipeline_id = integer(head.get("id"), "pipeline ID")
+    pipeline = object_value(
+        api.request("GET", f"/projects/{execution_project}/pipelines/{pipeline_id}"), "MR pipeline"
+    )
+    if pipeline.get("source") != "merge_request_event":
+        return None
+    if (
+        pipeline.get("sha") != mr.get("sha")
+        or pipeline.get("project_id") != execution_project
+        or pipeline.get("id") != pipeline_id
+    ):
+        message = "GitLab MR pipeline metadata is stale or mismatched"
+        raise ValueError(message)
     branch = urllib.parse.quote(string(mr.get("target_branch"), "target branch"), safe="")
     target = object_value(
         api.request("GET", f"/projects/{project}/repository/branches/{branch}"), "target branch"
     )
+    if target.get("protected") is not True:
+        message = "GitLab publication requires a protected MR target branch"
+        raise ValueError(message)
     target_sha = string(object_value(target.get("commit"), "target commit").get("id"), "target SHA")
     source = api.download(f"/projects/{project}/repository/files/qg.yaml/raw?ref={target_sha}")
     graph = Graph.from_yaml(source.decode())
-    configuration(graph)
+    if configuration(graph)["server-url"] != api.server_url:
+        message = "GitLab declaration targets another server instance"
+        raise ValueError(message)
+    if configuration(graph)["default-branch"] != mr.get("target_branch"):
+        return None
     for flow_id, event, projected in execution_graphs(graph):
-        if event == "pull-request":
+        if event == "pull-request" and publishes_mr(graph, flow_id):
             return Expectation(
-                integer(head.get("project_id", project), "pipeline project"),
+                execution_project,
                 project,
                 mr_id,
-                integer(head.get("id"), "pipeline ID"),
+                pipeline_id,
                 string(mr.get("sha"), "MR SHA"),
                 flow_id,
                 graph,
@@ -494,10 +560,14 @@ def publish_from_environment() -> int:
         message = "QG_GITLAB_PROJECTS must be a nonempty array of project IDs"
         raise ValueError(message)
     failures = 0
+    server = os.environ.get("QG_GITLAB_SERVER_URL", os.environ.get("CI_SERVER_URL", ""))
+    endpoint = os.environ.get("QG_GITLAB_API_URL")
+    if endpoint is None and "QG_GITLAB_SERVER_URL" not in os.environ:
+        endpoint = os.environ.get("CI_API_V4_URL")
     with HttpGitLab(
-        os.environ["CI_SERVER_URL"],
+        server,
         os.environ["QG_GITLAB_TOKEN"],
-        api_url=os.environ.get("CI_API_V4_URL"),
+        api_url=endpoint,
     ) as api:
         for project in projects:
             project_id = integer(project, "allowed project ID")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 import urllib.parse
 from http import HTTPStatus
@@ -89,6 +90,7 @@ class HttpGitLab:
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         """Construct an explicitly scoped client with no ambient credentials."""
+        self.transport = transport
         self.server_url = server_url(url)
         self.api_url = server_url(api_url or f"{self.server_url}/api/v4")
         self.client = httpx.Client(
@@ -121,23 +123,21 @@ class HttpGitLab:
         """Make one bounded JSON request, retrying safe transient reads only."""
         self._path(path)
         attempts = 3 if method == "GET" else 1
-        for attempt in range(attempts):
-            response = self.client.request(method, path, json=data)
-            if response.status_code in RETRY_STATUSES and attempt + 1 < attempts:
-                time.sleep(min(2**attempt, 4))
-                continue
-            if not response.is_success:
-                raise GitLabError(response.status_code, path)
-            if len(response.content) > MAX_RESPONSE_BYTES:
-                message = "GitLab JSON response exceeds the size limit"
-                raise ValueError(message)
-            return (
-                None
-                if response.status_code == HTTPStatus.NO_CONTENT
-                else cast("JsonValue", response.json())
-            )
-        message = "GitLab request exhausted its retry budget"
-        raise RuntimeError(message)
+        attempt = 0
+        while True:
+            with self.client.stream(method, path, json=data) as response:
+                if response.status_code in RETRY_STATUSES and attempt + 1 < attempts:
+                    time.sleep(min(2**attempt, 4))
+                    attempt += 1
+                    continue
+                if not response.is_success:
+                    raise GitLabError(response.status_code, path)
+                payload = self._body(response)
+                return (
+                    None
+                    if response.status_code == HTTPStatus.NO_CONTENT
+                    else cast("JsonValue", json.loads(payload))
+                )
 
     def pages(self, path: str) -> Iterator[dict[str, JsonValue]]:
         """Read every page without following server-supplied credential targets."""
@@ -158,17 +158,37 @@ class HttpGitLab:
         """Download an artifact without forwarding credentials through redirects."""
         self._path(path)
         with self.client.stream("GET", path) as response:
-            if not response.is_success:
+            if response.is_success:
+                return self._body(response)
+            if not response.is_redirect or "location" not in response.headers:
                 raise GitLabError(response.status_code, path)
-            chunks: list[bytes] = []
-            size = 0
-            for chunk in response.iter_bytes():
-                size += len(chunk)
-                if size > MAX_RESPONSE_BYTES:
-                    message = "GitLab artifact exceeds the size limit"
+            target = urllib.parse.urljoin(str(response.url), response.headers["location"])
+        with httpx.Client(timeout=30, follow_redirects=False, transport=self.transport) as external:
+            for _attempt in range(3):
+                normalized = server_url(target.split("?", 1)[0])
+                if self.api_url.startswith("https:") and not normalized.startswith("https:"):
+                    message = "GitLab artifact redirect would downgrade transport security"
                     raise ValueError(message)
-                chunks.append(chunk)
-            return b"".join(chunks)
+                with external.stream("GET", target) as response:
+                    if response.is_success:
+                        return self._body(response)
+                    if not response.is_redirect or "location" not in response.headers:
+                        raise GitLabError(response.status_code, path)
+                    target = urllib.parse.urljoin(str(response.url), response.headers["location"])
+        message = "GitLab artifact redirect limit exceeded"
+        raise ValueError(message)
+
+    @staticmethod
+    def _body(response: httpx.Response) -> bytes:
+        chunks: list[bytes] = []
+        size = 0
+        for chunk in response.iter_bytes():
+            size += len(chunk)
+            if size > MAX_RESPONSE_BYTES:
+                message = "GitLab response exceeds the size limit"
+                raise ValueError(message)
+            chunks.append(chunk)
+        return b"".join(chunks)
 
     @staticmethod
     def project_path(project: int | str) -> str:
@@ -177,6 +197,10 @@ class HttpGitLab:
 
     @staticmethod
     def _path(path: str) -> None:
-        if not path.startswith("/") or path.startswith("//") or ".." in path.split("/"):
+        if (
+            not path.startswith("/")
+            or path.startswith("//")
+            or ".." in urllib.parse.unquote(path.split("?", 1)[0]).split("/")
+        ):
             message = "GitLab request path must remain within the configured API"
             raise ValueError(message)

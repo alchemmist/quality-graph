@@ -99,3 +99,28 @@ def test_gitlab_result_cannot_be_relabelled_as_version_zero() -> None:
     wire["schemaVersion"] = 0
     with pytest.raises(ValueError, match="unknown fields"):
         Result.from_value(wire)
+
+
+def test_gitlab_first_identities_are_valid() -> None:
+    first = replace(
+        provenance(), project_id=1, target_project_id=1, merge_request=1, pipeline_id=1, job_id=1
+    )
+    assert GitLabProvenance.from_value(first.to_value()) == first
+
+
+@pytest.mark.parametrize(
+    ("field", "value"), [("head_sha", "invalid"), ("graph_digest", "short"), ("flow_id", "INVALID")]
+)
+def test_gitlab_provenance_rejects_invalid_commit_digest_and_flow(field: str, value: str) -> None:
+    original = provenance().to_value()
+    key = {"head_sha": "headSha", "graph_digest": "graphDigest", "flow_id": "flowId"}[field]
+    original[key] = value
+    with pytest.raises(ValueError, match=r"SHA|digest|identifier"):
+        GitLabProvenance.from_value(original)
+
+
+def test_gitlab_provenance_rejects_foreign_provider_discriminators() -> None:
+    original = provenance().to_value()
+    original["provider"] = "github"
+    with pytest.raises(ValueError, match="requires the gitlab"):
+        GitLabProvenance.from_value(original)

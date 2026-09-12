@@ -10,6 +10,7 @@ import secrets
 import shutil
 import sys
 import tomllib
+from datetime import UTC, datetime, timedelta
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -75,11 +76,11 @@ def prepare() -> None:
 class LabClient:
     """Seed disposable projects through the real GitLab REST interface."""
 
-    def __init__(self) -> None:
+    def __init__(self, token_path: Path | None = None) -> None:
         """Load the lab-only bootstrap credential."""
         self.client = httpx.Client(
             base_url=f"{SERVER}/api/v4",
-            headers={"PRIVATE-TOKEN": (STATE / "admin-token").read_text().strip()},
+            headers={"PRIVATE-TOKEN": (token_path or STATE / "admin-token").read_text().strip()},
             timeout=60,
             trust_env=False,
         )
@@ -188,6 +189,121 @@ class LabClient:
         compose("cp", str(path), f"{service}:/etc/gitlab-runner/config.toml")
         compose("restart", service)
 
+    def user(self, name: str) -> int:
+        """Create a local test account without email delivery."""
+        users = self.request("GET", f"/users?username={name}")
+        if isinstance(users, list) and users:
+            return identity(users[0])
+        return identity(
+            self.request(
+                "POST",
+                "/users",
+                {
+                    "username": name,
+                    "name": name,
+                    "email": f"{name}@example.test",
+                    "password": secrets.token_urlsafe(36),
+                    "skip_confirmation": True,
+                },
+            )
+        )
+
+    def member(self, project: int, user: int, access: int) -> None:
+        """Grant only the intended test-project role to an account."""
+        members = self.request("GET", f"/projects/{project}/members/all")
+        if isinstance(members, list) and any(
+            isinstance(member, dict) and member.get("id") == user for member in members
+        ):
+            return
+        self.request(
+            "POST", f"/projects/{project}/members", {"user_id": user, "access_level": access}
+        )
+
+    def token(self, user: int, name: str) -> Path:
+        """Persist a lab-only token privately instead of exposing it in logs."""
+        path = STATE / name
+        if not path.exists():
+            result = self.request(
+                "POST",
+                f"/users/{user}/personal_access_tokens",
+                {
+                    "name": name,
+                    "scopes": ["api"],
+                    "expires_at": (datetime.now(UTC) + timedelta(days=30)).date().isoformat(),
+                },
+            )
+            token = result.get("token") if isinstance(result, dict) else None
+            if not isinstance(token, str):
+                message = "GitLab did not return a test authentication token"
+                raise TypeError(message)
+            with os.fdopen(
+                os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w"
+            ) as output:
+                output.write(token)
+        return path
+
+    def variables(self, project: int, values: dict[str, str], *, protected: bool) -> None:
+        """Set a project's explicit integration-test variables idempotently."""
+        existing = self.request("GET", f"/projects/{project}/variables")
+        names = (
+            {str(item.get("key")) for item in existing if isinstance(item, dict)}
+            if isinstance(existing, list)
+            else set()
+        )
+        for name, value in values.items():
+            endpoint = f"/projects/{project}/variables"
+            self.request(
+                "PUT" if name in names else "POST",
+                f"{endpoint}/{name}" if name in names else endpoint,
+                {
+                    "key": name,
+                    "value": value,
+                    "protected": protected,
+                    "masked": name == "QG_GITLAB_TOKEN",
+                },
+            )
+
+    def webhook(self, consumer: int, publisher: int) -> None:
+        """Connect consumer job/MR/note events to the protected publisher ref."""
+        triggers = self.request("GET", f"/projects/{publisher}/triggers")
+        trigger = (
+            next(
+                (
+                    item
+                    for item in triggers
+                    if isinstance(item, dict) and item.get("description") == "qg-lab-probe"
+                ),
+                None,
+            )
+            if isinstance(triggers, list)
+            else None
+        )
+        if trigger is None:
+            created = self.request(
+                "POST", f"/projects/{publisher}/triggers", {"description": "qg-lab-probe"}
+            )
+            trigger = created if isinstance(created, dict) else None
+        token = trigger.get("token") if isinstance(trigger, dict) else None
+        if not isinstance(token, str):
+            message = "GitLab did not return a pipeline trigger token"
+            raise TypeError(message)
+        hooks = self.request("GET", f"/projects/{consumer}/hooks")
+        if not hooks:
+            self.request(
+                "POST",
+                f"/projects/{consumer}/hooks",
+                {
+                    "url": (
+                        f"{INTERNAL_SERVER}/api/v4/projects/{publisher}/ref/main/trigger/pipeline"
+                        f"?token={token}"
+                    ),
+                    "job_events": True,
+                    "merge_requests_events": True,
+                    "note_events": True,
+                    "push_events": False,
+                },
+            )
+
 
 def identity(value: JsonValue) -> int:
     """Require an API-generated integer identity."""
@@ -215,10 +331,57 @@ def seed() -> None:
         }
         client.runner(consumer, "qg-execution", protected=False)
         client.runner(publisher, "qg-publisher", protected=True)
+        values["publisher_user"] = seed_runtime(client, consumer, publisher)
         (STATE / "projects.json").write_text(json.dumps(values, indent=2) + "\n")
         sys.stdout.write(json.dumps(values, indent=2) + "\n")
     finally:
         client.client.close()
+
+
+def seed_runtime(client: LabClient, consumer: int, publisher: int) -> int:
+    """Prepare the same scoped publisher and offline installation used by the product."""
+    bot = client.user("qg-publisher")
+    reporter = client.user("qg-reporter")
+    client.member(consumer, bot, 40)
+    client.member(publisher, bot, 40)
+    client.member(consumer, reporter, 20)
+    client.request(
+        "PUT",
+        f"/projects/{publisher}",
+        {
+            "ci_pipeline_variables_minimum_override_role": "no_one_allowed",
+        },
+    )
+    client.request(
+        "PUT",
+        f"/projects/{consumer}",
+        {
+            "only_allow_merge_if_pipeline_succeeds": True,
+            "allow_merge_on_skipped_pipeline": False,
+        },
+    )
+    token = client.token(bot, "publisher-token")
+    client.token(reporter, "reporter-token")
+    packages = {
+        "PIP_FIND_LINKS": "http://wheelhouse:8080",
+        "PIP_TRUSTED_HOST": "wheelhouse",
+        "PIP_NO_INDEX": "true",
+    }
+    client.variables(consumer, packages, protected=False)
+    client.variables(
+        publisher,
+        {
+            **packages,
+            "QG_GITLAB_TOKEN": token.read_text(),
+            "QG_GITLAB_PROJECTS": json.dumps([consumer]),
+        },
+        protected=True,
+    )
+    client.request(
+        "PUT", "/application/settings", {"allow_local_requests_from_web_hooks_and_services": True}
+    )
+    client.webhook(consumer, publisher)
+    return bot
 
 
 def main() -> int:

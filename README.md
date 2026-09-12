@@ -2,6 +2,11 @@
 
 [Docs](https://quality-graph.xyz/)
 
+GitLab repositories use the separately installed `quality-graph-gitlab` provider.
+See the [GitLab setup guide](docs/gitlab.md) for native pipelines, trusted MR
+publication and approvals, and the [local laboratory](docs/gitlab-testing.md) for
+real GitLab integration tests.
+
 Quality Graph turns a small repository-owned declaration into native GitHub Actions
 jobs and a complete pull-request quality experience. Checks remain ordinary commands
 and reusable actions: the project adds dependency-aware orchestration without hiding

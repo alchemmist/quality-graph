@@ -5,12 +5,12 @@ from __future__ import annotations
 import io
 import stat
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from qg_gitlab.api import GitLabError, HttpGitLab, integer, object_value
-from qg_gitlab.compiler import graph_digest, job_name
+from qg_gitlab.compiler import admission_job_name, graph_digest, job_name
 from quality_graph_core.result import FailureKind, GitLabProvenance, Result, ResultStatus
 
 if TYPE_CHECKING:
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from quality_graph_core.result import JsonValue
 
 MAX_ARCHIVE_FILES = 100
+BOOTSTRAP_KEY = "__admission__"
 MAX_EXPANDED_BYTES = 50 * 1024 * 1024
 ACTIVE_STATES = {"created", "pending", "preparing", "running", "scheduled", "waiting_for_resource"}
 
@@ -48,6 +49,7 @@ class NodeEvidence:
     job_url: str = ""
     result: Result | None = None
     reason: str = ""
+    native_status: str = ""
 
 
 def archive_result(payload: bytes, path: str) -> Result:
@@ -89,7 +91,7 @@ def admit(api: HttpGitLab, expectation: Expectation) -> dict[str, NodeEvidence]:
     """Resolve the current execution of each job before downloading any result."""
     endpoint = f"/projects/{expectation.project_id}/pipelines/{expectation.pipeline_id}/jobs"
     jobs = tuple(api.pages(f"{endpoint}?include_retried=false"))
-    output: dict[str, NodeEvidence] = {}
+    output: dict[str, NodeEvidence] = {BOOTSTRAP_KEY: _bootstrap(expectation, jobs)}
     for node in expectation.graph.nodes:
         matches = tuple(
             job for job in jobs if job.get("name") == job_name(expectation.flow_id, node.id)
@@ -102,8 +104,65 @@ def admit(api: HttpGitLab, expectation: Expectation) -> dict[str, NodeEvidence]:
         try:
             output[node.id] = _admit_job(api, expectation, node, matches[0])
         except (GitLabError, OSError, TypeError, ValueError, zipfile.BadZipFile) as error:
-            output[node.id] = NodeEvidence(node.id, ResultStatus.FAILED, reason=str(error))
+            identity = matches[0].get("id")
+            url = matches[0].get("web_url")
+            output[node.id] = NodeEvidence(
+                node.id,
+                ResultStatus.FAILED,
+                identity
+                if isinstance(identity, int) and not isinstance(identity, bool) and identity > 0
+                else None,
+                url if isinstance(url, str) else "",
+                reason=str(error),
+            )
+        status = matches[0].get("status")
+        output[node.id] = replace(
+            output[node.id], native_status=status if isinstance(status, str) else "unknown"
+        )
     return output
+
+
+def _bootstrap(expected: Expectation, jobs: tuple[dict[str, JsonValue], ...]) -> NodeEvidence:
+    matches = [job for job in jobs if job.get("name") == admission_job_name(expected.flow_id)]
+    if len(matches) != 1:
+        return NodeEvidence(
+            BOOTSTRAP_KEY,
+            ResultStatus.FAILED,
+            reason="Missing or ambiguous publisher admission job",
+        )
+    job = matches[0]
+    identity: int | None = None
+    try:
+        identity = integer(job.get("id"), "admission job ID")
+        pipeline = object_value(job.get("pipeline"), "admission pipeline")
+        valid = (
+            integer(pipeline.get("id"), "admission pipeline ID") == expected.pipeline_id
+            and integer(pipeline.get("project_id"), "admission project") == expected.project_id
+            and pipeline.get("sha") == expected.head_sha
+        )
+    except (TypeError, ValueError):
+        valid = False
+        identity = None
+    status = job.get("status")
+    state = ResultStatus.FAILED
+    if valid and isinstance(status, str):
+        if status in ACTIVE_STATES:
+            state = ResultStatus.IN_PROGRESS
+        elif status == "success":
+            state = ResultStatus.PASSED
+        elif status in {"canceled", "canceling"}:
+            state = ResultStatus.CANCELLED
+    url = job.get("web_url")
+    return NodeEvidence(
+        BOOTSTRAP_KEY,
+        state,
+        identity,
+        url if isinstance(url, str) else "",
+        reason=""
+        if state is ResultStatus.PASSED
+        else "Publisher admission has not completed successfully",
+        native_status=status if isinstance(status, str) else "unknown",
+    )
 
 
 def _admit_job(
@@ -112,8 +171,8 @@ def _admit_job(
     identity = integer(job.get("id"), "job ID")
     pipeline = object_value(job.get("pipeline"), "job pipeline")
     if (
-        pipeline.get("id") != expected.pipeline_id
-        or pipeline.get("project_id") != expected.project_id
+        integer(pipeline.get("id"), "job pipeline ID") != expected.pipeline_id
+        or integer(pipeline.get("project_id"), "job pipeline project") != expected.project_id
         or pipeline.get("sha") != expected.head_sha
     ):
         message = "GitLab job belongs to another pipeline, project or commit"
@@ -160,7 +219,7 @@ def _admit_job(
     if status == "failed" and (
         result.failure_kind is not FailureKind.QUALITY or job.get("allow_failure") is not True
     ):
-        if result.failure_kind is None:
+        if result.failure_kind in {None, FailureKind.QUALITY}:
             message = "Passed GitLab result contradicts failed native execution"
             raise ValueError(message)
         return NodeEvidence(

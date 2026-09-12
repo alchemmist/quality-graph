@@ -346,6 +346,15 @@
         },
         {
           "checkpoint": {},
+          "id": "publish-gitlab",
+          "needs": [
+            "build",
+            "publish-core"
+          ],
+          "operation": "publish-gitlab"
+        },
+        {
+          "checkpoint": {},
           "id": "publish-cli",
           "needs": [
             "build",
@@ -360,7 +369,8 @@
             "publish-core",
             "publish-python",
             "publish-github",
-            "publish-cli"
+            "publish-cli",
+            "publish-gitlab"
           ],
           "operation": "github-release"
         }
@@ -372,7 +382,7 @@
       "trigger": "push"
     }
   },
-  "graphDigest": "d0c8c9a589e8a700d51fe18f116885edd18f817139379e4cdf9261287ac89f47",
+  "graphDigest": "fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -781,6 +791,46 @@
       ],
       "title": "Publish Github"
     },
+    "publish-gitlab": {
+      "diffOnly": false,
+      "env": {},
+      "environment": {
+        "name": "pypi-gitlab",
+        "url": "https://pypi.org/project/quality-graph-gitlab/"
+      },
+      "id": "publish-gitlab",
+      "permissions": {
+        "id-token": "write"
+      },
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "release",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "with": {
+            "name": "quality-graph-gitlab",
+            "path": "dist"
+          }
+        },
+        {
+          "uses": "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        }
+      ],
+      "title": "Publish Gitlab"
+    },
     "publish-python": {
       "diffOnly": false,
       "env": {},
@@ -890,6 +940,14 @@
             "if-no-files-found": "error",
             "name": "quality-graph-cli",
             "path": "dist/quality_graph_cli-*"
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "with": {
+            "if-no-files-found": "error",
+            "name": "quality-graph-gitlab",
+            "path": "dist/quality_graph_gitlab-*"
           }
         }
       ],

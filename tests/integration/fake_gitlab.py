@@ -69,6 +69,8 @@ class FakeGitLabState:
             return self._artifact(project, pieces[2])
         if len(pieces) >= 3 and pieces[1] == "merge_requests":
             return self._merge_request(method, pieces, query, data)
+        if len(pieces) == 2 and pieces[1] == "labels":
+            return self._labels(method, project, query, data)
         key = "/projects/" + "/".join(pieces)
         resources = self.values.get("resources", {})
         if isinstance(resources, dict) and key in resources:
@@ -99,9 +101,10 @@ class FakeGitLabState:
                     **data,
                     "status": data.get("state"),
                     "author": {"id": self.values.get("actor", 7)},
+                    "sha": pieces[2],
                 }
                 statuses.append(result)
-                return 201, result
+                return 201, self.values.get("status_response", result)
         return 404, {"message": "unknown project route"}
 
     def _jobs(
@@ -130,7 +133,27 @@ class FakeGitLabState:
         project, _kind, mr = pieces[:3]
         key = f"{project}:{mr}"
         requests = self.values.get("merge_requests", {})
+        snapshots = self.values.get("mr_snapshots", {})
+        sequence = snapshots.get(key) if isinstance(snapshots, dict) else None
+        if (
+            method == "GET"
+            and len(pieces) == 3
+            and isinstance(sequence, list)
+            and sequence
+            and isinstance(requests, dict)
+        ):
+            requests[key] = sequence.pop(0) if len(sequence) > 1 else sequence[0]
         if len(pieces) == 3 and isinstance(requests, dict) and key in requests:
+            if method == "PUT" and isinstance(data, dict):
+                request = requests[key]
+                if isinstance(request, dict):
+                    labels = request.get("labels", [])
+                    current = (
+                        {str(label) for label in labels} if isinstance(labels, list) else set()
+                    )
+                    current.update(str(data.get("add_labels", "")).split(","))
+                    current.difference_update(str(data.get("remove_labels", "")).split(","))
+                    request["labels"] = sorted(current - {""})
             return 200, requests[key]
         all_notes = self.values.setdefault("notes", {})
         notes = all_notes.setdefault(key, []) if isinstance(all_notes, dict) else None
@@ -165,6 +188,21 @@ class FakeGitLabState:
                     note["updated_at"] = datetime.now(UTC).isoformat()
                 return 200, note
         return 404, {"message": "note missing"}
+
+    def _labels(
+        self, method: str, project: str, query: dict[str, list[str]], data: JsonValue
+    ) -> tuple[int, JsonValue]:
+        projects = self.values.setdefault("labels", {})
+        labels = projects.setdefault(project, []) if isinstance(projects, dict) else None
+        if not isinstance(labels, list):
+            return 500, {"message": "invalid labels fixture"}
+        if method == "GET":
+            return 200, self._page(labels, query)
+        if method == "POST" and isinstance(data, dict):
+            label: dict[str, JsonValue] = {**data, "id": len(labels) + 1}
+            labels.append(label)
+            return 201, label
+        return 404, {"message": "unknown labels operation"}
 
     @staticmethod
     def _page(items: list[JsonValue], query: dict[str, list[str]]) -> list[JsonValue]:

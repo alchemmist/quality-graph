@@ -67,7 +67,13 @@ def scenario(
                     "allow_failure": False,
                     "pipeline": {"id": 200, "project_id": 1, "sha": HEAD},
                     "web_url": f"{fake.base_url}/jobs/90",
-                }
+                },
+                {
+                    "id": 91,
+                    "name": "qg-internal:admission:mr",
+                    "status": "success",
+                    "pipeline": {"id": 200, "project_id": 1, "sha": HEAD},
+                },
             ]
         },
         "artifacts": {"1:90": archive(results)} if results else {},
@@ -82,7 +88,13 @@ def scenario(
             }
         },
         "resources": {
-            "/projects/1/repository/branches/main": {"commit": {"id": BASE}},
+            "/projects/1/repository/branches/main": {"commit": {"id": BASE}, "protected": True},
+            "/projects/1/pipelines/200": {
+                "id": 200,
+                "project_id": 1,
+                "sha": HEAD,
+                "source": "merge_request_event",
+            },
             "/projects/1/repository/files/qg.yaml/raw": source,
         },
     }
@@ -118,7 +130,7 @@ def test_gitlab_passed_artifact_cannot_override_native_execution(
     fake_gitlab: FakeGitLabScenario, status: str
 ) -> None:
     fake_gitlab.reset(scenario(fake_gitlab, [result_for(fake_gitlab)], status))
-    assert publish(fake_gitlab) == "failed"
+    assert publish(fake_gitlab) == ("canceled" if status == "canceled" else "failed")
 
 
 def test_gitlab_missing_artifact_is_not_success(fake_gitlab: FakeGitLabScenario) -> None:

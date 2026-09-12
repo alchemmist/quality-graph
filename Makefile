@@ -7,13 +7,16 @@ MARKDOWN_SOURCES := README.md CONTEXT.md $(wildcard docs/*.md packages/*/README.
 
 .DEFAULT_GOAL := check
 
-.PHONY: gitlab-up gitlab-seed gitlab-status gitlab-logs gitlab-down gitlab-wheels
+.PHONY: gitlab-up gitlab-seed gitlab-status gitlab-logs gitlab-down gitlab-wheels t-gitlab-e2e
 
 gitlab-up gitlab-seed gitlab-status gitlab-logs gitlab-down:
 	uv run --locked --all-packages python scripts/gitlab_lab.py $(patsubst gitlab-%,%,$@)
 
 gitlab-wheels: package
 	uv run --locked --all-packages python scripts/gitlab_lab.py wheels
+
+t-gitlab-e2e: gitlab-seed gitlab-wheels
+	uv run --locked --all-packages --group test pytest -q tests/gitlab/real_scenarios.py
 
 .PHONY: install tools schemas schemas-check graph-generate graph-validate adopters-find users \
 	fmt fmt-check lint type analyze test t-fast t-medium coverage \
@@ -97,12 +100,12 @@ users:
 	uv run --project tools/adopter-discovery --locked qg-find-adopters --new-only
 
 examples-generate:
-	@for example in examples/python examples/typescript examples/go; do \
+	@for example in examples/python examples/typescript examples/go examples/gitlab; do \
 		uv run --locked --all-packages qg generate --root "$$example"; \
 	done
 
 examples-check:
-	@for example in examples/python examples/typescript examples/go; do \
+	@for example in examples/python examples/typescript examples/go examples/gitlab; do \
 		uv run --locked --all-packages qg validate --root "$$example"; \
 	done
 
@@ -172,7 +175,7 @@ t-medium:
 
 coverage:
 	uv run --locked --all-packages --group test pytest -q --cov=quality_graph_core \
-		--cov=qg_github --cov=qg_cli --cov=qg_python --cov-branch \
+		--cov=qg_github --cov=qg_gitlab --cov=qg_cli --cov=qg_python --cov-branch \
 		--cov-report=term-missing --cov-report=xml:coverage.xml
 
 coverage-diff: coverage
@@ -183,7 +186,7 @@ flaky-python:
 	uv run --locked --all-packages qg-python-flaky --base "$(BASE)" --attempts 3
 
 mutation:
-	PYTHONPATH="$(CURDIR)/mutants/packages/core/src:$(CURDIR)/mutants/packages/github/src:$(CURDIR)/mutants/packages/python/src:$(CURDIR)/mutants/apps/qg/src" \
+	PYTHONPATH="$(CURDIR)/mutants/packages/core/src:$(CURDIR)/mutants/packages/github/src:$(CURDIR)/mutants/packages/gitlab/src:$(CURDIR)/mutants/packages/python/src:$(CURDIR)/mutants/apps/qg/src" \
 		uv run --locked --all-packages --group mutation mutmut run --max-children 1
 	uv run --locked --all-packages --group mutation mutmut export-cicd-stats
 	uv run --locked --all-packages python scripts/mutation_gate.py mutants/mutmut-cicd-stats.json
@@ -192,6 +195,7 @@ mutation-diff:
 	@if git diff --quiet "$(BASE)...HEAD" -- packages/github/src/qg_github/compiler.py \
 		packages/github/src/qg_github/commands.py packages/core/src/quality_graph_core/graph.py \
 		packages/core/src/quality_graph_core/policy.py packages/core/src/quality_graph_core/result.py \
+		packages/gitlab/src/qg_gitlab/admission.py \
 		packages/python/src/qg_python; then \
 		echo "No changed mutation-gated decision modules"; \
 	else \
@@ -200,7 +204,8 @@ mutation-diff:
 
 audit: tools
 	@requirements=$$(mktemp); \
-	uv export --locked --package quality-graph-github --no-dev --no-hashes --format requirements-txt -o "$$requirements"; \
+	uv export --locked --package quality-graph-github --package quality-graph-gitlab \
+		--no-dev --no-hashes --format requirements-txt -o "$$requirements"; \
 	uv run --locked --all-packages --group audit pip-audit -r "$$requirements"; status=$$?; \
 	rm -f "$$requirements"; exit $$status
 	"$(TOOLS_BIN)/gitleaks" detect --no-banner --redact
@@ -215,6 +220,9 @@ package:
 		--with dist/quality_graph_cli-*-py3-none-any.whl qg --version
 	uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
 		--with dist/quality_graph_cli-*-py3-none-any.whl qg result schema >/dev/null
+	uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
+		--with dist/quality_graph_gitlab-*-py3-none-any.whl \
+		--with dist/quality_graph_cli-*-py3-none-any.whl python scripts/gitlab_package_smoke.py
 	uv run --isolated --no-project --with dist/quality_graph_python-*-py3-none-any.whl \
 		qg-python-time-bombs --help >/dev/null
 	@error=$$(mktemp); \
