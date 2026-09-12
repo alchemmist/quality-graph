@@ -12,7 +12,7 @@ import pytest
 from qg_github.dashboard import DashboardNode, DashboardRun
 from qg_github.github import HttpGitHubPort
 from qg_github.publication import publish_workflow_jobs, publish_workflow_run, watch_workflow_run
-from quality_graph_core.result import JsonValue, Result
+from quality_graph_core.result import JsonValue, Result, ResultStatus
 from tests.integration.test_github_lifecycle_http import archive, state, workflow_event
 
 if TYPE_CHECKING:
@@ -254,3 +254,48 @@ def test_artifact_failure_keeps_job_specific_logs(fake_github: FakeGitHubScenari
     assert "could not be assembled" in body
     assert f"[Logs]({FORMAT_URL})" in body
     assert f"[Logs]({LINT_URL})" in body
+
+
+@pytest.mark.parametrize("status_code", [404, 500])
+@pytest.mark.parametrize("lint_passed", [False, True])
+def test_final_publication_survives_unavailable_job_metadata(
+    fake_github: FakeGitHubScenario,
+    status_code: int,
+    *,
+    lint_passed: bool,
+) -> None:
+    fixture = scenario()
+    if lint_passed:
+        original = Result.from_json(
+            zipfile.ZipFile(io.BytesIO(state().downloads[2])).read("lint.json").decode()
+        )
+        content = archive(Result("lint", "Lint", ResultStatus.PASSED, original.provenance))
+        cast("dict[str, JsonValue]", fixture["downloads"])["2"] = base64.b64encode(content).decode()
+        artifacts = cast("dict[str, list[dict[str, JsonValue]]]", fixture["run_artifacts"])["10"]
+        artifacts[1].update(
+            size_in_bytes=len(content), digest=f"sha256:{hashlib.sha256(content).hexdigest()}"
+        )
+    fixture["failures"] = [
+        {
+            "method": "GET",
+            "path": "/repos/owner/repository/actions/runs/10/jobs",
+            "status": status_code,
+        }
+    ]
+    fake_github.reset(fixture)
+    port = HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url)
+
+    outcome = publish_workflow_run(port, workflow_event())
+
+    expected = ResultStatus.PASSED if lint_passed else ResultStatus.FAILED
+    assert outcome.published is True
+    assert outcome.status is expected
+    body = dashboard_body(fake_github)
+    assert "Formatting | ✅ passed" in body
+    assert f"Lint | {'✅' if lint_passed else '❌'} {expected.value}" in body
+    assert body.count("[Workflow run](https://example.test/run/10)") == 2
+    assert "[Logs]" not in body
+    checks = cast("list[dict[str, JsonValue]]", fake_github.snapshot()["checks"])
+    assert len(checks) == 1
+    assert checks[0]["status"] == "completed"
+    assert checks[0]["conclusion"] == ("success" if lint_passed else "failure")

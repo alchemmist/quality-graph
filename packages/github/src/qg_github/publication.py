@@ -258,6 +258,13 @@ def _workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:
         page += 1
 
 
+def _optional_workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:
+    try:
+        return _workflow_jobs(port, run_id)
+    except (RuntimeError, TypeError):
+        return ()
+
+
 def _workflow_job_status(job: Mapping[str, JsonValue]) -> ResultStatus:
     status = _string(job.get("status"), "workflow job status")
     if status == "queued":
@@ -298,7 +305,7 @@ def _completed_dashboard(
         graph, results = read_pr_results(port, graph, expectation)
     except ArtifactError as error:
         nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
-        selected = _workflow_node_jobs(nodes, _workflow_jobs(port, run.id), run)
+        selected = _workflow_node_jobs(nodes, _optional_workflow_jobs(port, run.id), run)
         statuses = {node_id: _workflow_job_status(job) for node_id, job in selected.items()}
         fallback = live_dashboard(nodes, statuses, run, job_urls=_workflow_job_urls(selected, run))
         return (
@@ -314,7 +321,7 @@ def _completed_dashboard(
     nodes = tuple(DashboardNode(node.id, node.title) for node in graph.nodes)
     selected = _workflow_node_jobs(
         nodes,
-        _workflow_jobs(port, run.id),
+        _optional_workflow_jobs(port, run.id),
         run,
         attempts={node_id: result.provenance.run_attempt for node_id, result in results.items()},
     )
