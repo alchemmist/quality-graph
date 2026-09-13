@@ -16,7 +16,16 @@ from quality_graph_core.adapters import (
     adapter_failure,
     read_report,
 )
-from quality_graph_core.result import FailureKind, Provenance, ResultStatus, Severity
+from quality_graph_core.graph import ApprovalPolicy
+from quality_graph_core.policy import policy_controls
+from quality_graph_core.result import (
+    ControlKind,
+    FailureKind,
+    Provenance,
+    ResultStatus,
+    Severity,
+    SourceLocation,
+)
 
 
 def context(*, succeeded: bool = True) -> AdapterContext:
@@ -246,3 +255,24 @@ def test_adapter_failure_is_a_distinct_portable_result() -> None:
 
     assert result.failure_kind is FailureKind.ADAPTER
     assert result.diagnostics[0].kind.value == "adapter"
+
+
+def test_junit_file_attribute_makes_file_approval_available() -> None:
+    report = (
+        b'<testsuite><testcase name="fails" file="tests/example.py">'
+        b'<failure message="broken" /></testcase></testsuite>'
+    )
+    result = adapt_junit(context(), report)
+    assert result.findings[0].location == SourceLocation("tests/example.py", 1, 1)
+    controls = policy_controls("lint", result.findings, ApprovalPolicy(files=True))
+    assert any(
+        control.kind is ControlKind.FILE and control.target == "tests/example.py"
+        for control in controls
+    )
+
+
+@pytest.mark.parametrize("path", ["/etc/passwd", "../secret", "tests/../../secret"])
+def test_junit_rejects_file_locations_outside_the_repository(path: str) -> None:
+    report = f'<testsuite><testcase name="fails" file="{path}"><failure /></testcase></testsuite>'
+    with pytest.raises(ValueError, match="repository-relative"):
+        adapt_junit(context(), report.encode())

@@ -167,6 +167,8 @@ by the trusted graph.
 - A legitimate explicit result skip remains a skip. Missing evidence is not a skip,
   and a skipped blocking job without a result cannot silently turn the graph green.
 - Approvals update the effective status without re-running all checks.
+- The MR note currently provides a status table, findings and job-log links. It does not
+  render a dependency diagram or clickable approval controls; use new `/qg` comments.
 - GitHub `uses`, GitHub runner labels, deployment permission escape hatches,
   custom flow concurrency lanes, executable release flows, merged-results pipelines and merge trains are not
   translated implicitly. Unsupported settings fail validation or execution.

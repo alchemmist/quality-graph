@@ -330,6 +330,7 @@ def _junit_finding(case: XmlElement) -> Finding | None:
         failure_type,
         fingerprint=fingerprint,
         group=class_name or None,
+        location=SourceLocation(case.get("file"), 1, 1) if case.get("file") else None,
     )
 
 

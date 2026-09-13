@@ -219,6 +219,11 @@ def test_quality_approvals_are_reversible_without_reexecuting_checks(lab: LabCli
     command(lab, case, "/qg remove-ignore verify")
     assert wait_state(lab, case, "failed") == pipeline
     assert {job["id"] for job in jobs(lab, case, pipeline)} == before
+    command(lab, case, "/qg ignore-file tests/example.py")
+    assert wait_state(lab, case, "success") == pipeline
+    command(lab, case, "/qg remove-ignore-file tests/example.py")
+    assert wait_state(lab, case, "failed") == pipeline
+    assert {job["id"] for job in jobs(lab, case, pipeline)} == before
     reporter = LabClient(STATE / "reporter-token")
     try:
         command(reporter, case, "/qg ignore verify")
@@ -377,11 +382,19 @@ def test_fork_mr_runs_safely_in_the_target_project(lab: LabClient) -> None:
                 lab.request("GET", f"/projects/{initial.project}/merge_requests/{case.mr}")
             )
             refs = prepared.get("diff_refs")
-            if isinstance(refs, dict) and refs.get("head_sha") == sha:
+            fork_pipeline = prepared.get("head_pipeline")
+            if (
+                isinstance(refs, dict)
+                and refs.get("head_sha") == sha
+                and isinstance(fork_pipeline, dict)
+                and fork_pipeline.get("project_id") == fork_id
+                and fork_pipeline.get("source") == "merge_request_event"
+                and fork_pipeline.get("sha") == sha
+            ):
                 break
             time.sleep(1)
         else:
-            pytest.fail("GitLab did not prepare the fork MR refs")
+            pytest.fail("GitLab did not prepare the fork MR refs and source pipeline")
         pipeline = obj(
             lab.request("POST", f"/projects/{initial.project}/merge_requests/{case.mr}/pipelines")
         )
