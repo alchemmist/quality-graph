@@ -21,7 +21,7 @@ policy:
     node: true
 ```
 
-The captured output becomes the result summary and diagnostic detail. Enabling node approval adds
+The captured output becomes bounded diagnostic detail rendered as text. Enabling node approval adds
 the corresponding `/qg ignore <node>` and `/qg remove-ignore <node>` controls to the Job Summary
 and managed dashboard.
 
@@ -62,3 +62,60 @@ findings; skipped and total counts become metrics. XML is parsed through `defuse
 Reports must exist inside the repository workspace and remain below 10 MiB. Missing,
 malformed, oversized, and traversal reports create adapter failures rather than rewriting the
 underlying command outcome.
+
+## Producer data contract
+
+For a custom check, use `results.native` with **producer report v0**. The input schema is
+[`producer-v0.schema.json`](https://github.com/alchemmist/quality-graph/blob/main/schemas/producer-v0.schema.json),
+also available through `qg result schema --producer`. This is a data-only input to collection;
+the published artifact remains Result v0.
+
+```json
+{
+  "reportVersion": 0,
+  "status": "failed",
+  "failureKind": "quality",
+  "metrics": [{"label": "Files checked", "value": "5"}],
+  "findings": [{
+    "id": "invalid-setting",
+    "severity": "error",
+    "message": "The enabled setting must be true.",
+    "group": "Configuration"
+  }],
+  "diagnostics": [{
+    "kind": "command",
+    "message": "Expected enabled=true",
+    "detail": "Observed enabled=false"
+  }]
+}
+```
+
+`reportVersion` and terminal `status` are required; `failureKind` is required exactly for failed
+or cancelled results. Metrics, findings, annotations, diagnostics, notes and optional summary
+content use the existing Result v0 field definitions and limits. Finding IDs must be stable and
+unique within the report. Unknown fields, unsupported versions, nonterminal states, invalid
+locations and inconsistent outcomes fail validation. A passing report cannot hide a failed command.
+
+Producers must omit `nodeId`, `title`, `provenance`, `controls` and `schemaVersion`. Collection
+supplies identity and provenance from its execution context, derives controls from graph policy,
+and validates the resulting artifact. Supplying these fields in a producer report is an error.
+Complete native Result v0 input remains supported with its existing exact provenance checks.
+
+Quality Graph builds the headings, metric tables, finding groups, diagnostic code blocks, source
+locations, bounds and administrator controls. Producers supply values and messages, not table
+layout, status banners or `/qg` commands. Optional custom summary content remains available for
+compatibility; it is not needed to produce a complete report.
+
+A runnable custom producer is
+[`check_settings.py`](https://github.com/alchemmist/quality-graph/blob/main/examples/producers/check_settings.py):
+
+```yaml
+run: python examples/producers/check_settings.py settings.json --output reports/settings.json
+results:
+  native: reports/settings.json
+```
+
+JUnit and SARIF are standard producer formats converted through the same result and rendering
+path. JUnit findings include the test name, and diagnostics preserve bounded failure/error traces.
+For commands without a structured format, captured output is diagnostic text; the framework does
+not infer source findings or test counts from arbitrary stdout.

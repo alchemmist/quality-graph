@@ -40,7 +40,7 @@ def test_exit_adapter_preserves_success_and_command_failure() -> None:
     failed = adapt_exit(context(succeeded=False), "Failure")
 
     assert passed.status is ResultStatus.PASSED
-    assert passed.summary == "Clean"
+    assert passed.diagnostics[0].detail == "Clean"
     assert failed.failure_kind is FailureKind.COMMAND
     assert failed.diagnostics[0].detail == "Failure"
 
@@ -48,8 +48,8 @@ def test_exit_adapter_preserves_success_and_command_failure() -> None:
 def test_exit_adapter_bounds_large_output() -> None:
     result = adapt_exit(context(succeeded=False), "x" * (MAX_SUMMARY_CHARACTERS + 100))
 
-    assert len(result.summary) == MAX_SUMMARY_CHARACTERS
-    assert result.summary.endswith("characters omitted._")
+    assert len(result.diagnostics[0].detail) <= 20_000
+    assert len(result.diagnostics[0].detail) == 20_000
 
 
 def test_native_adapter_validates_identity_provenance_and_command_outcome() -> None:
@@ -206,7 +206,7 @@ def test_junit_adapter_translates_failures_errors_and_skips() -> None:
     assert result.metrics[1].value == "2"
     assert result.metrics[2].value == "1"
     assert result.findings[0].group == "tests.TestCase"
-    assert result.findings[1].message == "Exploded"
+    assert "errors: Exploded" in result.findings[1].message
 
 
 def test_junit_adapter_handles_clean_report_and_command_failure() -> None:
@@ -214,7 +214,7 @@ def test_junit_adapter_handles_clean_report_and_command_failure() -> None:
 
     assert adapt_junit(context(), report).status is ResultStatus.PASSED
     result = adapt_junit(context(succeeded=False), report)
-    assert result.failure_kind is FailureKind.QUALITY
+    assert result.failure_kind is FailureKind.COMMAND
 
 
 @pytest.mark.parametrize("report", [b"not xml", b"<coverage />"])

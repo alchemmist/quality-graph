@@ -60,8 +60,13 @@ precommit-uninstall:
 schemas:
 	uv run --locked --all-packages qg schema --output schemas/graph-v0.schema.json
 	uv run --locked --all-packages qg result schema --output schemas/result-v0.schema.json
+	uv run --locked --all-packages qg result schema --producer --output schemas/producer-v0.schema.json
 
 schemas-check:
+	@producer_schema=$$(mktemp); \
+	uv run --locked --all-packages qg result schema --producer --output "$$producer_schema"; \
+	cmp schemas/producer-v0.schema.json "$$producer_schema"; status=$$?; \
+	rm -f "$$producer_schema"; exit "$$status"
 	@graph_schema=$$(mktemp); result_schema=$$(mktemp); \
 	uv run --locked --all-packages qg schema --output "$$graph_schema"; \
 	uv run --locked --all-packages qg result schema --output "$$result_schema"; \
@@ -142,19 +147,10 @@ python-no-comments:
 test: t-fast t-medium
 
 t-fast:
-	uv run --locked --all-packages --group test pytest -q -m "not integration"
+	uv run --locked --all-packages --group test python scripts/check_report.py --suite fast --output reports/test-fast.json
 
 t-medium:
-	@status=0; \
-	uv run --locked --all-packages --group test pytest -q -m integration || status=$$?; \
-	compose="tests/integration/docker-compose.yml"; container_status=0; \
-	$(COMPOSE) -f "$$compose" up -d --build --wait || container_status=$$?; \
-	if [ "$$container_status" -eq 0 ]; then \
-		QG_FAKE_GITHUB_URL="http://127.0.0.1:$${QG_FAKE_GITHUB_PORT:-18080}" \
-			uv run --locked --all-packages --group test pytest -q -m integration || container_status=$$?; \
-	fi; \
-	$(COMPOSE) -f "$$compose" down || container_status=$$?; \
-	exit $$((status || container_status))
+	uv run --locked --all-packages --group test python scripts/check_report.py --suite medium --output reports/test-medium.json --compose "$(COMPOSE)"
 
 coverage:
 	uv run --locked --all-packages --group test pytest -q --cov=quality_graph_core \

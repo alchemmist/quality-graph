@@ -97,8 +97,7 @@ def collect(request: CollectionRequest) -> Result:
     """Collect one command outcome through its selected adapter."""
     try:
         if request.adapter is AdapterKind.EXIT_CODE:
-            state = "passed" if request.context.command_succeeded else "failed"
-            output = f"The declared command {state}."
+            output = ""
             if request.report_path is not None:
                 try:
                     output = read_report(request.workspace, request.report_path).decode()
@@ -117,8 +116,10 @@ def collect(request: CollectionRequest) -> Result:
         else:
             result = adapt_junit(request.context, report)
         return _with_policy_controls(request, result)
-    except AdapterError as error:
-        return _with_policy_controls(request, adapter_failure(request.context, error))
+    except (AdapterError, OSError) as error:
+        return _with_policy_controls(
+            request, adapter_failure(request.context, AdapterError(str(error)))
+        )
 
 
 def _with_policy_controls(request: CollectionRequest, result: Result) -> Result:

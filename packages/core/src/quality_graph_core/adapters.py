@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
 
 from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 from quality_graph_core.result import (
     Annotation,
@@ -50,6 +51,7 @@ if TYPE_CHECKING:
 
 MAX_REPORT_BYTES = 10 * 1024 * 1024
 MAX_SUMMARY_CHARACTERS = 60_000
+MAX_JUNIT_DIAGNOSTICS = 100
 
 
 class AdapterError(ValueError):
@@ -70,17 +72,14 @@ def adapt_exit(context: AdapterContext, output: str = "") -> Result:
     """Map one command exit outcome to a portable result."""
     status = ResultStatus.PASSED if context.command_succeeded else ResultStatus.FAILED
     failure = None if context.command_succeeded else FailureKind.COMMAND
-    summary = _bounded_summary(output.strip())
+    output = _bounded_summary(output.strip(), maximum=20_000)
+    summary = "The declared command passed." if context.command_succeeded else ""
     diagnostics = (
-        ()
+        (Diagnostic(DiagnosticKind.COMMAND, "Command output", output[:20_000]),)
+        if context.command_succeeded and output
+        else ()
         if context.command_succeeded
-        else (
-            Diagnostic(
-                DiagnosticKind.COMMAND,
-                "The declared command failed.",
-                summary[:20_000],
-            ),
-        )
+        else (Diagnostic(DiagnosticKind.COMMAND, "The declared command failed.", output[:20_000]),)
     )
     return Result(
         context.node_id,
@@ -96,7 +95,10 @@ def adapt_exit(context: AdapterContext, output: str = "") -> Result:
 def adapt_native(context: AdapterContext, report: bytes) -> Result:
     """Validate a native result and bind it to trusted execution metadata."""
     try:
-        result = Result.from_json(report)
+        data = _object(_decode_json(report, "Native result"), "native result")
+        if "reportVersion" in data:
+            data = _bind_producer(context, data)
+        result = Result.from_value(data)
     except (TypeError, ValueError, json.JSONDecodeError) as error:
         message = f"Native result is invalid: {error}"
         raise AdapterError(message) from error
@@ -141,9 +143,14 @@ def adapt_sarif(context: AdapterContext, report: bytes) -> Result:
 
 def adapt_junit(context: AdapterContext, report: bytes) -> Result:
     """Translate JUnit XML test failures into stable findings."""
+    return adapt_native(context, json.dumps(junit_report(report)).encode())
+
+
+def junit_report(report: bytes) -> dict[str, JsonValue]:
+    """Normalize JUnit into provider-independent producer report data."""
     try:
         root = ElementTree.fromstring(report)
-    except ElementTree.ParseError as error:
+    except (ElementTree.ParseError, DefusedXmlException) as error:
         message = f"JUnit report is invalid XML: {error}"
         raise AdapterError(message) from error
     if root.tag not in {"testsuite", "testsuites"}:
@@ -156,25 +163,54 @@ def adapt_junit(context: AdapterContext, report: bytes) -> Result:
         for finding in (_junit_finding(cast("XmlElement", case)),)
         if finding is not None
     )
+    diagnostics: list[JsonValue] = []
+    for case in cases:
+        failure = case.find("failure")
+        if failure is None:
+            failure = case.find("error")
+        if failure is not None:
+            diagnostics.append(
+                Diagnostic(
+                    DiagnosticKind.COMMAND,
+                    f"{case.get('classname', '')}::{case.get('name', 'unnamed test')}"[:1_000],
+                    (failure.text or failure.get("message") or "Test failed")[:20_000],
+                ).to_value()
+            )
     skipped = sum(case.find("skipped") is not None for case in cases)
-    status = (
-        ResultStatus.FAILED if findings or not context.command_succeeded else ResultStatus.PASSED
+    value: dict[str, JsonValue] = {
+        "reportVersion": 0,
+        "status": "failed" if findings else "passed",
+        "summary": f"Ran {len(cases)} tests: {len(findings)} failed, {skipped} skipped.",
+        "metrics": [
+            Metric("Tests", str(len(cases))).to_value(),
+            Metric("Failures", str(len(findings))).to_value(),
+            Metric("Skipped", str(skipped)).to_value(),
+        ],
+        "findings": [finding.to_value() for finding in findings],
+        "diagnostics": diagnostics[:MAX_JUNIT_DIAGNOSTICS],
+        "notes": [f"{len(diagnostics) - MAX_JUNIT_DIAGNOSTICS} additional test traces omitted."]
+        if len(diagnostics) > MAX_JUNIT_DIAGNOSTICS
+        else [],
+    }
+    if findings:
+        value["failureKind"] = "quality"
+    return value
+
+
+def _bind_producer(context: AdapterContext, data: dict[str, JsonValue]) -> dict[str, JsonValue]:
+    owned = {"nodeId", "title", "provenance", "controls", "schemaVersion"}
+    if owned & data.keys():
+        message = "producer report must not supply framework-owned fields"
+        raise AdapterError(message)
+    value = dict(data)
+    value["schemaVersion"] = value.pop("reportVersion")
+    value.update(
+        nodeId=context.node_id, title=context.title, provenance=context.provenance.to_value()
     )
-    result = Result(
-        context.node_id,
-        context.title,
-        status,
-        context.provenance,
-        FailureKind.QUALITY if status is ResultStatus.FAILED else None,
-        f"Ran {len(cases)} tests: {len(findings)} failed, {skipped} skipped.",
-        (
-            Metric("Tests", str(len(cases))),
-            Metric("Failures", str(len(findings))),
-            Metric("Skipped", str(skipped)),
-        ),
-        findings,
-    )
-    return _reconcile_command(context, result)
+    if value.get("status") not in {"passed", "failed", "skipped", "cancelled"}:
+        message = "producer report must have a terminal status"
+        raise AdapterError(message)
+    return value
 
 
 def read_report(workspace: Path, relative_path: str) -> bytes:
@@ -222,13 +258,13 @@ def _reconcile_command(context: AdapterContext, result: Result) -> Result:
     )
 
 
-def _bounded_summary(value: str) -> str:
-    if len(value) <= MAX_SUMMARY_CHARACTERS:
+def _bounded_summary(value: str, *, maximum: int = MAX_SUMMARY_CHARACTERS) -> str:
+    if len(value) <= maximum:
         return value
-    omitted = len(value) - MAX_SUMMARY_CHARACTERS
+    omitted = len(value) - maximum
     while True:
         notice = f"\n\n_Output truncated; {omitted} characters omitted._"
-        prefix_length = MAX_SUMMARY_CHARACTERS - len(notice)
+        prefix_length = maximum - len(notice)
         updated = len(value) - prefix_length
         if updated == omitted:
             return value[:prefix_length] + notice
@@ -319,7 +355,8 @@ def _junit_finding(case: XmlElement) -> Finding | None:
     class_name = case.get("classname", "")
     test_name = case.get("name", "unnamed test")
     failure_type = failure.get("type", "failure")
-    message = failure.get("message") or (failure.text or "Test failed").strip()
+    detail = failure.get("message") or (failure.text or "Test failed").strip()
+    message = f"{class_name}::{test_name}: {detail}"[:1_000]
     semantic = f"{class_name}\n{test_name}\n{failure_type}\n{message}"
     fingerprint = hashlib.sha256(semantic.encode()).hexdigest()
     return Finding(

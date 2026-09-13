@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -8,7 +9,7 @@ import yaml
 
 from qg_cli.project import Project
 from qg_github.compiler import pr_contract, project_graph
-from quality_graph_core.graph import Graph
+from quality_graph_core.graph import AdapterKind, Graph
 
 if TYPE_CHECKING:
     from quality_graph_core.result import JsonValue
@@ -54,4 +55,24 @@ def test_own_release_preserves_every_original_step_and_privilege(tmp_path: Path)
 def test_own_migration_does_not_weaken_or_reorder_quality_checks(event: str) -> None:
     before = Graph.from_yaml((ROOT / "tests/fixtures/quality-graph-before-release.yml").read_text())
     after = Graph.from_yaml((ROOT / "qg.yaml").read_text())
-    assert pr_contract(project_graph(before, event)) == pr_contract(project_graph(after, event))
+    original = project_graph(before, event)
+    current = project_graph(after, event)
+    normalized = []
+    for old, new in zip(original.nodes, current.nodes, strict=True):
+        assert new.id == old.id
+        assert new.result.kind is AdapterKind.NATIVE
+        assert new.result.path == f"reports/{new.id}.json"
+        command = (
+            "make python-object-annotations" if new.id == "object-annotations" else old.step.run
+        )
+        expected = (
+            command
+            if new.id in {"test-fast", "test-medium"}
+            else (
+                "uv run --locked --all-packages python scripts/check_report.py \\\n"
+                f"--output reports/{new.id}.json -- {command}"
+            )
+        )
+        assert new.step == replace(old.step, run=expected)
+        normalized.append(replace(new, step=old.step, result=old.result))
+    assert pr_contract(original) == pr_contract(replace(current, nodes=tuple(normalized)))
