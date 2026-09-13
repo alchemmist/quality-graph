@@ -61,7 +61,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+          graph-digest: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -88,7 +88,7 @@ jobs:
       QG_OPERATION_ID: release-build
       QG_NODE_ID: build
       QG_NODE_TITLE: Release Build (build)
-      QG_GRAPH_DIGEST: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+      QG_GRAPH_DIGEST: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
   publish-core:
     name: Publish Core
     runs-on: ubuntu-latest
@@ -111,7 +111,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+          graph-digest: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -143,7 +143,7 @@ jobs:
       QG_OPERATION_ID: publish-core
       QG_NODE_ID: publish-core
       QG_NODE_TITLE: Publish Core
-      QG_GRAPH_DIGEST: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+      QG_GRAPH_DIGEST: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
   publish-python:
     name: Publish Python
     runs-on: ubuntu-latest
@@ -166,7 +166,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+          graph-digest: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -198,7 +198,7 @@ jobs:
       QG_OPERATION_ID: publish-python
       QG_NODE_ID: publish-python
       QG_NODE_TITLE: Publish Python
-      QG_GRAPH_DIGEST: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+      QG_GRAPH_DIGEST: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
   publish-github:
     name: Publish Github
     runs-on: ubuntu-latest
@@ -221,7 +221,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+          graph-digest: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -254,7 +254,7 @@ jobs:
       QG_OPERATION_ID: publish-github
       QG_NODE_ID: publish-github
       QG_NODE_TITLE: Publish Github
-      QG_GRAPH_DIGEST: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+      QG_GRAPH_DIGEST: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
   publish-gitlab:
     name: Publish Gitlab
     runs-on: ubuntu-latest
@@ -277,7 +277,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+          graph-digest: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -310,7 +310,7 @@ jobs:
       QG_OPERATION_ID: publish-gitlab
       QG_NODE_ID: publish-gitlab
       QG_NODE_TITLE: Publish Gitlab
-      QG_GRAPH_DIGEST: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+      QG_GRAPH_DIGEST: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
   publish-cli:
     name: Publish Cli
     runs-on: ubuntu-latest
@@ -333,7 +333,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+          graph-digest: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -366,7 +366,7 @@ jobs:
       QG_OPERATION_ID: publish-cli
       QG_NODE_ID: publish-cli
       QG_NODE_TITLE: Publish Cli
-      QG_GRAPH_DIGEST: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+      QG_GRAPH_DIGEST: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
   release:
     name: Github Release (release)
     runs-on: ubuntu-latest
@@ -394,7 +394,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+          graph-digest: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -427,4 +427,4 @@ jobs:
       QG_OPERATION_ID: github-release
       QG_NODE_ID: release
       QG_NODE_TITLE: Github Release (release)
-      QG_GRAPH_DIGEST: fe28fafa9fc2c3bd7633c034f067e5c7dc4ac8d2036d982ae71e62e4df0913d8
+      QG_GRAPH_DIGEST: 793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09

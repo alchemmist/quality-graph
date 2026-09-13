@@ -108,6 +108,20 @@ operations:
     title: Package
     profile: python
     run: make package
+  documentation:
+    title: Documentation
+    profile: python
+    steps:
+    - run: make site-build
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: documentation-site
+        path: site
+        if-no-files-found: error
+  mutation-full:
+    title: Full mutation gate
+    profile: python
+    run: make mutation
   release-build:
     profile: release
     steps:
@@ -232,6 +246,9 @@ flows:
     presentation: github-pr
     nodes:
       workflow-graph: {}
+      documentation:
+        needs:
+        - workflow-graph
       format:
         needs:
         - workflow-graph
@@ -293,6 +310,9 @@ flows:
     presentation: none
     nodes:
       workflow-graph: {}
+      documentation:
+        needs:
+        - workflow-graph
       format:
         needs:
         - workflow-graph
@@ -345,6 +365,10 @@ flows:
       package:
         needs:
         - audit
+      mutation-full:
+        needs:
+        - test-fast
+        - test-medium
   release:
     trigger:
       push:

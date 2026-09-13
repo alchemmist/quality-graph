@@ -102,3 +102,14 @@ fixture reset and snapshot operations, real HTTP, pagination, fault and delay in
 history, and Docker isolation. It deliberately removes Monori-specific markers, workflow names,
 fixed gate implementations, and package paths. The route and state model are shared by both
 adapters instead of maintaining a separate Docker fake.
+
+## Repository quality checks
+
+All repository checks are declared in `qg.yaml`. Documentation builds run in both the pull-request
+and main flows; the full mutation gate runs on each push to main, replacing the separate weekly
+workflow. `make check` also builds the documentation locally. The Pages workflow only publishes
+the documentation artifact from a successful main graph run and does not execute checks.
+
+The PR publisher trusts the base branch declaration. Adding a check changes the PR contract;
+its Dashboard row becomes authoritative once that declaration is accepted into the base branch.
+Until then, the native job runs, but results with an incompatible declaration digest can be rejected.

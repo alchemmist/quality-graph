@@ -237,7 +237,7 @@ package:
 
 check: fmt-check python-suppressions python-object-annotations python-triple-quotes \
 	python-no-comments lint type analyze python-time-bombs coverage coverage-diff \
-	flaky-python mutation-diff audit package
+	flaky-python mutation-diff audit package site-build
 
 clean:
 	@root=$$(git rev-parse --show-toplevel); \
