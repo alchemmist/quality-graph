@@ -407,7 +407,7 @@
       "trigger": "push"
     }
   },
-  "graphDigest": "793ac95f2b60a5bc0d9b2d55ce5e30d57e62e17287871679b293ffd096087f09",
+  "graphDigest": "7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -431,10 +431,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/analyze.json"
       },
       "step": {
-        "run": "make analyze"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/analyze.json -- make analyze"
       },
       "title": "Static analysis"
     },
@@ -455,10 +456,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/audit.json"
       },
       "step": {
-        "run": "make audit"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/audit.json -- make audit"
       },
       "title": "Dependency and secret audit"
     },
@@ -479,10 +481,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/coverage.json"
       },
       "step": {
-        "run": "make coverage-diff"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/coverage.json -- make coverage-diff"
       },
       "title": "Coverage and diff coverage"
     },
@@ -537,10 +540,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/flaky-python.json"
       },
       "step": {
-        "run": "make flaky-python"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/flaky-python.json -- make flaky-python"
       },
       "title": "Changed Python flaky-test detection"
     },
@@ -561,10 +565,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/format.json"
       },
       "step": {
-        "run": "make fmt-check"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/format.json -- make fmt-check"
       },
       "title": "Format check"
     },
@@ -626,10 +631,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/lint.json"
       },
       "step": {
-        "run": "make lint"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/lint.json -- make lint"
       },
       "title": "Lint"
     },
@@ -650,10 +656,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/mutation.json"
       },
       "step": {
-        "run": "make mutation-diff"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/mutation.json -- make mutation-diff"
       },
       "title": "Changed decision mutation gate"
     },
@@ -698,10 +705,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/no-comments.json"
       },
       "step": {
-        "run": "make python-no-comments"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/no-comments.json -- make python-no-comments"
       },
       "title": "Python no-comments policy"
     },
@@ -722,11 +730,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code",
-        "path": "reports/object-annotations.log"
+        "adapter": "native",
+        "path": "reports/object-annotations.json"
       },
       "step": {
-        "run": "mkdir -p reports\nset -o pipefail\nmake python-object-annotations 2>&1 | tee reports/object-annotations.log\n"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/object-annotations.json -- make python-object-annotations"
       },
       "title": "Python object annotation gate"
     },
@@ -747,10 +755,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/package.json"
       },
       "step": {
-        "run": "make package"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/package.json -- make package"
       },
       "title": "Package"
     },
@@ -1053,10 +1062,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/suppressions.json"
       },
       "step": {
-        "run": "make python-suppressions"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/suppressions.json -- make python-suppressions"
       },
       "title": "Lint suppression gate"
     },
@@ -1077,7 +1087,8 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/test-fast.json"
       },
       "step": {
         "run": "make t-fast"
@@ -1101,7 +1112,8 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/test-medium.json"
       },
       "step": {
         "run": "make t-medium"
@@ -1125,10 +1137,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/time-bombs.json"
       },
       "step": {
-        "run": "make python-time-bombs"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/time-bombs.json -- make python-time-bombs"
       },
       "title": "Time bomb guardrail"
     },
@@ -1149,10 +1162,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/triple-quotes.json"
       },
       "step": {
-        "run": "make python-triple-quotes"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/triple-quotes.json -- make python-triple-quotes"
       },
       "title": "Triple-quoted string style"
     },
@@ -1173,10 +1187,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/type.json"
       },
       "step": {
-        "run": "make type"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/type.json -- make type"
       },
       "title": "Type check"
     },
@@ -1197,10 +1212,11 @@
       },
       "profile": "python",
       "result": {
-        "adapter": "exit-code"
+        "adapter": "native",
+        "path": "reports/workflow-graph.json"
       },
       "step": {
-        "run": "make graph-validate"
+        "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/workflow-graph.json -- make graph-validate"
       },
       "title": "Workflow graph validation"
     }
@@ -1264,6 +1280,6 @@
   "provider": "github",
   "resultSchemaVersion": 0,
   "runtime": {
-    "action": "alchemmist/quality-graph@3ce9979e67af5899773aac77d1456e710864b6e1"
+    "action": "alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277"
   }
 }

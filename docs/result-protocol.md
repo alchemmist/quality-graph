@@ -40,3 +40,5 @@ Controls in collected artifacts are framework-owned derived state. The execution
 any controls supplied by a native report with finding-, file-, and node-level controls allowed by
 the compiled graph policy. Their checkbox markers and canonical apply and reverse `/qg` commands
 are rendered centrally; producer Markdown is never an authorization source.
+
+Producer report v0 is a separate data-only collection input described in [Result adapters](adapters.md#producer-data-contract). It omits framework identity and controls; it does not change the published Result v0 artifact or its provenance validation.
