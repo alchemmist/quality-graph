@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
 from qg_cli.cli import main
 from quality_graph_core.adapters import AdapterError, adapt_junit, adapt_native
-from quality_graph_core.result import FailureKind, ResultStatus
+from quality_graph_core.result import FailureKind, GitLabProvenance, ResultStatus
 from quality_graph_core.schema import producer_schema_json
 from tests.test_adapters import context
 
@@ -85,3 +88,55 @@ def test_junit_rejects_external_entities() -> None:
     report = b'<!DOCTYPE testsuite [<!ENTITY x SYSTEM "file:///missing">]><testsuite><testcase><failure>&x;</failure></testcase></testsuite>'
     with pytest.raises(AdapterError, match="invalid XML"):
         adapt_junit(context(), report)
+
+
+@pytest.mark.parametrize("version", [0, 1, False])
+def test_producer_report_binds_gitlab_schema_without_changing_input_version(
+    *,
+    version: int | bool,
+) -> None:
+    provenance = GitLabProvenance("https://gitlab.example.test", 1, "a" * 40, 10, 1, "b" * 64)
+    selected = replace(context(), provenance=provenance)
+    report = json.dumps({"reportVersion": version, "status": "passed"}).encode()
+    if type(version) is int and version == 0:
+        result = adapt_native(selected, report)
+        assert result.provenance == provenance
+        assert result.schema_version == 1
+        assert result.status is ResultStatus.PASSED
+    else:
+        with pytest.raises(AdapterError):
+            adapt_native(selected, report)
+
+
+@pytest.mark.parametrize("count", [10_000, 10_001])
+def test_large_junit_preserves_totals_and_bounded_findings(count: int) -> None:
+    report = (
+        "<testsuite>"
+        + "".join(
+            f'<testcase name="test-{index}"><failure>broken</failure></testcase>'
+            for index in range(count)
+        )
+        + "</testsuite>"
+    ).encode()
+    result = adapt_junit(context(), report)
+    assert result.failure_kind is FailureKind.QUALITY
+    assert len(result.findings) == 10_000
+    assert result.metrics[1].value == str(count)
+    assert f"{count} failed" in result.summary
+    assert ("1 additional findings omitted." in result.notes) == (count > 10_000)
+
+
+def test_discarded_junit_failures_are_counted_without_constructing_findings() -> None:
+    cases = "".join(
+        f'<testcase name="test-{index}"><failure>broken</failure></testcase>'
+        for index in range(10_005)
+    )
+    report = f"<testsuite><testcase name='passed'/>{cases}</testsuite>".encode()
+    with patch.object(hashlib, "sha256", wraps=hashlib.sha256) as fingerprint:
+        result = adapt_junit(context(), report)
+    assert fingerprint.call_count == 10_000
+    assert len(result.findings) == 10_000
+    assert result.metrics[0].value == "10006"
+    assert result.metrics[1].value == "10005"
+    assert "5 additional findings omitted." in result.notes
+    assert "9905 additional test traces omitted." in result.notes

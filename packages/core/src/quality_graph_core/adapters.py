@@ -16,6 +16,7 @@ from quality_graph_core.result import (
     DiagnosticKind,
     FailureKind,
     Finding,
+    GitLabProvenance,
     JsonValue,
     Metric,
     Provenance,
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
 MAX_REPORT_BYTES = 10 * 1024 * 1024
 MAX_SUMMARY_CHARACTERS = 60_000
 MAX_JUNIT_DIAGNOSTICS = 100
+MAX_JUNIT_FINDINGS = 10_000
 
 
 class AdapterError(ValueError):
@@ -65,7 +67,7 @@ class AdapterContext:
     node_id: str
     title: str
     command_succeeded: bool
-    provenance: Provenance
+    provenance: Provenance | GitLabProvenance
 
 
 def adapt_exit(context: AdapterContext, output: str = "") -> Result:
@@ -157,18 +159,19 @@ def junit_report(report: bytes) -> dict[str, JsonValue]:
         message = "JUnit report root must be testsuite or testsuites"
         raise AdapterError(message)
     cases = tuple(root.iter("testcase"))
-    findings = tuple(
-        finding
-        for case in cases
-        for finding in (_junit_finding(cast("XmlElement", case)),)
-        if finding is not None
-    )
+    findings: list[Finding] = []
     diagnostics: list[JsonValue] = []
+    failures = 0
     for case in cases:
         failure = case.find("failure")
         if failure is None:
             failure = case.find("error")
-        if failure is not None:
+        if failure is None:
+            continue
+        failures += 1
+        if len(findings) < MAX_JUNIT_FINDINGS:
+            findings.append(_junit_finding(cast("XmlElement", case), cast("XmlElement", failure)))
+        if len(diagnostics) < MAX_JUNIT_DIAGNOSTICS:
             diagnostics.append(
                 Diagnostic(
                     DiagnosticKind.COMMAND,
@@ -180,18 +183,21 @@ def junit_report(report: bytes) -> dict[str, JsonValue]:
     value: dict[str, JsonValue] = {
         "reportVersion": 0,
         "status": "failed" if findings else "passed",
-        "summary": f"Ran {len(cases)} tests: {len(findings)} failed, {skipped} skipped.",
+        "summary": f"Ran {len(cases)} tests: {failures} failed, {skipped} skipped.",
         "metrics": [
             Metric("Tests", str(len(cases))).to_value(),
-            Metric("Failures", str(len(findings))).to_value(),
+            Metric("Failures", str(failures)).to_value(),
             Metric("Skipped", str(skipped)).to_value(),
         ],
         "findings": [finding.to_value() for finding in findings],
-        "diagnostics": diagnostics[:MAX_JUNIT_DIAGNOSTICS],
-        "notes": [f"{len(diagnostics) - MAX_JUNIT_DIAGNOSTICS} additional test traces omitted."]
-        if len(diagnostics) > MAX_JUNIT_DIAGNOSTICS
+        "diagnostics": diagnostics,
+        "notes": [f"{failures - MAX_JUNIT_DIAGNOSTICS} additional test traces omitted."]
+        if failures > MAX_JUNIT_DIAGNOSTICS
         else [],
     }
+    if failures > MAX_JUNIT_FINDINGS:
+        notes = cast("list[JsonValue]", value["notes"])
+        notes.append(f"{failures - MAX_JUNIT_FINDINGS} additional findings omitted.")
     if findings:
         value["failureKind"] = "quality"
     return value
@@ -203,7 +209,11 @@ def _bind_producer(context: AdapterContext, data: dict[str, JsonValue]) -> dict[
         message = "producer report must not supply framework-owned fields"
         raise AdapterError(message)
     value = dict(data)
-    value["schemaVersion"] = value.pop("reportVersion")
+    version = value.pop("reportVersion")
+    if type(version) is not int or version != 0:
+        message = "unsupported producer report version"
+        raise AdapterError(message)
+    value["schemaVersion"] = int(isinstance(context.provenance, GitLabProvenance))
     value.update(
         nodeId=context.node_id, title=context.title, provenance=context.provenance.to_value()
     )
@@ -346,12 +356,7 @@ def _sarif_fingerprint(
     return hashlib.sha256(semantic.encode()).hexdigest()
 
 
-def _junit_finding(case: XmlElement) -> Finding | None:
-    failure = case.find("failure")
-    if failure is None:
-        failure = case.find("error")
-    if failure is None:
-        return None
+def _junit_finding(case: XmlElement, failure: XmlElement) -> Finding:
     class_name = case.get("classname", "")
     test_name = case.get("name", "unnamed test")
     failure_type = failure.get("type", "failure")
@@ -366,6 +371,7 @@ def _junit_finding(case: XmlElement) -> Finding | None:
         failure_type,
         fingerprint=fingerprint,
         group=class_name or None,
+        location=SourceLocation(case.get("file"), 1, 1) if case.get("file") else None,
     )
 
 

@@ -1,0 +1,5 @@
+# Quality Graph generated files (managed by qg)
+.gitlab-ci.yml
+.qg/gitlab.json
+.qg/gitlab-publisher.yml
+# End Quality Graph generated files

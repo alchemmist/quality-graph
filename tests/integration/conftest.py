@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from tests.integration.fake_github import FakeGitHubScenario, FakeGitHubServer
+from tests.integration.fake_gitlab import FakeGitLabScenario, FakeGitLabServer
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -21,4 +22,16 @@ def fake_github() -> Iterator[FakeGitHubScenario]:
         return
     with FakeGitHubServer() as scenario:
         scenario.reset()
+        yield scenario
+
+
+@pytest.fixture
+def fake_gitlab() -> Iterator[FakeGitLabScenario]:
+    external = os.environ.get("QG_FAKE_GITLAB_URL")
+    if external is not None:
+        scenario = FakeGitLabScenario(external.rstrip("/"))
+        scenario.reset({})
+        yield scenario
+        return
+    with FakeGitLabServer() as scenario:
         yield scenario

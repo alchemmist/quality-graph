@@ -23,7 +23,8 @@ policy:
 
 The captured output becomes bounded diagnostic detail rendered as text. Enabling node approval adds
 the corresponding `/qg ignore <node>` and `/qg remove-ignore <node>` controls to the Job Summary
-and managed dashboard.
+and managed dashboard. These controls cannot approve command or adapter failures; approvals
+only suppress quality findings.
 
 ## Native JSON
 
@@ -58,6 +59,11 @@ results:
 
 Both `testsuite` and `testsuites` roots are accepted. Failures and errors become stable
 findings; skipped and total counts become metrics. XML is parsed through `defusedxml`.
+A repository-relative testcase `file` attribute becomes a source location, enabling file
+approvals. The location uses line 1 because JUnit producers do not share a line-number convention.
+Absolute paths and parent traversal are rejected. At most 10,000 findings and 100
+test traces are serialized; summary and metrics retain full failure counts, and notes
+state how many findings or traces were omitted.
 
 Reports must exist inside the repository workspace and remain below 10 MiB. Missing,
 malformed, oversized, and traversal reports create adapter failures rather than rewriting the

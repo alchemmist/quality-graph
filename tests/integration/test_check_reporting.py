@@ -22,6 +22,7 @@ def run_report(tmp_path: Path, *arguments: str) -> subprocess.CompletedProcess[s
     values = dict(os.environ)
     values.pop("PYTEST_ADDOPTS", None)
     values.pop("QG_FAKE_GITHUB_URL", None)
+    values.pop("QG_FAKE_GITLAB_URL", None)
     return subprocess.run(
         [sys.executable, str(RUNNER), "--output", "report.json", *arguments],
         cwd=tmp_path,

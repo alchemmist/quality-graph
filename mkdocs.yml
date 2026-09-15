@@ -1,6 +1,6 @@
 ---
 site_name: Quality Graph
-site_description: Quality infrastructure for GitHub Actions
+site_description: Quality infrastructure for GitHub Actions and GitLab CI
 site_url: https://quality-graph.xyz/
 repo_url: https://github.com/alchemmist/quality-graph
 docs_dir: docs
@@ -9,6 +9,7 @@ hooks:
   - scripts/mkdocs_hooks.py
 exclude_docs: |
   design-prototype/
+  plans/
 theme:
   name: null
   custom_dir: site-theme
@@ -17,6 +18,7 @@ nav:
   - Start here:
       - Installation: installation.md
       - Quickstart: quickstart.md
+      - GitLab: gitlab.md
       - Upgrade to v0.1.8: upgrading-v0.1.8.md
       - Migration: migration.md
   - Reference:
@@ -32,6 +34,7 @@ nav:
   - Contributing:
       - Provider authoring: provider-authoring.md
       - Integration testing: testing.md
+      - Local GitLab laboratory: gitlab-testing.md
       - Finding adopters: adopter-discovery.md
       - Monori parity: monori-parity.md
       - Release: release.md

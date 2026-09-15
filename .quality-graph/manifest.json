@@ -23,6 +23,14 @@
         },
         {
           "checkpoint": {},
+          "id": "documentation",
+          "needs": [
+            "workflow-graph"
+          ],
+          "operation": "documentation"
+        },
+        {
+          "checkpoint": {},
           "id": "format",
           "needs": [
             "workflow-graph"
@@ -152,6 +160,15 @@
             "audit"
           ],
           "operation": "package"
+        },
+        {
+          "checkpoint": {},
+          "id": "mutation-full",
+          "needs": [
+            "test-fast",
+            "test-medium"
+          ],
+          "operation": "mutation-full"
         }
       ],
       "presentation": "none",
@@ -169,6 +186,14 @@
           "id": "workflow-graph",
           "needs": [],
           "operation": "workflow-graph"
+        },
+        {
+          "checkpoint": {},
+          "id": "documentation",
+          "needs": [
+            "workflow-graph"
+          ],
+          "operation": "documentation"
         },
         {
           "checkpoint": {},
@@ -346,6 +371,15 @@
         },
         {
           "checkpoint": {},
+          "id": "publish-gitlab",
+          "needs": [
+            "build",
+            "publish-core"
+          ],
+          "operation": "publish-gitlab"
+        },
+        {
+          "checkpoint": {},
           "id": "publish-cli",
           "needs": [
             "build",
@@ -360,7 +394,8 @@
             "publish-core",
             "publish-python",
             "publish-github",
-            "publish-cli"
+            "publish-cli",
+            "publish-gitlab"
           ],
           "operation": "github-release"
         }
@@ -372,7 +407,7 @@
       "trigger": "push"
     }
   },
-  "graphDigest": "34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0",
+  "graphDigest": "7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb",
   "graphVersion": 0,
   "labels": {
     "enabled": false
@@ -453,6 +488,40 @@
         "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/coverage.json -- make coverage-diff"
       },
       "title": "Coverage and diff coverage"
+    },
+    "documentation": {
+      "diffOnly": false,
+      "env": {},
+      "id": "documentation",
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "steps": [
+        {
+          "run": "make site-build"
+        },
+        {
+          "uses": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "with": {
+            "if-no-files-found": "error",
+            "name": "documentation-site",
+            "path": "site"
+          }
+        }
+      ],
+      "title": "Documentation"
     },
     "flaky-python": {
       "diffOnly": false,
@@ -594,6 +663,30 @@
         "run": "uv run --locked --all-packages python scripts/check_report.py \\\n--output reports/mutation.json -- make mutation-diff"
       },
       "title": "Changed decision mutation gate"
+    },
+    "mutation-full": {
+      "diffOnly": false,
+      "env": {},
+      "id": "mutation-full",
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "python",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "step": {
+        "run": "make mutation"
+      },
+      "title": "Full mutation gate"
     },
     "no-comments": {
       "diffOnly": false,
@@ -790,6 +883,46 @@
       ],
       "title": "Publish Github"
     },
+    "publish-gitlab": {
+      "diffOnly": false,
+      "env": {},
+      "environment": {
+        "name": "pypi-gitlab",
+        "url": "https://pypi.org/project/quality-graph-gitlab/"
+      },
+      "id": "publish-gitlab",
+      "permissions": {
+        "id-token": "write"
+      },
+      "policy": {
+        "approvals": {
+          "files": false,
+          "findings": true,
+          "node": false
+        },
+        "blocking": true,
+        "blockingSeverities": [
+          "error"
+        ]
+      },
+      "profile": "release",
+      "result": {
+        "adapter": "exit-code"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "with": {
+            "name": "quality-graph-gitlab",
+            "path": "dist"
+          }
+        },
+        {
+          "uses": "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        }
+      ],
+      "title": "Publish Gitlab"
+    },
     "publish-python": {
       "diffOnly": false,
       "env": {},
@@ -899,6 +1032,14 @@
             "if-no-files-found": "error",
             "name": "quality-graph-cli",
             "path": "dist/quality_graph_cli-*"
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "with": {
+            "if-no-files-found": "error",
+            "name": "quality-graph-gitlab",
+            "path": "dist/quality_graph_gitlab-*"
           }
         }
       ],
