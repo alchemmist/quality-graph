@@ -12,7 +12,7 @@ from qg_github.declarations import read_pr_results
 from qg_github.github import HttpGitHubPort
 from qg_github.publication import publish_workflow_run
 from quality_graph_core.graph import Graph
-from quality_graph_core.result import JsonValue, Provenance, Result, ResultStatus
+from quality_graph_core.result import FailureKind, JsonValue, Provenance, Result, ResultStatus
 from tests.integration.test_artifacts_http import archive, metadata
 from tests.integration.test_github_lifecycle_http import workflow_event
 from tests.test_graph import GRAPH
@@ -42,16 +42,23 @@ def configure_migration(
     *,
     head_content: str | None = None,
     failures: tuple[JsonValue, ...] = (),
+    extra_status: ResultStatus | None = ResultStatus.PASSED,
 ) -> HttpGitHubPort:
     compiled = compile_graph(Graph.from_yaml(source))
     artifacts: list[JsonValue] = []
     downloads: dict[str, JsonValue] = {}
-    for identifier, (node_id, title) in enumerate((("format", "Formatting"), ("lint", "Lint")), 1):
+    nodes = project_graph(Graph.from_yaml(source), "pull-request").nodes
+    for identifier, node in enumerate(nodes, 1):
+        node_id, title = node.id, node.title
+        if extra_status is None and node_id == "documentation":
+            continue
         content = archive(
             Result(
                 node_id,
                 title,
-                ResultStatus.PASSED,
+                extra_status
+                if node_id == "documentation" and extra_status is not None
+                else ResultStatus.PASSED,
                 Provenance(
                     "owner/repository",
                     "a" * 40,
@@ -62,6 +69,9 @@ def configure_migration(
                     "review",
                     node_id,
                 ),
+                FailureKind.QUALITY
+                if node_id == "documentation" and extra_status is ResultStatus.FAILED
+                else None,
             )
         )
         artifacts.append(metadata(identifier, f"quality-result-{node_id}-1", content))
@@ -172,3 +182,25 @@ def test_migration_fails_closed_on_invalid_github_content_responses(
     )
     with pytest.raises(ArtifactError, match="provenance"):
         read_pr_results(port, project_graph(graph, "pull-request"), expectation)
+
+
+@pytest.mark.parametrize("extra_status", [ResultStatus.PASSED, ResultStatus.FAILED])
+@pytest.mark.parametrize("omit_extra", [False, True])
+def test_additional_required_check_is_admitted_without_weakening_base(
+    fake_github: FakeGitHubScenario,
+    extra_status: ResultStatus,
+    *,
+    omit_extra: bool,
+) -> None:
+    source = migrated_declaration()
+    operations = cast("dict[str, JsonValue]", source["operations"])
+    operations["documentation"] = {"title": "Documentation", "run": "make site-build"}
+    flows = cast("dict[str, dict[str, JsonValue]]", source["flows"])
+    cast("dict[str, JsonValue]", flows["review"]["nodes"])["documentation"] = {}
+    port = configure_migration(
+        fake_github, yaml.safe_dump(source), extra_status=None if omit_extra else extra_status
+    )
+    outcome = publish_workflow_run(port, workflow_event())
+    assert outcome.status is (ResultStatus.FAILED if omit_extra else extra_status)
+    snapshot = fake_github.snapshot()
+    assert "Documentation" in str(snapshot["comments"])

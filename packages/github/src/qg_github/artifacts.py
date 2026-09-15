@@ -72,7 +72,7 @@ def download_results(
     for descriptor in _artifact_descriptors(port, expectation.workflow_run_id):
         if descriptor.node_id not in expectation.node_ids:
             message = f"artifact targets unknown graph node: {descriptor.node_id}"
-            raise ArtifactError(message)
+            raise DeclarationMismatchError(message)
         if descriptor.attempt > expectation.run_attempt:
             message = "result artifact attempt exceeds the latest workflow attempt"
             raise ArtifactError(message)

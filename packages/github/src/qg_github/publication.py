@@ -313,7 +313,10 @@ def _completed_dashboard(
             replace(
                 fallback,
                 status=ResultStatus.FAILED,
-                message=f"The final dashboard could not be assembled: {error}",
+                message=(
+                    f"The final dashboard could not be assembled: {error}. "
+                    "Rows below show native job conclusions, not verified result artifacts."
+                ),
             ),
             None,
         )
@@ -333,7 +336,7 @@ def _completed_dashboard(
     model = final_dashboard(
         graph, effective.results, run, job_urls=_workflow_job_urls(selected, run)
     )
-    missing = expectation.node_ids - results.keys()
+    missing = {node.id for node in graph.nodes} - results.keys()
     if missing:
         model = replace(
             model,
