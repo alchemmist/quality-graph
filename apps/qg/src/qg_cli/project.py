@@ -207,16 +207,25 @@ class Project:
             message = f"Provider '{provider_name}' does not provide initialization"
             raise TypeError(message)
         source = provider.starter_configuration(default_branch, preset)
-        return cls._initialize(root, provider, source, force=force)
+        return cls._initialize(root, provider, source, force=force, validate_provider=False)
 
     @classmethod
-    def _initialize(cls, root: Path, provider: Provider, source: str, *, force: bool) -> Self:
+    def _initialize(
+        cls,
+        root: Path,
+        provider: Provider,
+        source: str,
+        *,
+        force: bool,
+        validate_provider: bool = True,
+    ) -> Self:
         configuration = _configuration_path(root)
         if configuration.exists() and not force:
             message = f"Refusing to replace existing declaration: {configuration}"
             raise FileExistsError(message)
         graph = Graph.from_yaml(source)
-        provider.generate(graph)
+        if validate_provider:
+            provider.generate(graph)
         root.mkdir(parents=True, exist_ok=True)
         configuration.write_text(source)
         return cls(root, graph, provider)

@@ -14,7 +14,9 @@ uv tool install quality-graph-cli==X.Y.Z --with quality-graph-gitlab==X.Y.Z
 qg init --provider gitlab
 ```
 
-Set the instance URL and the publisher account's numeric user ID in `qg.yaml`:
+Initialization writes a starter declaration. Before generation, set the instance URL and
+the publisher account's numeric user ID in `qg.yaml`; MR publication cannot be generated
+without that identity:
 
 ```yaml
 version: 0
@@ -189,7 +191,10 @@ The publisher also accepts protected `QG_GITLAB_SERVER_URL` and
 `QG_GITLAB_API_URL` overrides; otherwise it uses its GitLab CI environment.
 
 Project IDs are used for authority checks. HTTP helpers also support URL-encoded
-paths such as `group/team/project`. TLS verification remains enabled. Use the
+paths such as `group/team/project`. HTTPS is required for API endpoints outside loopback. An isolated private HTTP laboratory
+can explicitly set `QG_GITLAB_INSECURE_HTTP_HOST` to its exact API hostname in both
+execution and protected publisher environments. This exception sends credentials without
+TLS and must not be used for public instances. TLS verification remains enabled. Use the
 standard CA configuration for private certificate authorities.
 
 Artifact redirects are followed without forwarding GitLab credentials or cookies.

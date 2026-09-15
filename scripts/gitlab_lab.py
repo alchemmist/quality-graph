@@ -372,6 +372,7 @@ def seed_runtime(client: LabClient, consumer: int, publisher: int) -> int:
         "PIP_FIND_LINKS": "http://wheelhouse:8080",
         "PIP_TRUSTED_HOST": "wheelhouse",
         "PIP_NO_INDEX": "true",
+        "QG_GITLAB_INSECURE_HTTP_HOST": "gitlab",
     }
     client.variables(consumer, packages, protected=False)
     client.variables(
@@ -431,7 +432,7 @@ def wheels() -> None:
             for item in config["project"]["dependencies"]
             if not item.startswith("quality-graph-")
         )
-    architecture = "aarch64" if platform.machine() == "arm64" else "x86_64"
+    architecture = "aarch64" if platform.machine() in {"arm64", "aarch64"} else "x86_64"
     run(
         (
             sys.executable,

@@ -10,7 +10,8 @@ from qg_cli.cli import main
 from qg_cli.project import Project
 from qg_cli.providers import load_provider
 from qg_github.compiler import compile_graph as compile_github
-from qg_gitlab.compiler import compile_graph, graph_digest, starter
+from qg_gitlab.compiler import compile_graph, graph_digest
+from qg_gitlab.compiler import starter as unconfigured_starter
 from quality_graph_core.graph import Graph
 
 if TYPE_CHECKING:
@@ -19,9 +20,16 @@ if TYPE_CHECKING:
     from quality_graph_core.result import JsonValue
 
 
+def starter(branch: str) -> str:
+    source = yaml.safe_load(unconfigured_starter(branch))
+    source["provider"]["configuration"]["publisher-user-id"] = 42
+    return yaml.safe_dump(source)
+
+
 def test_gitlab_provider_discovery_and_onboarding(tmp_path: Path) -> None:
     assert load_provider("gitlab").name == "gitlab"
     assert main(["init", "--provider", "gitlab", "--root", str(tmp_path)]) == 0
+    (tmp_path / "qg.yaml").write_text(starter("main"))
     assert main(["generate", "--root", str(tmp_path)]) == 0
     assert main(["validate", "--root", str(tmp_path)]) == 0
     project = Project.open(tmp_path)
@@ -256,3 +264,27 @@ def test_gitlab_does_not_generate_an_empty_executable_pipeline() -> None:
     source["nodes"] = {}
     with pytest.raises(ValueError, match="at least one executable"):
         compile_graph(Graph.from_yaml(yaml.safe_dump(source)))
+
+
+def test_mr_publication_requires_publisher_identity_during_generation() -> None:
+    with pytest.raises(ValueError, match="requires a declared publisher-user-id"):
+        compile_graph(Graph.from_yaml(unconfigured_starter("main")))
+
+
+def test_push_only_generation_does_not_require_publisher_identity() -> None:
+    source = flow_source()
+    del source["provider"]["configuration"]["publisher-user-id"]
+    assert compile_graph(Graph.from_yaml(yaml.safe_dump(source))).files
+
+
+def test_mr_without_publication_does_not_require_publisher_identity() -> None:
+    source = flow_source()
+    del source["provider"]["configuration"]["publisher-user-id"]
+    source["flows"] = {
+        "review": {"trigger": "pull-request", "presentation": "none", "nodes": {"quality": {}}}
+    }
+    workflow = yaml.safe_load(
+        compile_graph(Graph.from_yaml(yaml.safe_dump(source))).files[0].content
+    )
+    assert "qg:review:quality" in workflow
+    assert "qg-internal:admission:review" not in workflow

@@ -110,9 +110,11 @@ and main flows; the full mutation gate runs on each push to main, replacing the 
 workflow. `make check` also builds the documentation locally. The Pages workflow only publishes
 the documentation artifact from a successful main graph run and does not execute checks.
 
-The PR publisher trusts the base branch declaration. Adding a check changes the PR contract;
-its Dashboard row becomes authoritative once that declaration is accepted into the base branch.
-Until then, the native job runs, but results with an incompatible declaration digest can be rejected.
+The PR publisher trusts the base branch declaration. Additional checks can be admitted
+when every existing check, dependency and governance setting is unchanged. New checks
+are included in the dashboard and must supply valid results. Changes to existing contracts
+are rejected. Repositories using an older publisher must first deploy this additive migration
+support through their trusted base workflow; changing only a PR runtime pin cannot update it.
 
 ## Check reports
 

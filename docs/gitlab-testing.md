@@ -43,7 +43,8 @@ make t-medium COMPOSE='docker-compose --context colima-qg-gitlab'
 The Compose definition pins official multi-architecture GitLab CE 19.3.1 and Runner
 19.3.0 image digests. HTTP and SSH ports are bound to host loopback. The host API is
 available at `http://127.0.0.1:8929`; containers use `http://gitlab:8929` through the
-private lab network.
+private lab network. Its jobs explicitly set `QG_GITLAB_INSECURE_HTTP_HOST=gitlab`;
+other non-loopback HTTP API hosts remain rejected.
 
 ## Bootstrap and package installation
 

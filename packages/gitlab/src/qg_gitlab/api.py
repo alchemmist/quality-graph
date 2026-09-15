@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
+import os
 import time
 import urllib.parse
 from http import HTTPStatus
@@ -93,6 +95,21 @@ class HttpGitLab:
         self.transport = transport
         self.server_url = server_url(url)
         self.api_url = server_url(api_url or f"{self.server_url}/api/v4")
+        parsed = urllib.parse.urlsplit(self.api_url)
+        host = parsed.hostname or ""
+        try:
+            loopback = ipaddress.ip_address(host).is_loopback
+        except ValueError:
+            loopback = host == "localhost"
+        if (
+            parsed.scheme == "http"
+            and not loopback
+            and host != os.environ.get("QG_GITLAB_INSECURE_HTTP_HOST")
+        ):
+            message = (
+                "GitLab API requires HTTPS outside loopback; use TLS or explicitly trust a lab host"
+            )
+            raise ValueError(message)
         self.client = httpx.Client(
             base_url=self.api_url,
             headers={"JOB-TOKEN" if job_token else "PRIVATE-TOKEN": token},

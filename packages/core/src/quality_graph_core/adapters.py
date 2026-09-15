@@ -53,6 +53,7 @@ if TYPE_CHECKING:
 MAX_REPORT_BYTES = 10 * 1024 * 1024
 MAX_SUMMARY_CHARACTERS = 60_000
 MAX_JUNIT_DIAGNOSTICS = 100
+MAX_JUNIT_FINDINGS = 10_000
 
 
 class AdapterError(ValueError):
@@ -187,12 +188,15 @@ def junit_report(report: bytes) -> dict[str, JsonValue]:
             Metric("Failures", str(len(findings))).to_value(),
             Metric("Skipped", str(skipped)).to_value(),
         ],
-        "findings": [finding.to_value() for finding in findings],
+        "findings": [finding.to_value() for finding in findings[:MAX_JUNIT_FINDINGS]],
         "diagnostics": diagnostics[:MAX_JUNIT_DIAGNOSTICS],
         "notes": [f"{len(diagnostics) - MAX_JUNIT_DIAGNOSTICS} additional test traces omitted."]
         if len(diagnostics) > MAX_JUNIT_DIAGNOSTICS
         else [],
     }
+    if len(findings) > MAX_JUNIT_FINDINGS:
+        notes = cast("list[JsonValue]", value["notes"])
+        notes.append(f"{len(findings) - MAX_JUNIT_FINDINGS} additional findings omitted.")
     if findings:
         value["failureKind"] = "quality"
     return value

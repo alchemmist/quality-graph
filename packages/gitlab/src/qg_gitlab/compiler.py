@@ -213,6 +213,11 @@ def compile_graph(graph: Graph) -> GeneratedProject:
     if not flows:
         message = "GitLab requires at least one executable MR or branch flow"
         raise ValueError(message)
+    if "publisher-user-id" not in settings and any(
+        event == "pull-request" and publishes_mr(graph, name) for name, event, _ in flows
+    ):
+        message = "GitLab MR publication requires a declared publisher-user-id"
+        raise ValueError(message)
     workflow: dict[str, JsonValue] = {
         "workflow": {
             "auto_cancel": {"on_new_commit": "interruptible"},

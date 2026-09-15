@@ -86,13 +86,18 @@ def test_cli_publishes_both_result_schema_versions(capsys: pytest.CaptureFixture
 
 
 def test_gitlab_unmanaged_ci_is_preserved(tmp_path: Path) -> None:
-    project = Project.initialize_provider(tmp_path, "gitlab")
+    Project.initialize_provider(tmp_path, "gitlab")
+    declaration = yaml.safe_load((tmp_path / "qg.yaml").read_text())
+    declaration["provider"]["configuration"]["publisher-user-id"] = 42
+    (tmp_path / "qg.yaml").write_text(yaml.safe_dump(declaration))
+    project = Project.open(tmp_path)
     ci = tmp_path / ".gitlab-ci.yml"
     ci.write_text("existing: {script: 'echo keep'}\n")
     with pytest.raises(FileExistsError, match="unmanaged GitLab"):
         project.generate()
     assert ci.read_text() == "existing: {script: 'echo keep'}\n"
     source = yaml.safe_load((tmp_path / "qg.yaml").read_text())
+    source["provider"]["configuration"]["publisher-user-id"] = 42
     source["provider"]["configuration"]["ci-path"] = ".qg/gitlab-ci.yml"
     (tmp_path / "qg.yaml").write_text(yaml.safe_dump(source))
     project = Project.open(tmp_path)

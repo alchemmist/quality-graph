@@ -104,3 +104,21 @@ def test_producer_report_binds_gitlab_schema_without_changing_input_version(
     else:
         with pytest.raises(AdapterError):
             adapt_native(selected, report)
+
+
+@pytest.mark.parametrize("count", [10_000, 10_001])
+def test_large_junit_preserves_totals_and_bounded_findings(count: int) -> None:
+    report = (
+        "<testsuite>"
+        + "".join(
+            f'<testcase name="test-{index}"><failure>broken</failure></testcase>'
+            for index in range(count)
+        )
+        + "</testsuite>"
+    ).encode()
+    result = adapt_junit(context(), report)
+    assert result.failure_kind is FailureKind.QUALITY
+    assert len(result.findings) == 10_000
+    assert result.metrics[1].value == str(count)
+    assert f"{count} failed" in result.summary
+    assert ("1 additional findings omitted." in result.notes) == (count > 10_000)

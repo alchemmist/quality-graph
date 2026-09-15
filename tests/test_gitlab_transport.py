@@ -203,3 +203,24 @@ def test_external_artifact_redirects_are_bounded_and_fail_closed(status: int) ->
         pytest.raises((ValueError, GitLabError)),
     ):
         api.download("/projects/1/jobs/2/artifacts")
+
+
+@pytest.mark.parametrize("endpoint", [None, "http://gitlab.example.test/api/v4"])
+def test_remote_http_api_is_rejected_before_sending_credentials(endpoint: str | None) -> None:
+    origin = "https://gitlab.example.test" if endpoint else "http://gitlab.example.test"
+    with pytest.raises(ValueError, match="requires HTTPS"):
+        HttpGitLab(origin, "secret", api_url=endpoint)
+
+
+def test_private_lab_http_exception_is_scoped_to_one_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("QG_GITLAB_INSECURE_HTTP_HOST", "gitlab")
+    with HttpGitLab("http://gitlab:8929", "test-token") as api:
+        assert api.api_url == "http://gitlab:8929/api/v4"
+    with pytest.raises(ValueError, match="requires HTTPS"):
+        HttpGitLab("http://gitlab:8929", "secret", api_url="http://other.test/api/v4")
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "localhost", "[::1]"])
+def test_loopback_http_remains_available_for_local_testkits(host: str) -> None:
+    with HttpGitLab(f"http://{host}:18081", "test-token") as api:
+        assert api.api_url.endswith(":18081/api/v4")

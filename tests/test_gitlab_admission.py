@@ -173,8 +173,13 @@ def test_command_failure_is_retained_as_failure() -> None:
 
 
 def test_successful_job_cannot_supply_a_failed_or_unfinished_result() -> None:
-    for status in (ResultStatus.WAITING, ResultStatus.IN_PROGRESS):
-        assert evaluate([job()], archive(replace(result(), status=status))).result is None
+    for status in (ResultStatus.FAILED, ResultStatus.WAITING, ResultStatus.IN_PROGRESS):
+        candidate = replace(
+            result(),
+            status=status,
+            failure_kind=FailureKind.QUALITY if status is ResultStatus.FAILED else None,
+        )
+        assert evaluate([job()], archive(candidate)).result is None
 
 
 @pytest.mark.parametrize("path", ["../outside.json", "/absolute.json", "bad\\path.json"])
