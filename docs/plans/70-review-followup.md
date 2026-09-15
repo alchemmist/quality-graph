@@ -45,6 +45,17 @@ publisher credentials to bypass that boundary.
 
 ## Validation
 
+These runs were performed on 2026-09-15 in worktree `70`, against the review changes
+subsequently committed as `f639aa7` and `684b18c`. They are distinct from the
+2026-09-13 browser-validation record: that earlier run had 627 fast tests, 218 HTTP
+integration tests and a separate 845-test coverage run, before the main-branch merge
+and subsequent review regressions.
+
+Commands: `make t-fast`; `make t-medium COMPOSE='docker-compose --context colima-qg-gitlab'`;
+`PYTEST_ADDOPTS='-k declaration_migration' make t-medium` with the same Compose override;
+`make coverage-diff`; and `make t-gitlab-e2e`. The 659 fast-test total includes four
+last-added tests; the preceding coverage run executed 893 tests (655 fast + 238 integration).
+
 - 659 fast tests passed.
 - 238 HTTP integration tests passed in process and through Docker.
 - All 18 declaration-migration cases passed again in both modes after final edits.

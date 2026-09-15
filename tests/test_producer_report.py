@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
@@ -122,3 +124,19 @@ def test_large_junit_preserves_totals_and_bounded_findings(count: int) -> None:
     assert result.metrics[1].value == str(count)
     assert f"{count} failed" in result.summary
     assert ("1 additional findings omitted." in result.notes) == (count > 10_000)
+
+
+def test_discarded_junit_failures_are_counted_without_constructing_findings() -> None:
+    cases = "".join(
+        f'<testcase name="test-{index}"><failure>broken</failure></testcase>'
+        for index in range(10_005)
+    )
+    report = f"<testsuite><testcase name='passed'/>{cases}</testsuite>".encode()
+    with patch.object(hashlib, "sha256", wraps=hashlib.sha256) as fingerprint:
+        result = adapt_junit(context(), report)
+    assert fingerprint.call_count == 10_000
+    assert len(result.findings) == 10_000
+    assert result.metrics[0].value == "10006"
+    assert result.metrics[1].value == "10005"
+    assert "5 additional findings omitted." in result.notes
+    assert "9905 additional test traces omitted." in result.notes

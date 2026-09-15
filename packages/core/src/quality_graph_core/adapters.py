@@ -159,18 +159,19 @@ def junit_report(report: bytes) -> dict[str, JsonValue]:
         message = "JUnit report root must be testsuite or testsuites"
         raise AdapterError(message)
     cases = tuple(root.iter("testcase"))
-    findings = tuple(
-        finding
-        for case in cases
-        for finding in (_junit_finding(cast("XmlElement", case)),)
-        if finding is not None
-    )
+    findings: list[Finding] = []
     diagnostics: list[JsonValue] = []
+    failures = 0
     for case in cases:
         failure = case.find("failure")
         if failure is None:
             failure = case.find("error")
-        if failure is not None:
+        if failure is None:
+            continue
+        failures += 1
+        if len(findings) < MAX_JUNIT_FINDINGS:
+            findings.append(_junit_finding(cast("XmlElement", case), cast("XmlElement", failure)))
+        if len(diagnostics) < MAX_JUNIT_DIAGNOSTICS:
             diagnostics.append(
                 Diagnostic(
                     DiagnosticKind.COMMAND,
@@ -182,21 +183,21 @@ def junit_report(report: bytes) -> dict[str, JsonValue]:
     value: dict[str, JsonValue] = {
         "reportVersion": 0,
         "status": "failed" if findings else "passed",
-        "summary": f"Ran {len(cases)} tests: {len(findings)} failed, {skipped} skipped.",
+        "summary": f"Ran {len(cases)} tests: {failures} failed, {skipped} skipped.",
         "metrics": [
             Metric("Tests", str(len(cases))).to_value(),
-            Metric("Failures", str(len(findings))).to_value(),
+            Metric("Failures", str(failures)).to_value(),
             Metric("Skipped", str(skipped)).to_value(),
         ],
-        "findings": [finding.to_value() for finding in findings[:MAX_JUNIT_FINDINGS]],
-        "diagnostics": diagnostics[:MAX_JUNIT_DIAGNOSTICS],
-        "notes": [f"{len(diagnostics) - MAX_JUNIT_DIAGNOSTICS} additional test traces omitted."]
-        if len(diagnostics) > MAX_JUNIT_DIAGNOSTICS
+        "findings": [finding.to_value() for finding in findings],
+        "diagnostics": diagnostics,
+        "notes": [f"{failures - MAX_JUNIT_DIAGNOSTICS} additional test traces omitted."]
+        if failures > MAX_JUNIT_DIAGNOSTICS
         else [],
     }
-    if len(findings) > MAX_JUNIT_FINDINGS:
+    if failures > MAX_JUNIT_FINDINGS:
         notes = cast("list[JsonValue]", value["notes"])
-        notes.append(f"{len(findings) - MAX_JUNIT_FINDINGS} additional findings omitted.")
+        notes.append(f"{failures - MAX_JUNIT_FINDINGS} additional findings omitted.")
     if findings:
         value["failureKind"] = "quality"
     return value
@@ -355,12 +356,7 @@ def _sarif_fingerprint(
     return hashlib.sha256(semantic.encode()).hexdigest()
 
 
-def _junit_finding(case: XmlElement) -> Finding | None:
-    failure = case.find("failure")
-    if failure is None:
-        failure = case.find("error")
-    if failure is None:
-        return None
+def _junit_finding(case: XmlElement, failure: XmlElement) -> Finding:
     class_name = case.get("classname", "")
     test_name = case.get("name", "unnamed test")
     failure_type = failure.get("type", "failure")
