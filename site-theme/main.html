@@ -55,10 +55,18 @@
         {% for section in nav %}
           {% if section.children %}
             <section>
+              {% if section.title == "Contributing" %}
+              <details class="sidebar-disclosure">
+                <summary>{{ section.title }}</summary>
+              {% else %}
               <strong>{{ section.title }}</strong>
+              {% endif %}
               {% for item in section.children %}
                 <a href="{{ item.url | url }}"{% if item.active %} class="active" aria-current="page"{% endif %}>{{ item.title }}</a>
               {% endfor %}
+              {% if section.title == "Contributing" %}
+              </details>
+              {% endif %}
             </section>
           {% endif %}
         {% endfor %}

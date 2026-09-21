@@ -180,6 +180,15 @@ a:focus-visible {
   font-size: 0.8125rem;
 }
 
+.sidebar-disclosure summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.sidebar-disclosure[open] summary {
+  margin-bottom: 14px;
+}
+
 .docs-sidebar a {
   display: block;
   padding: 6px 0;
@@ -285,6 +294,10 @@ a:focus-visible {
 
   .docs-sidebar strong {
     display: none;
+  }
+
+  .sidebar-disclosure {
+    margin-top: 14px;
   }
 
   .docs-sidebar a {
