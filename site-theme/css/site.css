@@ -244,12 +244,17 @@ a:focus-visible {
 
 .article pre {
   overflow-x: auto;
+  scrollbar-width: none;
   margin: 18px 0;
   padding: 19px 21px;
   border-radius: 3px;
   background: var(--code-surface);
   font-size: 0.8125rem;
   line-height: 1.65;
+}
+
+.article pre::-webkit-scrollbar {
+  display: none;
 }
 
 .article code {
