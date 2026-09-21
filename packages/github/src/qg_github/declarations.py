@@ -1,4 +1,4 @@
-"""Accept declaration migrations only when the trusted PR contract is unchanged."""
+"""Accept declaration migrations that preserve every trusted required check."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ MAX_DECLARATION_BYTES = 1_048_576
 def read_pr_results(
     port: GitHubPort, graph: Graph, expectation: ArtifactExpectation
 ) -> tuple[Graph, dict[str, Result]]:
-    """Verify run provenance and allow only semantically identical PR declaration migrations."""
+    """Verify run provenance while preserving the trusted checks and governance."""
     expectation = _execution_expectation(port, graph, expectation)
     try:
         return graph, download_results(port, expectation)
@@ -38,12 +38,17 @@ def read_pr_results(
         if (
             projected is None
             or compiled.graph_digest == expectation.graph_digest
-            or pr_contract(projected) != pr_contract(graph)
+            or not _preserves_required_checks(graph, projected)
         ):
-            raise
+            message = (
+                "PR declaration changes existing required checks or governance; "
+                "the trusted base declaration must be updated before these results can be accepted"
+            )
+            raise DeclarationMismatchError(message) from mismatch
         current = replace(
             expectation,
             graph_digest=compiled.graph_digest,
+            node_ids=frozenset(node.id for node in projected.nodes),
             flow_id=projected.flow_id,
             operation_ids={
                 node.id: node.operation_id
@@ -51,7 +56,15 @@ def read_pr_results(
                 if node.operation_id is not None
             },
         )
+        current = _execution_expectation(port, projected, current)
         return projected, download_results(port, current)
+
+
+def _preserves_required_checks(base: Graph, head: Graph) -> bool:
+    """Allow additional nodes only when existing contracts remain identical."""
+    required = {node.id for node in base.nodes}
+    existing = tuple(node for node in head.nodes if node.id in required)
+    return pr_contract(replace(head, nodes=existing)) == pr_contract(base)
 
 
 def _head_declaration(port: GitHubPort, sha: str) -> Graph:

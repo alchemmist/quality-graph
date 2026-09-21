@@ -14,7 +14,7 @@ from qg_github.artifacts import (
     download_results,
 )
 from qg_github.github import MemoryGitHubPort
-from quality_graph_core.result import Provenance, Result, ResultStatus
+from quality_graph_core.result import GitLabProvenance, Provenance, Result, ResultStatus
 
 
 def result(node: str = "lint", *, attempt: int = 1) -> Result:
@@ -60,6 +60,23 @@ def artifact(artifact_id: int, name: str, content: bytes) -> dict[str, object]:
 
 def artifacts_path(page: int = 1) -> str:
     return f"/actions/runs/10/artifacts?per_page=100&page={page}"
+
+
+def test_github_rejects_gitlab_provenance_before_workflow_admission() -> None:
+    port = MemoryGitHubPort()
+    foreign = Result(
+        "lint",
+        "Lint",
+        ResultStatus.PASSED,
+        GitLabProvenance("https://gitlab.example.test", 1, "a" * 40, 10, 1, "b" * 64, 1, 42),
+    )
+    payload = archive(foreign)
+    port.enqueue(
+        "GET", artifacts_path(), {"artifacts": [artifact(1, "quality-result-lint-1", payload)]}
+    )
+    port.downloads["/actions/artifacts/1/zip"] = payload
+    with pytest.raises(ArtifactError, match="foreign provider"):
+        download_results(port, expectation())
 
 
 def test_downloader_selects_newest_attempt_and_ignores_unrelated_artifacts() -> None:

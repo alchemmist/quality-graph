@@ -207,25 +207,23 @@ TOTAL_STAGES=2
 banner "Quality Graph Trusted Publishing setup"
 
 stage "GitHub — protected PyPI environments"
-say "Create the four environments used by the isolated OIDC publication jobs."
+say "Create the five environments used by the isolated OIDC publication jobs."
 open_url "https://github.com/alchemmist/quality-graph/settings/environments/new"
 step "Keep the existing pypi environment for quality-graph-core."
-step "Create pypi-python, pypi-github, and pypi-cli for the other packages."
+step "Create pypi-python, pypi-github, pypi-gitlab, and pypi-cli for the other packages."
 step "For each environment choose Selected branches and tags under Deployment branches and tags."
 step "Add a deployment tag rule matching v*, add no branch rule, and save."
 printf '  %sDo not add a PyPI token or GitHub Actions secret.%s\n' "$RED" "$RESET"
-confirm "Are all four environments restricted to v* tags?" || exit 1
+confirm "Are all five environments restricted to v* tags?" || exit 1
 
-stage "PyPI — pending Trusted Publishers"
-say "Register three projects now; PyPI permits only three pending publishers at once."
+stage "PyPI — GitLab Trusted Publisher"
+say "Keep the four existing project bindings and add the new GitLab distribution."
 open_url "https://pypi.org/manage/account/publishing/"
-step "For each project below, choose Add a new pending publisher."
-step "Use PyPI project names: quality-graph-core, quality-graph-python, and quality-graph-github."
-step "For every project set Owner to alchemmist and Repository to quality-graph."
-step "Set Workflow name to release.yml for every project."
-step "Use environments pypi, pypi-python, and pypi-github respectively."
-step "Do not register qg yet; add it with pypi-cli after the first three uploads complete."
-confirm "Are the first three pending Trusted Publishers listed?" || exit 1
-SKIPPED+=("quality-graph-cli pending publisher after the first three projects are published")
+step "Add a pending publisher for quality-graph-gitlab if the project does not exist yet."
+step "If it already exists, manage its Trusted Publishers instead of registering a duplicate."
+step "Set Owner to alchemmist and Repository to quality-graph."
+step "Set Workflow name to release.yml and Environment to pypi-gitlab."
+step "Preserve the existing core, python, github and cli publisher bindings."
+confirm "Is quality-graph-gitlab bound to release.yml and pypi-gitlab?" || exit 1
 
 finish

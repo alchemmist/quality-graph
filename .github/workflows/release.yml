@@ -45,6 +45,11 @@ jobs:
           name: quality-graph-cli
           path: dist/quality_graph_cli-*
           if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: quality-graph-gitlab
+          path: dist/quality_graph_gitlab-*
+          if-no-files-found: error
       - name: Collect Release Build (build) result
         id: quality-result
         if: always()
@@ -56,7 +61,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+          graph-digest: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -83,7 +88,7 @@ jobs:
       QG_OPERATION_ID: release-build
       QG_NODE_ID: build
       QG_NODE_TITLE: Release Build (build)
-      QG_GRAPH_DIGEST: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+      QG_GRAPH_DIGEST: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
   publish-core:
     name: Publish Core
     runs-on: ubuntu-latest
@@ -106,7 +111,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+          graph-digest: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -138,7 +143,7 @@ jobs:
       QG_OPERATION_ID: publish-core
       QG_NODE_ID: publish-core
       QG_NODE_TITLE: Publish Core
-      QG_GRAPH_DIGEST: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+      QG_GRAPH_DIGEST: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
   publish-python:
     name: Publish Python
     runs-on: ubuntu-latest
@@ -161,7 +166,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+          graph-digest: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -193,7 +198,7 @@ jobs:
       QG_OPERATION_ID: publish-python
       QG_NODE_ID: publish-python
       QG_NODE_TITLE: Publish Python
-      QG_GRAPH_DIGEST: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+      QG_GRAPH_DIGEST: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
   publish-github:
     name: Publish Github
     runs-on: ubuntu-latest
@@ -216,7 +221,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+          graph-digest: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -249,7 +254,63 @@ jobs:
       QG_OPERATION_ID: publish-github
       QG_NODE_ID: publish-github
       QG_NODE_TITLE: Publish Github
-      QG_GRAPH_DIGEST: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+      QG_GRAPH_DIGEST: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
+  publish-gitlab:
+    name: Publish Gitlab
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: quality-graph-gitlab
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+      - name: Collect Publish Gitlab result
+        id: quality-result
+        if: always()
+        uses: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
+        with:
+          operation: collect
+          node-id: publish-gitlab
+          title: Publish Gitlab
+          adapter: exit-code
+          report-path: ''
+          command-outcome: ${{ job.status }}
+          graph-digest: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
+          approval-findings: 'false'
+          approval-files: 'false'
+          approval-node: 'false'
+          flow-id: release
+          operation-id: publish-gitlab
+          presentation: release
+      - name: Upload Publish Gitlab result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: quality-result-publish-gitlab-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/quality-graph/publish-gitlab.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce Publish Gitlab result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.quality-result.outputs.exit-code }}
+        run: exit "${EXIT_CODE:-2}"
+    needs:
+      - build
+      - publish-core
+    environment:
+      name: pypi-gitlab
+      url: https://pypi.org/project/quality-graph-gitlab/
+    if: startsWith(github.ref, 'refs/tags/')
+    env:
+      QG_FLOW_ID: release
+      QG_OPERATION_ID: publish-gitlab
+      QG_NODE_ID: publish-gitlab
+      QG_NODE_TITLE: Publish Gitlab
+      QG_GRAPH_DIGEST: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
   publish-cli:
     name: Publish Cli
     runs-on: ubuntu-latest
@@ -272,7 +333,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+          graph-digest: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -305,7 +366,7 @@ jobs:
       QG_OPERATION_ID: publish-cli
       QG_NODE_ID: publish-cli
       QG_NODE_TITLE: Publish Cli
-      QG_GRAPH_DIGEST: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+      QG_GRAPH_DIGEST: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
   release:
     name: Github Release (release)
     runs-on: ubuntu-latest
@@ -333,7 +394,7 @@ jobs:
           adapter: exit-code
           report-path: ''
           command-outcome: ${{ job.status }}
-          graph-digest: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+          graph-digest: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb
           approval-findings: 'false'
           approval-files: 'false'
           approval-node: 'false'
@@ -359,10 +420,11 @@ jobs:
       - publish-python
       - publish-github
       - publish-cli
+      - publish-gitlab
     if: startsWith(github.ref, 'refs/tags/')
     env:
       QG_FLOW_ID: release
       QG_OPERATION_ID: github-release
       QG_NODE_ID: release
       QG_NODE_TITLE: Github Release (release)
-      QG_GRAPH_DIGEST: 34f0b35e30145ee7ca74338e6873cb1b212f12e3c479e857686f079048fb46b0
+      QG_GRAPH_DIGEST: 7ff757e2ee533d14b0c35696c9e1f392af099b77f7188784bfecb4925bbc3ffb

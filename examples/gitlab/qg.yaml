@@ -1,0 +1,18 @@
+---
+version: 0
+provider:
+  name: gitlab
+  configuration:
+    default-branch: main
+    server-url: https://gitlab.example.com
+    publisher-user-id: 42
+    runtime-version: 0.1.10
+profiles:
+  default:
+    container: python:3.12-slim
+administration:
+  roles: [maintain, admin]
+nodes:
+  test:
+    title: Unit tests
+    run: python -m unittest discover -s tests -v

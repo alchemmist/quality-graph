@@ -1,0 +1,75 @@
+---
+name: qg-gitlab-lab
+services:
+  gitlab:
+    image: >-
+      gitlab/gitlab-ce@sha256:f63df4c43029fe91db370609c0b40a1e3585cebd06e3e9637d93a9a3030eb86e
+    hostname: gitlab
+    shm_size: 256m
+    mem_limit: 8g
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://gitlab:8929'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2229
+        prometheus_monitoring['enable'] = false
+        puma['worker_processes'] = 2
+        sidekiq['concurrency'] = 5
+        gitlab_rails['initial_root_password'] = File.read('/run/secrets/root_password').strip
+    ports:
+      - '127.0.0.1:8929:8929'
+      - '127.0.0.1:2229:22'
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-data:/var/opt/gitlab
+      - gitlab-logs:/var/log/gitlab
+    secrets:
+      - root_password
+      - admin_token
+    networks:
+      - lab
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, 'http://localhost:8929/-/readiness']
+      interval: 10s
+      timeout: 5s
+      retries: 90
+      start_period: 60s
+  execution-runner:
+    image: >-
+      gitlab/gitlab-runner@sha256:1987852519bd0ca951bfbd161c523c6ec041e3b3fd8d3fb76ff89ff42e8d7d0c
+    volumes:
+      - execution-runner:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - lab
+    profiles: [runners]
+  publisher-runner:
+    image: >-
+      gitlab/gitlab-runner@sha256:1987852519bd0ca951bfbd161c523c6ec041e3b3fd8d3fb76ff89ff42e8d7d0c
+    volumes:
+      - publisher-runner:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - lab
+    profiles: [runners]
+  wheelhouse:
+    image: python:3.12-slim
+    command: [python, -m, http.server, '8080', --directory, /wheels]
+    volumes:
+      - ./.state/wheelhouse:/wheels:ro
+    networks:
+      - lab
+    profiles: [runners]
+networks:
+  lab:
+    name: qg-gitlab-lab
+volumes:
+  gitlab-config:
+  gitlab-data:
+  gitlab-logs:
+  execution-runner:
+  publisher-runner:
+secrets:
+  root_password:
+    file: .state/root-password
+  admin_token:
+    file: .state/admin-token

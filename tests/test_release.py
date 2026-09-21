@@ -7,6 +7,7 @@ import yaml
 PROJECT_NAMES = {
     "quality-graph-core",
     "quality-graph-github",
+    "quality-graph-gitlab",
     "quality-graph-python",
     "quality-graph-cli",
 }
@@ -15,11 +16,13 @@ PROJECT_FILES = (
     Path("packages/github/pyproject.toml"),
     Path("packages/python/pyproject.toml"),
     Path("apps/qg/pyproject.toml"),
+    Path("packages/gitlab/pyproject.toml"),
 )
 PUBLISH_ENVIRONMENTS = {
     "publish-core": "pypi",
     "publish-python": "pypi-python",
     "publish-github": "pypi-github",
+    "publish-gitlab": "pypi-gitlab",
     "publish-cli": "pypi-cli",
 }
 PINNED_ACTION = re.compile(r"^[^@]+@[0-9a-f]{40}$")
@@ -33,6 +36,7 @@ def test_workspace_releases_one_exact_version() -> None:
     assert {project["project"]["version"] for project in projects} == {version}
     assert projects[1]["project"]["dependencies"][-1] == f"quality-graph-core=={version}"
     assert projects[3]["project"]["dependencies"] == [f"quality-graph-core=={version}"]
+    assert f"quality-graph-core=={version}" in projects[4]["project"]["dependencies"]
 
 
 def test_release_workflow_is_tag_bound_and_least_privilege() -> None:

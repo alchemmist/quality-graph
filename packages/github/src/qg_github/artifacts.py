@@ -12,7 +12,7 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
-from quality_graph_core.result import JsonValue, Result, ResultStatus
+from quality_graph_core.result import JsonValue, Provenance, Result, ResultStatus
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -72,7 +72,7 @@ def download_results(
     for descriptor in _artifact_descriptors(port, expectation.workflow_run_id):
         if descriptor.node_id not in expectation.node_ids:
             message = f"artifact targets unknown graph node: {descriptor.node_id}"
-            raise ArtifactError(message)
+            raise DeclarationMismatchError(message)
         if descriptor.attempt > expectation.run_attempt:
             message = "result artifact attempt exceeds the latest workflow attempt"
             raise ArtifactError(message)
@@ -191,6 +191,9 @@ def _validate_result(
     expectation: ArtifactExpectation,
 ) -> None:
     provenance = result.provenance
+    if not isinstance(provenance, Provenance):
+        message = "GitHub artifact contains foreign provider provenance"
+        raise ArtifactError(message)
     expected = (
         expectation.repository,
         expectation.pull_request,

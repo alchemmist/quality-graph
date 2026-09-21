@@ -229,6 +229,9 @@ def main() -> int:
                     os.environ["QG_FAKE_GITHUB_URL"] = (
                         f"http://127.0.0.1:{os.environ.get('QG_FAKE_GITHUB_PORT', '18080')}"
                     )
+                    os.environ["QG_FAKE_GITLAB_URL"] = (
+                        f"http://127.0.0.1:{os.environ.get('QG_FAKE_GITLAB_PORT', '18081')}"
+                    )
                     run([*command, f"--junitxml={junit}"], "docker", junit)
             finally:
                 run([*compose, "down"], "Docker cleanup", infrastructure=True)

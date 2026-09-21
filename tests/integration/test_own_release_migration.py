@@ -27,11 +27,14 @@ def test_own_release_preserves_every_original_step_and_privilege(tmp_path: Path)
     generated = yaml.safe_load((tmp_path / ".github/workflows/release.yml").read_text())
     assert generated["on"] == original["on"]
     assert generated["permissions"] == original["permissions"]
-    assert set(generated["jobs"]) == set(original["jobs"])
+    assert set(generated["jobs"]) == {*original["jobs"], "publish-gitlab"}
     for identifier, before in original["jobs"].items():
         after = generated["jobs"][identifier]
         needs = before.get("needs", [])
-        assert after.get("needs", []) == ([needs] if isinstance(needs, str) else needs)
+        expected_needs = [needs] if isinstance(needs, str) else needs
+        if identifier == "release":
+            expected_needs = [*expected_needs, "publish-gitlab"]
+        assert after.get("needs", []) == expected_needs
         assert after["permissions"] == before.get("permissions", original["permissions"])
         assert after.get("environment") == before.get("environment")
         expected: list[dict[str, JsonValue]] = []
@@ -44,7 +47,14 @@ def test_own_release_preserves_every_original_step_and_privilege(tmp_path: Path)
                 }
             expected.append(item)
         assert after["steps"][: len(expected)] == expected
-        collection = after["steps"][len(expected)]
+        offset = len(expected)
+        if identifier == "build":
+            upload = after["steps"][offset]
+            assert upload["with"]["name"] == "quality-graph-gitlab"
+            assert upload["with"]["path"] == "dist/quality_graph_gitlab-*"
+            assert upload["with"]["if-no-files-found"] == "error"
+            offset += 1
+        collection = after["steps"][offset]
         assert collection["with"]["operation"] == "collect"
         assert collection["with"]["presentation"] == "release"
         assert collection["if"] == "always()"
@@ -57,6 +67,12 @@ def test_own_migration_does_not_weaken_or_reorder_quality_checks(event: str) -> 
     after = Graph.from_yaml((ROOT / "qg.yaml").read_text())
     original = project_graph(before, event)
     current = project_graph(after, event)
+    current = replace(
+        current,
+        nodes=tuple(
+            node for node in current.nodes if node.id not in {"documentation", "mutation-full"}
+        ),
+    )
     normalized = []
     for old, new in zip(original.nodes, current.nodes, strict=True):
         assert new.id == old.id
@@ -76,3 +92,32 @@ def test_own_migration_does_not_weaken_or_reorder_quality_checks(event: str) -> 
         assert new.step == replace(old.step, run=expected)
         normalized.append(replace(new, step=old.step, result=old.result))
     assert pr_contract(original) == pr_contract(replace(current, nodes=tuple(normalized)))
+
+
+def test_own_documentation_and_full_mutation_are_graph_checks(tmp_path: Path) -> None:
+    (tmp_path / "qg.yaml").write_text((ROOT / "qg.yaml").read_text())
+    project = Project.open(tmp_path)
+    project.generate()
+    for filename in ("quality-graph.yml", "quality-graph-push.yml"):
+        workflow = yaml.safe_load((tmp_path / ".github/workflows" / filename).read_text())
+        job = workflow["jobs"]["documentation"]
+        assert job["name"] == "Documentation"
+        assert any(step.get("run") == "make site-build" for step in job["steps"])
+        assert any(
+            step.get("with", {}).get("name") == "documentation-site" for step in job["steps"]
+        )
+    main = yaml.safe_load((tmp_path / ".github/workflows/quality-graph-push.yml").read_text())
+    assert any(
+        step.get("run") == "make mutation" for step in main["jobs"]["mutation-full"]["steps"]
+    )
+    generated = {path.name for path in (tmp_path / ".github/workflows").glob("*.yml")}
+    for path in (ROOT / ".github/workflows").glob("*.yml"):
+        if path.name in generated:
+            continue
+        workflow = yaml.safe_load(path.read_text())
+        assert all("run" not in step for job in workflow["jobs"].values() for step in job["steps"])
+    pages = yaml.safe_load((ROOT / ".github/workflows/pages.yml").read_text())
+    assert pages["on"]["workflow_run"]["workflows"] == [main["name"]]
+    deploy = pages["jobs"]["deploy"]
+    assert "conclusion == 'success'" in deploy["if"]
+    assert deploy["steps"][0]["with"]["run-id"] == "${{ github.event.workflow_run.id }}"

@@ -10,7 +10,14 @@ from typing import TYPE_CHECKING
 
 from qg_cli import __version__
 from qg_cli.project import Project
-from quality_graph_core.result import FailureKind, Metric, Provenance, Result, ResultStatus
+from quality_graph_core.result import (
+    FailureKind,
+    GitLabProvenance,
+    Metric,
+    Provenance,
+    Result,
+    ResultStatus,
+)
 from quality_graph_core.schema import graph_schema_json, producer_schema_json, result_schema_json
 
 if TYPE_CHECKING:
@@ -24,11 +31,12 @@ def parser() -> argparse.ArgumentParser:
     commands = result.add_subparsers(dest="command")
     initialize = commands.add_parser("init", help="Create a starter Quality Graph declaration")
     initialize.add_argument("--root", default=".")
-    initialize.add_argument("--runtime-action", required=True)
+    initialize.add_argument("--runtime-action", default="")
+    initialize.add_argument("--provider", default="github")
     initialize.add_argument("--default-branch", default="main")
     initialize.add_argument("--preset", choices=("oss", "internal"), default="oss")
     initialize.add_argument("--force", action="store_true")
-    generate = commands.add_parser("generate", help="Generate committed GitHub workflows")
+    generate = commands.add_parser("generate", help="Generate committed provider CI configuration")
     generate.add_argument("--root", default=".")
     validate_project = commands.add_parser("validate", help="Validate declaration freshness")
     validate_project.add_argument("--root", default=".")
@@ -55,23 +63,35 @@ def parser() -> argparse.ArgumentParser:
     schema = result_commands.add_parser("schema", help="Render the result JSON Schema")
     schema.add_argument("--producer", action="store_true", help="Render the producer input schema")
     schema.add_argument("--output", default="-", help="Output path or - for stdout")
+    schema.add_argument("--schema-version", type=int, choices=(0, 1), default=0)
     emit = result_commands.add_parser("emit", help="Emit a minimal native result")
+    _emission_arguments(emit)
+    return result
+
+
+def _emission_arguments(emit: argparse.ArgumentParser) -> None:
     emit.add_argument("--node-id", required=True)
     emit.add_argument("--title", required=True)
     emit.add_argument("--status", choices=tuple(ResultStatus), required=True)
     emit.add_argument("--failure-kind", choices=tuple(FailureKind))
     emit.add_argument("--summary", default="")
     emit.add_argument("--metric", action="append", default=[])
-    emit.add_argument("--repository", required=True)
+    emit.add_argument("--provider", choices=("github", "gitlab"), default="github")
+    emit.add_argument("--repository")
+    emit.add_argument("--server-url")
+    emit.add_argument("--project-id", type=int)
+    emit.add_argument("--pipeline-id", type=int)
+    emit.add_argument("--job-id", type=int)
+    emit.add_argument("--target-project-id", type=int)
+    emit.add_argument("--merge-request", type=int)
     emit.add_argument("--pull-request", type=int)
     emit.add_argument("--flow-id")
     emit.add_argument("--operation-id")
     emit.add_argument("--head-sha", required=True)
-    emit.add_argument("--workflow-run-id", type=int, required=True)
-    emit.add_argument("--run-attempt", type=int, required=True)
+    emit.add_argument("--workflow-run-id", type=int)
+    emit.add_argument("--run-attempt", type=int)
     emit.add_argument("--graph-digest", required=True)
     emit.add_argument("--output", default="-")
-    return result
 
 
 def main(arguments: Sequence[str] | None = None) -> int:
@@ -110,13 +130,22 @@ def _github_command(command_parser: argparse.ArgumentParser, args: argparse.Name
 
 def _project_command(args: argparse.Namespace) -> int:
     if args.command == "init":
-        Project.initialize(
-            Path(args.root),
-            args.runtime_action,
-            default_branch=args.default_branch,
-            preset=args.preset,
-            force=args.force,
-        )
+        if args.provider == "github":
+            Project.initialize(
+                Path(args.root),
+                args.runtime_action,
+                default_branch=args.default_branch,
+                preset=args.preset,
+                force=args.force,
+            )
+        else:
+            Project.initialize_provider(
+                Path(args.root),
+                args.provider,
+                default_branch=args.default_branch,
+                preset=args.preset,
+                force=args.force,
+            )
         return 0
     if args.command == "generate":
         Project.open(Path(args.root)).generate()
@@ -140,7 +169,10 @@ def _result_command(command_parser: argparse.ArgumentParser, args: argparse.Name
         Result.from_json(_read_text(args.path))
         return 0
     if args.result_command == "schema":
-        _write_text(args.output, producer_schema_json() if args.producer else result_schema_json())
+        _write_text(
+            args.output,
+            producer_schema_json() if args.producer else result_schema_json(args.schema_version),
+        )
         return 0
     if args.result_command == "emit":
         _write_text(args.output, _emitted_result(args).to_json())
@@ -156,19 +188,45 @@ def _emitted_result(args: argparse.Namespace) -> Result:
         args.node_id,
         args.title,
         ResultStatus(args.status),
-        Provenance(
-            args.repository,
-            args.head_sha,
-            args.workflow_run_id,
-            args.run_attempt,
-            args.graph_digest,
-            args.pull_request,
-            args.flow_id,
-            args.operation_id,
-        ),
+        _emission_provenance(args),
         failure,
         args.summary,
         metrics,
+    )
+
+
+def _emission_provenance(args: argparse.Namespace) -> Provenance | GitLabProvenance:
+    required = (
+        ("server_url", "project_id", "pipeline_id", "job_id")
+        if args.provider == "gitlab"
+        else ("repository", "workflow_run_id", "run_attempt")
+    )
+    missing = ["--" + field.replace("_", "-") for field in required if getattr(args, field) is None]
+    if missing:
+        message = f"{args.provider} results require {', '.join(missing)}"
+        raise ValueError(message)
+    if args.provider == "gitlab":
+        return GitLabProvenance(
+            args.server_url,
+            args.project_id,
+            args.head_sha,
+            args.pipeline_id,
+            args.job_id,
+            args.graph_digest,
+            args.target_project_id,
+            args.merge_request,
+            args.flow_id,
+            args.operation_id,
+        )
+    return Provenance(
+        args.repository,
+        args.head_sha,
+        args.workflow_run_id,
+        args.run_attempt,
+        args.graph_digest,
+        args.pull_request,
+        args.flow_id,
+        args.operation_id,
     )
 
 

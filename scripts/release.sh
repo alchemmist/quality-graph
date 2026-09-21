@@ -28,7 +28,7 @@ if [[ $(git rev-parse HEAD) != $(git rev-parse origin/main) ]]; then
 	exit 1
 fi
 
-packages=(quality-graph-core quality-graph-python quality-graph-github quality-graph-cli)
+packages=(quality-graph-core quality-graph-python quality-graph-github quality-graph-gitlab quality-graph-cli)
 current=$(uv version --package "${packages[0]}" --short)
 for package in "${packages[@]:1}"; do
 	if [[ $(uv version --package "$package" --short) != "$current" ]]; then
@@ -47,16 +47,21 @@ fi
 for package in "${packages[@]}"; do
 	uv version "$next" --package "$package" --frozen
 done
-dependency_files=(apps/qg/pyproject.toml packages/github/pyproject.toml)
+dependency_files=(apps/qg/pyproject.toml packages/github/pyproject.toml packages/gitlab/pyproject.toml)
 sed -i.bak "s/quality-graph-core==$current/quality-graph-core==$next/g" \
 	"${dependency_files[@]}"
 rm -f "${dependency_files[@]/%/.bak}"
+sed -i.bak "s/runtime-version: $current/runtime-version: $next/g" examples/gitlab/qg.yaml
+rm -f examples/gitlab/qg.yaml.bak
 uv lock
+
+make examples-generate
 
 make check BASE=origin/main
 
 git add apps/qg/pyproject.toml packages/core/pyproject.toml \
-	packages/github/pyproject.toml packages/python/pyproject.toml uv.lock
+	packages/github/pyproject.toml packages/gitlab/pyproject.toml packages/python/pyproject.toml uv.lock
+git add examples/gitlab
 git commit -m "release $tag"
 git tag -a "$tag" -m "release $tag"
 git push --atomic origin main "$tag"

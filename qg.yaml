@@ -163,6 +163,20 @@ operations:
       --output reports/package.json -- make package'
     results:
       native: reports/package.json
+  documentation:
+    title: Documentation
+    profile: python
+    steps:
+    - run: make site-build
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: documentation-site
+        path: site
+        if-no-files-found: error
+  mutation-full:
+    title: Full mutation gate
+    profile: python
+    run: make mutation
   release-build:
     profile: release
     steps:
@@ -193,6 +207,11 @@ operations:
       with:
         name: quality-graph-cli
         path: dist/quality_graph_cli-*
+        if-no-files-found: error
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: quality-graph-gitlab
+        path: dist/quality_graph_gitlab-*
         if-no-files-found: error
   publish-core:
     profile: release
@@ -233,6 +252,19 @@ operations:
     environment:
       name: pypi-github
       url: https://pypi.org/project/quality-graph-github/
+  publish-gitlab:
+    profile: release
+    steps:
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        name: quality-graph-gitlab
+        path: dist
+    - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+    permissions:
+      id-token: write
+    environment:
+      name: pypi-gitlab
+      url: https://pypi.org/project/quality-graph-gitlab/
   publish-cli:
     profile: release
     steps:
@@ -268,6 +300,9 @@ flows:
     presentation: github-pr
     nodes:
       workflow-graph: {}
+      documentation:
+        needs:
+        - workflow-graph
       format:
         needs:
         - workflow-graph
@@ -329,6 +364,9 @@ flows:
     presentation: none
     nodes:
       workflow-graph: {}
+      documentation:
+        needs:
+        - workflow-graph
       format:
         needs:
         - workflow-graph
@@ -381,6 +419,10 @@ flows:
       package:
         needs:
         - audit
+      mutation-full:
+        needs:
+        - test-fast
+        - test-medium
   release:
     trigger:
       push:
@@ -403,6 +445,10 @@ flows:
         needs:
         - build
         - publish-core
+      publish-gitlab:
+        needs:
+        - build
+        - publish-core
       publish-cli:
         needs:
         - build
@@ -414,3 +460,4 @@ flows:
         - publish-python
         - publish-github
         - publish-cli
+        - publish-gitlab

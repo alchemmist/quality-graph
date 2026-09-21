@@ -1,0 +1,11 @@
+.git
+.venv
+.tools
+**/__pycache__
+**/.state
+node_modules
+dist
+build
+reports
+mutants
+.env

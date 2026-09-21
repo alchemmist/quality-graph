@@ -14,6 +14,7 @@ members = [
     "quality-graph-cli",
     "quality-graph-core",
     "quality-graph-github",
+    "quality-graph-gitlab",
     "quality-graph-python",
 ]
 
@@ -2207,6 +2208,25 @@ dependencies = [
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "quality-graph-core", editable = "packages/core" },
+]
+
+[[package]]
+name = "quality-graph-gitlab"
+version = "0.1.10"
+source = { editable = "packages/gitlab" }
+dependencies = [
+    { name = "anyio" },
+    { name = "httpx" },
+    { name = "pyyaml" },
+    { name = "quality-graph-core" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anyio", specifier = ">=4.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "quality-graph-core", editable = "packages/core" },
 ]
