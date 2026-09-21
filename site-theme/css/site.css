@@ -157,9 +157,17 @@ a:focus-visible {
   top: 50%;
   left: 28px;
   width: 180px;
+  max-height: calc(100vh - 56px);
+  max-height: calc(100dvh - 56px);
+  overflow-y: auto;
+  scrollbar-width: none;
   transform: translateY(-50%);
   font-size: 0.8125rem;
   line-height: 1.5;
+}
+
+.docs-sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .docs-sidebar section + section {
@@ -258,6 +266,8 @@ a:focus-visible {
 
   .docs-sidebar {
     position: static;
+    max-height: none;
+    overflow: visible;
     width: min(680px, calc(100% - 40px));
     margin: 0 auto 46px;
     padding: 44px 0 26px;
