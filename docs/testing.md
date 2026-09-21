@@ -107,8 +107,8 @@ adapters instead of maintaining a separate Docker fake.
 
 All repository checks are declared in `qg.yaml`. Documentation builds run in both the pull-request
 and main flows; the full mutation gate runs on each push to main, replacing the separate weekly
-workflow. `make check` also builds the documentation locally. The Pages workflow only publishes
-the documentation artifact from a successful main graph run and does not execute checks.
+workflow. `make check` also builds the documentation locally. The Pages workflow starts independently on every push to main. It builds and publishes
+the site without waiting for the quality graph; Documentation remains a graph check.
 
 The PR publisher trusts the base branch declaration. Additional checks can be admitted
 when every existing check, dependency and governance setting is unchanged. New checks

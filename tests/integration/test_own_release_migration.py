@@ -110,14 +110,13 @@ def test_own_documentation_and_full_mutation_are_graph_checks(tmp_path: Path) ->
     assert any(
         step.get("run") == "make mutation" for step in main["jobs"]["mutation-full"]["steps"]
     )
-    generated = {path.name for path in (tmp_path / ".github/workflows").glob("*.yml")}
-    for path in (ROOT / ".github/workflows").glob("*.yml"):
-        if path.name in generated:
-            continue
-        workflow = yaml.safe_load(path.read_text())
-        assert all("run" not in step for job in workflow["jobs"].values() for step in job["steps"])
     pages = yaml.safe_load((ROOT / ".github/workflows/pages.yml").read_text())
-    assert pages["on"]["workflow_run"]["workflows"] == [main["name"]]
+    assert pages["on"] == {"push": {"branches": ["main"]}}
     deploy = pages["jobs"]["deploy"]
-    assert "conclusion == 'success'" in deploy["if"]
-    assert deploy["steps"][0]["with"]["run-id"] == "${{ github.event.workflow_run.id }}"
+    assert "needs" not in deploy
+    assert "if" not in deploy
+    commands = [step["run"] for step in deploy["steps"] if "run" in step]
+    assert commands == ["uv sync --locked --all-groups --all-packages", "make site-build"]
+    assert deploy["permissions"] == {"contents": "read", "pages": "write", "id-token": "write"}
+    assert deploy["steps"][0]["uses"].startswith("actions/checkout@")
+    assert deploy["steps"][-1]["uses"].startswith("actions/deploy-pages@")
