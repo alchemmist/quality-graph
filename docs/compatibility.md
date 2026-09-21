@@ -1,6 +1,7 @@
 # Compatibility policy
 
-Until the separate contract-freeze decision:
+The configuration and result contracts will be frozen with the release of version `1.0.0`.
+Until then:
 
 - configuration may change without a migration command;
 - native result producers must pin the same exact runtime commit as generated workflows;
