@@ -16,7 +16,7 @@ default:
   tags:
   - qg-execution
   before_script:
-  - python -m pip install --disable-pip-version-check quality-graph-gitlab==0.1.10
+  - python -m pip install --disable-pip-version-check quality-graph-gitlab==0.2.0
 qg:mr:test:
   stage: quality
   rules:

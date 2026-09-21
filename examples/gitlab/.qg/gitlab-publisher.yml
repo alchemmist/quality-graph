@@ -14,7 +14,7 @@ publish:
     GIT_STRATEGY: none
   resource_group: quality-graph-publication
   before_script:
-  - python -m pip install --disable-pip-version-check quality-graph-gitlab==0.1.10
+  - python -m pip install --disable-pip-version-check quality-graph-gitlab==0.2.0
   script:
   - qg-gitlab publish
   timeout: 10 minutes

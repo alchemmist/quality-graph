@@ -2169,7 +2169,7 @@ dev = [
 
 [[package]]
 name = "quality-graph-cli"
-version = "0.1.10"
+version = "0.2.0"
 source = { editable = "apps/qg" }
 dependencies = [
     { name = "quality-graph-core" },
@@ -2180,7 +2180,7 @@ requires-dist = [{ name = "quality-graph-core", editable = "packages/core" }]
 
 [[package]]
 name = "quality-graph-core"
-version = "0.1.10"
+version = "0.2.0"
 source = { editable = "packages/core" }
 dependencies = [
     { name = "defusedxml" },
@@ -2195,7 +2195,7 @@ requires-dist = [
 
 [[package]]
 name = "quality-graph-github"
-version = "0.1.10"
+version = "0.2.0"
 source = { editable = "packages/github" }
 dependencies = [
     { name = "httpx" },
@@ -2214,7 +2214,7 @@ requires-dist = [
 
 [[package]]
 name = "quality-graph-gitlab"
-version = "0.1.10"
+version = "0.2.0"
 source = { editable = "packages/gitlab" }
 dependencies = [
     { name = "anyio" },
@@ -2233,7 +2233,7 @@ requires-dist = [
 
 [[package]]
 name = "quality-graph-python"
-version = "0.1.10"
+version = "0.2.0"
 source = { editable = "packages/python" }
 dependencies = [
     { name = "anyio" },
