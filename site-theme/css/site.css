@@ -164,8 +164,12 @@ a:focus-visible {
   --sidebar-mask: linear-gradient(
     to bottom,
     transparent,
+    rgb(0 0 0 / 15%) calc(var(--sidebar-fade-top, 0px) * 0.5),
+    rgb(0 0 0 / 60%) calc(var(--sidebar-fade-top, 0px) * 0.8),
     #000 var(--sidebar-fade-top, 0px),
     #000 calc(100% - var(--sidebar-fade-bottom, 0px)),
+    rgb(0 0 0 / 60%) calc(100% - var(--sidebar-fade-bottom, 0px) * 0.8),
+    rgb(0 0 0 / 15%) calc(100% - var(--sidebar-fade-bottom, 0px) * 0.5),
     transparent
   );
   -webkit-mask-image: var(--sidebar-mask);

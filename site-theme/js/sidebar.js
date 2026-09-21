@@ -7,8 +7,8 @@
 
   const updateEdges = () => {
     const remaining = sidebar.scrollHeight - sidebar.clientHeight - sidebar.scrollTop;
-    sidebar.style.setProperty('--sidebar-fade-top', `${sidebar.scrollTop <= 1 ? 0 : Math.min(32, sidebar.scrollTop)}px`);
-    sidebar.style.setProperty('--sidebar-fade-bottom', `${remaining <= 1 ? 0 : Math.min(32, remaining)}px`);
+    sidebar.style.setProperty('--sidebar-fade-top', `${sidebar.scrollTop <= 1 ? 0 : Math.min(64, sidebar.scrollTop)}px`);
+    sidebar.style.setProperty('--sidebar-fade-bottom', `${remaining <= 1 ? 0 : Math.min(64, remaining)}px`);
   };
 
   const restore = () => {
