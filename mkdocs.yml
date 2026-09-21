@@ -36,6 +36,5 @@ nav:
       - Integration testing: testing.md
       - Local GitLab laboratory: gitlab-testing.md
       - Finding adopters: adopter-discovery.md
-      - Monori parity: monori-parity.md
       - Release: release.md
       - Troubleshooting: troubleshooting.md
