@@ -79,6 +79,5 @@ gates.
 Continue with the [quickstart](quickstart.md), or follow the staged
 [migration guide](migration.md) for an existing CI repository.
 
-Repositories upgrading from `v0.1.7` or earlier must rename the source specification before
-running the new CLI. Follow the complete [v0.1.8 upgrade guide](upgrading-v0.1.8.md); this release
-does not provide a compatibility alias for `quality-graph.yml`.
+For version-specific upgrade instructions and breaking changes, see the
+[GitHub release notes](https://github.com/alchemmist/quality-graph/releases).

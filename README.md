@@ -65,7 +65,5 @@ qg validate
 `qg generated-files` prints the provider-owned paths that should be committed or passed to
 repository tooling. See the [installation guide](docs/installation.md) for the complete setup.
 
-> [!IMPORTANT]
-> Version `0.1.8` intentionally replaces `quality-graph.yml` with `qg.yaml` without a fallback.
-> Existing installations must follow the ordered [v0.1.8 upgrade guide](docs/upgrading-v0.1.8.md)
-> before running the upgraded CLI.
+For version-specific upgrade instructions and breaking changes, see the
+[GitHub release notes](https://github.com/alchemmist/quality-graph/releases).

@@ -18,10 +18,9 @@ nav:
   - Start here:
       - Installation: installation.md
       - Quickstart: quickstart.md
-      - GitLab: gitlab.md
-      - Upgrade to v0.1.8: upgrading-v0.1.8.md
       - Migration: migration.md
   - Reference:
+      - GitLab: gitlab.md
       - Configuration: configuration.md
       - Operations and flows: flows.md
       - Release flow contracts: release-flows.md
@@ -31,10 +30,10 @@ nav:
       - Security: security.md
       - Commands: commands.md
       - Compatibility: compatibility.md
+      - Troubleshooting: troubleshooting.md
   - Contributing:
       - Provider authoring: provider-authoring.md
       - Integration testing: testing.md
       - Local GitLab laboratory: gitlab-testing.md
       - Finding adopters: adopter-discovery.md
       - Release: release.md
-      - Troubleshooting: troubleshooting.md

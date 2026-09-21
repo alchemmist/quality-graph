@@ -14,9 +14,9 @@ qg validate
 Commands reject the former filename instead of treating it as a fallback. If both files exist,
 remove `quality-graph.yml` before running Quality Graph again.
 
-This rename is a breaking change in `v0.1.8`. When upgrading an existing Quality Graph
-installation, use the ordered [v0.1.8 upgrade guide](upgrading-v0.1.8.md) so the package version,
-source filename, immutable Action pins, and generated workflows move together.
+For version-specific upgrade instructions and breaking changes, see the
+[GitHub release notes](https://github.com/alchemmist/quality-graph/releases). Keep package
+versions, immutable Action pins, and generated workflows on a compatible release set.
 
 Migrate orchestration before deleting working checks. Existing commands remain the behavioral
 baseline; Quality Graph initially calls the same Make targets and report producers.
