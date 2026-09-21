@@ -5,6 +5,12 @@
 
   const storageKey = 'quality-graph:sidebar:v1';
 
+  const updateEdges = () => {
+    const remaining = sidebar.scrollHeight - sidebar.clientHeight - sidebar.scrollTop;
+    sidebar.style.setProperty('--sidebar-fade-top', `${sidebar.scrollTop <= 1 ? 0 : Math.min(32, sidebar.scrollTop)}px`);
+    sidebar.style.setProperty('--sidebar-fade-bottom', `${remaining <= 1 ? 0 : Math.min(32, remaining)}px`);
+  };
+
   const restore = () => {
     try {
       const state = JSON.parse(sessionStorage.getItem(storageKey));
@@ -19,6 +25,7 @@
   };
 
   const save = () => {
+    updateEdges();
     try {
       sessionStorage.setItem(storageKey, JSON.stringify({
         open: disclosure.open,
@@ -30,9 +37,14 @@
   };
 
   restore();
+  updateEdges();
+  new ResizeObserver(updateEdges).observe(sidebar);
   sidebar.addEventListener('scroll', save, { passive: true });
   disclosure.addEventListener('toggle', save);
   sidebar.addEventListener('click', save, { capture: true });
   window.addEventListener('pagehide', save);
-  window.addEventListener('pageshow', restore);
+  window.addEventListener('pageshow', () => {
+    restore();
+    updateEdges();
+  });
 })();

@@ -161,6 +161,15 @@ a:focus-visible {
   max-height: calc(100dvh - 56px);
   overflow-y: auto;
   scrollbar-width: none;
+  --sidebar-mask: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--sidebar-fade-top, 0px),
+    #000 calc(100% - var(--sidebar-fade-bottom, 0px)),
+    transparent
+  );
+  -webkit-mask-image: var(--sidebar-mask);
+  mask-image: var(--sidebar-mask);
   transform: translateY(-50%);
   font-size: 0.8125rem;
   line-height: 1.5;
@@ -277,6 +286,8 @@ a:focus-visible {
     position: static;
     max-height: none;
     overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
     width: min(680px, calc(100% - 40px));
     margin: 0 auto 46px;
     padding: 44px 0 26px;
