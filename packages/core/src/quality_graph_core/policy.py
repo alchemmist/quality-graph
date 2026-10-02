@@ -125,7 +125,7 @@ def _effective_result(
             or ApprovalTarget(ControlKind.FILE, finding.location.path) not in approvals
         )
     )
-    if result.findings and not blocking:
+    if result.findings and not blocking and not result.omitted_findings:
         return _passed(result, controls)
     return replace(result, controls=controls)
 

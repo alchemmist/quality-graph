@@ -196,6 +196,7 @@ def junit_report(report: bytes) -> dict[str, JsonValue]:
         else [],
     }
     if failures > MAX_JUNIT_FINDINGS:
+        value["omittedFindings"] = failures - MAX_JUNIT_FINDINGS
         notes = cast("list[JsonValue]", value["notes"])
         notes.append(f"{failures - MAX_JUNIT_FINDINGS} additional findings omitted.")
     if findings:

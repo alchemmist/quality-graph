@@ -351,6 +351,10 @@
       "maxItems": 100,
       "type": "array"
     },
+    "omittedFindings": {
+      "minimum": 0,
+      "type": "integer"
+    },
     "provenance": {
       "$ref": "#/$defs/provenance"
     },

@@ -125,3 +125,7 @@ JUnit and SARIF are standard producer formats converted through the same result 
 path. JUnit findings include the test name, and diagnostics preserve bounded failure/error traces.
 For commands without a structured format, captured output is diagnostic text; the framework does
 not infer source findings or test counts from arbitrary stdout.
+
+Reports with omitted JUnit failures carry `omittedFindings`. Finding and file approvals
+cannot clear these unknown failures; an explicitly enabled whole-node approval is required.
+Upgrade the collector and trusted publisher together before emitting this optional field.

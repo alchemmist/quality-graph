@@ -339,6 +339,10 @@
       "maxItems": 100,
       "type": "array"
     },
+    "omittedFindings": {
+      "minimum": 0,
+      "type": "integer"
+    },
     "reportVersion": {
       "const": 0
     },
