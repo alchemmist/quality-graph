@@ -18,16 +18,8 @@ from qg_github.publication import (
     watch_workflow_run,
 )
 from qg_github.reporting import append_job_summary
-from quality_graph_core.adapters import (
-    AdapterContext,
-    AdapterError,
-    adapt_exit,
-    adapt_junit,
-    adapt_native,
-    adapt_sarif,
-    adapter_failure,
-    read_report,
-)
+from quality_graph_core.adapters import AdapterContext
+from quality_graph_core.collection import collect_report
 from quality_graph_core.graph import AdapterKind, ApprovalPolicy
 from quality_graph_core.policy import policy_controls
 from quality_graph_core.result import FailureKind, JsonValue, Provenance, Result, ResultStatus
@@ -95,31 +87,10 @@ class CollectionRequest:
 
 def collect(request: CollectionRequest) -> Result:
     """Collect one command outcome through its selected adapter."""
-    try:
-        if request.adapter is AdapterKind.EXIT_CODE:
-            output = ""
-            if request.report_path is not None:
-                try:
-                    output = read_report(request.workspace, request.report_path).decode()
-                except UnicodeDecodeError as error:
-                    message = "Exit-code command output must be UTF-8"
-                    raise AdapterError(message) from error
-            return _with_policy_controls(
-                request,
-                adapt_exit(request.context, output),
-            )
-        report = _structured_report(request)
-        if request.adapter is AdapterKind.NATIVE:
-            return _with_policy_controls(request, adapt_native(request.context, report))
-        if request.adapter is AdapterKind.SARIF:
-            result = adapt_sarif(request.context, report)
-        else:
-            result = adapt_junit(request.context, report)
-        return _with_policy_controls(request, result)
-    except (AdapterError, OSError) as error:
-        return _with_policy_controls(
-            request, adapter_failure(request.context, AdapterError(str(error)))
-        )
+    result = collect_report(
+        request.context, request.adapter, request.workspace, request.report_path
+    )
+    return _with_policy_controls(request, result)
 
 
 def _with_policy_controls(request: CollectionRequest, result: Result) -> Result:
@@ -127,13 +98,6 @@ def _with_policy_controls(request: CollectionRequest, result: Result) -> Result:
         return replace(result, controls=())
     controls = policy_controls(result.node_id, result.findings, request.approval_policy)
     return replace(result, controls=controls)
-
-
-def _structured_report(request: CollectionRequest) -> bytes:
-    if request.report_path is None:
-        message = f"{request.adapter.value} adapter requires a report path"
-        raise AdapterError(message)
-    return read_report(request.workspace, request.report_path)
 
 
 def publish_collection(request: CollectionRequest, result: Result) -> int:
