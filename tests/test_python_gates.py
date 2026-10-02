@@ -389,3 +389,19 @@ def test_flaky_gate_runs_test_scope_for_fixture_and_helper_changes(
     selected = flaky.changed_test_files("main")
     assert selected == ("tests",)
     assert flaky.repeat(selected, 2) == 0
+
+
+def test_flaky_gate_does_not_collect_application_modules(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "application.py").write_text("value = 1\n")
+    monkeypatch.setattr(
+        "qg_python.flaky.patch_for_base",
+        lambda _base: (
+            "diff --git a/application.py b/application.py\n"
+            "+++ b/application.py\n@@ -1 +1 @@\n+value = 1\n"
+        ),
+    )
+    assert flaky.changed_test_files("main") == ()
