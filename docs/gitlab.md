@@ -163,7 +163,8 @@ by the trusted graph.
 ## Pipelines and supported differences
 
 - MR checks target the configured protected default branch. Ordinary push checks
-  run on branches; open MRs suppress duplicate branch pipelines. Explicit push flows
+  run on branches, including branches with open MRs. MR and push projections are
+  independent: declaring both runs both, so push-only checks cannot disappear. Explicit push flows
   can restrict their branch membership.
 - Explicit MR flows use `presentation: gitlab-mr`; `none` opts out of publication.
 - A legitimate explicit result skip remains a skip. Missing evidence is not a skip,
