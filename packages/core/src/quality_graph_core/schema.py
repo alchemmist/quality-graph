@@ -137,6 +137,7 @@ def result_schema_value() -> dict[str, JsonValue]:
         "annotations": _array_schema({"$ref": "#/$defs/annotation"}, 10_000),
         "diagnostics": _array_schema({"$ref": "#/$defs/diagnostic"}, 100),
         "controls": _array_schema({"$ref": "#/$defs/control"}, 10_000),
+        "omittedFindings": {"type": "integer", "minimum": 0},
         "notes": _array_schema(_string_schema(minimum=1, maximum=1_000), 100),
         "provenance": {"$ref": "#/$defs/provenance"},
     }
