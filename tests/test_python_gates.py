@@ -368,3 +368,24 @@ def test_gate_main_functions_handle_clean_and_failing_changes(
 
 def ast_constant(value: str) -> ast.Constant:
     return ast.Constant(value=value, lineno=1, col_offset=0)
+
+
+@pytest.mark.parametrize("changed", ["tests/conftest.py", "tests/helpers.py", "tests/__init__.py"])
+def test_flaky_gate_runs_test_scope_for_fixture_and_helper_changes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    changed: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / changed).write_text("value = 1\n")
+    (tmp_path / "tests/test_sample.py").write_text("def test_sample():\n    assert 1 == 1\n")
+    monkeypatch.setattr(
+        "qg_python.flaky.patch_for_base",
+        lambda _base: (
+            f"diff --git a/{changed} b/{changed}\n+++ b/{changed}\n@@ -1 +1 @@\n+value = 1\n"
+        ),
+    )
+    selected = flaky.changed_test_files("main")
+    assert selected == ("tests",)
+    assert flaky.repeat(selected, 2) == 0
