@@ -12,6 +12,7 @@ from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
 
 from quality_graph_core.result import (
+    MAX_FINDINGS,
     Annotation,
     Diagnostic,
     DiagnosticKind,
@@ -54,7 +55,7 @@ if TYPE_CHECKING:
 MAX_REPORT_BYTES = 10 * 1024 * 1024
 MAX_SUMMARY_CHARACTERS = 60_000
 MAX_JUNIT_DIAGNOSTICS = 100
-MAX_JUNIT_FINDINGS = 10_000
+MAX_JUNIT_FINDINGS = MAX_FINDINGS
 
 
 class AdapterError(ValueError):
@@ -142,7 +143,7 @@ def _adapt_sarif(context: AdapterContext, report: bytes) -> Result:
             fingerprint = hashlib.sha256(identity.encode()).hexdigest()
             resolved = replace(finding, id=f"sarif-{fingerprint[:24]}", fingerprint=fingerprint)
         findings.append(resolved)
-        if annotation is not None:
+        if annotation is not None and len(findings) <= MAX_FINDINGS:
             annotations.append(annotation)
     errors = sum(finding.severity is Severity.ERROR for finding in findings)
     status = ResultStatus.FAILED if errors or not context.command_succeeded else ResultStatus.PASSED
@@ -154,8 +155,9 @@ def _adapt_sarif(context: AdapterContext, report: bytes) -> Result:
         FailureKind.QUALITY if status is ResultStatus.FAILED else None,
         f"Found {len(findings)} SARIF findings ({errors} errors).",
         (Metric("Findings", str(len(findings))), Metric("Errors", str(errors))),
-        tuple(findings),
+        tuple(findings[:MAX_FINDINGS]),
         tuple(annotations),
+        omitted_findings=max(0, len(findings) - MAX_FINDINGS),
     )
     return _reconcile_command(context, result)
 
@@ -272,6 +274,12 @@ def adapter_failure(context: AdapterContext, error: AdapterError) -> Result:
 
 
 def _reconcile_command(context: AdapterContext, result: Result) -> Result:
+    if (
+        context.command_succeeded
+        and result.omitted_findings
+        and result.status is ResultStatus.PASSED
+    ):
+        result = replace(result, status=ResultStatus.FAILED, failure_kind=FailureKind.QUALITY)
     if context.command_succeeded or result.status in {ResultStatus.FAILED, ResultStatus.CANCELLED}:
         return result
     diagnostic = Diagnostic(
