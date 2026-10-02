@@ -16,6 +16,7 @@ from qg_github.declarations import read_pr_results
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
 from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
+from quality_graph_core.json_values import JSON
 from quality_graph_core.policy import ApprovalTarget, effective_graph
 from quality_graph_core.result import ControlKind, JsonValue
 
@@ -103,16 +104,16 @@ def command_request(
     bot_logins: tuple[str, ...] = (DEFAULT_BOT_LOGIN,),
 ) -> CommandRequest | None:
     """Extract a direct command or one canonical checkbox transition."""
-    event = _object(event_value, "issue comment event")
-    comment = _object(event.get("comment"), "issue comment")
-    comment_id = _integer(comment.get("id"), "comment id")
-    body = _string(comment.get("body"), "comment body").strip()
-    issue = _object(event.get("issue"), "issue")
-    number = _optional_integer(issue.get("number"), "issue number")
+    event = JSON.object(event_value, "issue comment event")
+    comment = JSON.object(event.get("comment"), "issue comment")
+    comment_id = JSON.integer(comment.get("id"), "comment id")
+    body = JSON.string(comment.get("body"), "comment body").strip()
+    issue = JSON.object(event.get("issue"), "issue")
+    number = JSON.optional_integer(issue.get("number"), "issue number")
     pull_request = number if issue.get("pull_request") is not None else None
     author = comment.get("user")
     author_login = (
-        _optional_string(author.get("login"), "comment author")
+        JSON.optional_string(author.get("login"), "comment author")
         if isinstance(author, dict)
         else None
     )
@@ -120,9 +121,9 @@ def command_request(
         return CommandRequest(comment_id, body, author_login, pull_request)
     if event.get("action") != "edited" or author_login not in bot_logins:
         return None
-    changes = _object(event.get("changes"), "comment changes")
-    body_change = _object(changes.get("body"), "comment body change")
-    previous = _string(body_change.get("from"), "previous comment body")
+    changes = JSON.object(event.get("changes"), "comment changes")
+    body_change = JSON.object(changes.get("body"), "comment body change")
+    previous = JSON.string(body_change.get("from"), "previous comment body")
     before = control_states(previous)
     after = control_states(body)
     changed = [marker for marker in before.keys() & after.keys() if before[marker] != after[marker]]
@@ -132,8 +133,8 @@ def command_request(
     if commands is None:
         return None
     apply, reverse = commands
-    sender = _object(event.get("sender"), "event sender")
-    actor = _optional_string(sender.get("login"), "event sender login")
+    sender = JSON.object(event.get("sender"), "event sender")
+    actor = JSON.optional_string(sender.get("login"), "event sender login")
     selected = apply if after[changed[0]] else reverse
     return CommandRequest(comment_id, selected, actor, pull_request, previous)
 
@@ -185,9 +186,9 @@ def dispatch_pr_command(port: GitHubPort, event_value: JsonValue) -> CommandOutc
     request = command_request(event_value)
     if request is None or request.pull_request is None:
         return CommandOutcome(handled=False)
-    pull = _object(port.request("GET", f"/pulls/{request.pull_request}"), "pull request")
-    base = _object(pull.get("base"), "pull request base")
-    base_sha = _string(base.get("sha"), "pull request base SHA")
+    pull = JSON.object(port.request("GET", f"/pulls/{request.pull_request}"), "pull request")
+    base = JSON.object(pull.get("base"), "pull request base")
+    base_sha = JSON.string(base.get("sha"), "pull request base SHA")
     graph = Graph.from_yaml(_repository_file(port, "qg.yaml", base_sha))
     if pr_presentation_graph(graph) is None:
         return CommandOutcome(handled=False)
@@ -196,11 +197,11 @@ def dispatch_pr_command(port: GitHubPort, event_value: JsonValue) -> CommandOutc
 
 # pragma: no mutate start
 def _command_context(port: GitHubPort, number: int) -> CommandContext:
-    pull = _object(port.request("GET", f"/pulls/{number}"), "pull request")
-    head = _object(pull.get("head"), "pull request head")
-    base = _object(pull.get("base"), "pull request base")
-    head_sha = _string(head.get("sha"), "pull request head SHA")
-    base_sha = _string(base.get("sha"), "pull request base SHA")
+    pull = JSON.object(port.request("GET", f"/pulls/{number}"), "pull request")
+    head = JSON.object(pull.get("head"), "pull request head")
+    base = JSON.object(pull.get("base"), "pull request base")
+    head_sha = JSON.string(head.get("sha"), "pull request head SHA")
+    base_sha = JSON.string(base.get("sha"), "pull request base SHA")
     graph = Graph.from_yaml(_repository_file(port, "qg.yaml", base_sha))
     compiled = compile_graph(graph)
     projected = pr_presentation_graph(graph)
@@ -209,8 +210,8 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
         raise ValueError(message)
     graph = projected
     run = _latest_run(port, number)
-    run_id = _integer(run.get("id"), "workflow run id")
-    attempt = _integer(run.get("run_attempt", 1), "workflow run attempt")
+    run_id = JSON.integer(run.get("id"), "workflow run id")
+    attempt = JSON.integer(run.get("run_attempt", 1), "workflow run attempt")
     expectation = ArtifactExpectation(
         port.repository,
         number,
@@ -235,15 +236,15 @@ def _latest_run(port: GitHubPort, number: int) -> dict[str, JsonValue]:
             "/actions/workflows/quality-graph.yml/runs?event=pull_request"
             f"&per_page={GITHUB_PAGE_SIZE}&page={page}"
         )
-        response = _object(port.request("GET", path), "workflow runs")
-        values = _array(response.get("workflow_runs", []), "workflow runs")
+        response = JSON.object(port.request("GET", path), "workflow runs")
+        values = JSON.array(response.get("workflow_runs", []), "workflow runs")
         runs.extend(
             run
             for value in values
-            for run in (_object(value, "workflow run"),)
+            for run in (JSON.object(value, "workflow run"),)
             if any(
-                _object(pull, "workflow pull request").get("number") == number
-                for pull in _array(run.get("pull_requests", []), "workflow pull requests")
+                JSON.object(pull, "workflow pull request").get("number") == number
+                for pull in JSON.array(run.get("pull_requests", []), "workflow pull requests")
             )
         )
         if len(values) < GITHUB_PAGE_SIZE:
@@ -252,7 +253,7 @@ def _latest_run(port: GitHubPort, number: int) -> dict[str, JsonValue]:
     if not runs:
         message = f"no Quality Graph workflow run found for PR #{number}"
         raise ValueError(message)
-    return max(runs, key=lambda run: _integer(run.get("id"), "workflow run id"))
+    return max(runs, key=lambda run: JSON.integer(run.get("id"), "workflow run id"))
 
 
 # pragma: no mutate end
@@ -262,8 +263,8 @@ def _authorized(port: GitHubPort, actor: str, roles: tuple[str, ...]) -> bool:
         response = port.request("GET", f"/collaborators/{login}/permission")
     except RuntimeError:
         return False
-    data = _object(response, "collaborator permission")
-    permission = _optional_string(data.get("permission"), "collaborator permission")
+    data = JSON.object(response, "collaborator permission")
+    permission = JSON.optional_string(data.get("permission"), "collaborator permission")
     return permission in roles
 
 
@@ -292,11 +293,11 @@ def _command_targets(
 def _repository_file(port: GitHubPort, path: str, ref: str) -> str:
     encoded_path = urllib.parse.quote(path, safe="")
     encoded_ref = urllib.parse.quote(ref, safe="")
-    response = _object(
+    response = JSON.object(
         port.request("GET", f"/contents/{encoded_path}?ref={encoded_ref}"),
         "repository file",
     )
-    content = _string(response.get("content"), "repository file content")
+    content = JSON.string(response.get("content"), "repository file content")
     return base64.b64decode(content.replace("\n", ""), validate=True).decode()
 
 
@@ -320,42 +321,6 @@ def _help_body() -> str:
 - `/qg remove-ignore <finding-or-node>`
 - `/qg ignore-file <path>`
 - `/qg remove-ignore-file <path>`"""
-
-
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict):
-        message = f"{context} must be an object"
-        raise TypeError(message)
-    return value
-
-
-def _array(value: JsonValue, context: str) -> list[JsonValue]:
-    if not isinstance(value, list):
-        message = f"{context} must be an array"
-        raise TypeError(message)
-    return value
-
-
-def _string(value: JsonValue, context: str) -> str:
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise TypeError(message)
-    return value
-
-
-def _optional_string(value: JsonValue, context: str) -> str | None:
-    return None if value is None else _string(value, context)
-
-
-def _integer(value: JsonValue, context: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        message = f"{context} must be an integer"
-        raise TypeError(message)
-    return value
-
-
-def _optional_integer(value: JsonValue, context: str) -> int | None:
-    return None if value is None else _integer(value, context)
 
 
 # pragma: no mutate end

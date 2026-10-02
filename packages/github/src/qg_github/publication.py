@@ -29,6 +29,7 @@ from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
 from qg_github.labels import parse_label_state, reconcile_labels
 from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
+from quality_graph_core.json_values import JSON
 from quality_graph_core.policy import effective_graph
 from quality_graph_core.result import JsonValue, Provenance, ResultStatus
 
@@ -56,25 +57,25 @@ class WorkflowRunEvent:
     @classmethod
     def from_value(cls, value: JsonValue) -> WorkflowRunEvent:
         """Narrow an untrusted GitHub event payload."""
-        event = _object(value, "workflow event")
-        run = _object(event.get("workflow_run"), "workflow run")
-        pulls = _array(run.get("pull_requests", []), "workflow pull requests")
+        event = JSON.object(value, "workflow event")
+        run = JSON.object(event.get("workflow_run"), "workflow run")
+        pulls = JSON.array(run.get("pull_requests", []), "workflow pull requests")
         pull_number: int | None = None
         pull_head: str | None = None
         if pulls:
-            pull = _object(pulls[0], "workflow pull request")
-            pull_number = _optional_integer(pull.get("number"), "pull request number")
+            pull = JSON.object(pulls[0], "workflow pull request")
+            pull_number = JSON.optional_integer(pull.get("number"), "pull request number")
             head = pull.get("head")
             if isinstance(head, dict):
-                pull_head = _optional_string(head.get("sha"), "pull request head SHA")
+                pull_head = JSON.optional_string(head.get("sha"), "pull request head SHA")
         return cls(
-            _string(event.get("action"), "workflow action"),
-            _string(run.get("event"), "workflow trigger event"),
-            _integer(run.get("id"), "workflow run id"),
-            _integer(run.get("run_attempt", 1), "workflow run attempt"),
-            _string(run.get("head_sha"), "workflow head SHA"),
+            JSON.string(event.get("action"), "workflow action"),
+            JSON.string(run.get("event"), "workflow trigger event"),
+            JSON.integer(run.get("id"), "workflow run id"),
+            JSON.integer(run.get("run_attempt", 1), "workflow run attempt"),
+            JSON.string(run.get("head_sha"), "workflow head SHA"),
             pull_head,
-            _string(run.get("html_url"), "workflow run URL"),
+            JSON.string(run.get("html_url"), "workflow run URL"),
             pull_number,
         )
 
@@ -236,22 +237,22 @@ def publish_workflow_jobs(
 
 
 def _workflow_run_completed(port: GitHubPort, run_id: int) -> bool:
-    run = _object(port.request("GET", f"/actions/runs/{run_id}"), "workflow run")
-    return _string(run.get("status"), "workflow run status") == "completed"
+    run = JSON.object(port.request("GET", f"/actions/runs/{run_id}"), "workflow run")
+    return JSON.string(run.get("status"), "workflow run status") == "completed"
 
 
 def _workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:
     jobs: list[JsonValue] = []
     page = 1
     while True:
-        response = _object(
+        response = JSON.object(
             port.request(
                 "GET",
                 f"/actions/runs/{run_id}/jobs?filter=all&per_page={GITHUB_PAGE_SIZE}&page={page}",
             ),
             "workflow jobs",
         )
-        values = _array(response.get("jobs", []), "workflow jobs")
+        values = JSON.array(response.get("jobs", []), "workflow jobs")
         jobs.extend(values)
         if len(values) < GITHUB_PAGE_SIZE:
             return tuple(jobs)
@@ -266,7 +267,7 @@ def _optional_workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, .
 
 
 def _workflow_job_status(job: Mapping[str, JsonValue]) -> ResultStatus:
-    status = _string(job.get("status"), "workflow job status")
+    status = JSON.string(job.get("status"), "workflow job status")
     if status == "queued":
         return ResultStatus.WAITING
     if status in {"in_progress", "pending", "requested", "waiting"}:
@@ -274,7 +275,7 @@ def _workflow_job_status(job: Mapping[str, JsonValue]) -> ResultStatus:
     if status != "completed":
         message = f"unsupported workflow job status: {status}"
         raise ValueError(message)
-    conclusion = _optional_string(job.get("conclusion"), "workflow job conclusion")
+    conclusion = JSON.optional_string(job.get("conclusion"), "workflow job conclusion")
     if conclusion == "success":
         return ResultStatus.PASSED
     if conclusion == "skipped":
@@ -348,22 +349,22 @@ def _completed_dashboard(
 
 
 def _pull_request(port: GitHubPort, number: int) -> PullRequestState:
-    pull = _object(port.request("GET", f"/pulls/{number}"), "pull request")
-    head = _object(pull.get("head"), "pull request head")
-    base = _object(pull.get("base"), "pull request base")
+    pull = JSON.object(port.request("GET", f"/pulls/{number}"), "pull request")
+    head = JSON.object(pull.get("head"), "pull request head")
+    base = JSON.object(pull.get("base"), "pull request base")
     return PullRequestState(
         number,
-        _string(head.get("sha"), "pull request head SHA"),
-        _string(base.get("sha"), "pull request base SHA"),
+        JSON.string(head.get("sha"), "pull request head SHA"),
+        JSON.string(base.get("sha"), "pull request base SHA"),
     )
 
 
 def _resolve_pull_request(port: GitHubPort, head_sha: str) -> int | None:
-    pulls = _array(port.request("GET", f"/commits/{head_sha}/pulls"), "commit pull requests")
+    pulls = JSON.array(port.request("GET", f"/commits/{head_sha}/pulls"), "commit pull requests")
     numbers: list[int] = []
     for value in pulls:
-        pull = _object(value, "commit pull request")
-        number = _optional_integer(pull.get("number"), "pull request number")
+        pull = JSON.object(value, "commit pull request")
+        number = JSON.optional_integer(pull.get("number"), "pull request number")
         if number is not None:
             numbers.append(number)
     return max(numbers) if numbers else None
@@ -374,14 +375,14 @@ def _is_latest_run(port: GitHubPort, event: WorkflowRunEvent, number: int) -> bo
         "/actions/workflows/quality-graph.yml/runs?event=pull_request"
         f"&per_page={GITHUB_PAGE_SIZE}&page=1"
     )
-    response = _object(port.request("GET", path), "workflow runs")
-    runs = _array(response.get("workflow_runs", []), "workflow runs")
+    response = JSON.object(port.request("GET", path), "workflow runs")
+    runs = JSON.array(response.get("workflow_runs", []), "workflow runs")
     matching_runs = [
-        (run_id, _integer(run.get("run_attempt", 1), "workflow run attempt"))
+        (run_id, JSON.integer(run.get("run_attempt", 1), "workflow run attempt"))
         for value in runs
-        for run in (_object(value, "workflow run"),)
+        for run in (JSON.object(value, "workflow run"),)
         if _run_has_pull(run, number)
-        for run_id in (_optional_integer(run.get("id"), "workflow run id"),)
+        for run_id in (JSON.optional_integer(run.get("id"), "workflow run id"),)
         if run_id is not None
     ]
     return not matching_runs or (event.id, event.attempt) >= max(matching_runs)
@@ -389,19 +390,19 @@ def _is_latest_run(port: GitHubPort, event: WorkflowRunEvent, number: int) -> bo
 
 def _run_has_pull(run: Mapping[str, JsonValue], number: int) -> bool:
     return any(
-        _object(value, "workflow pull request").get("number") == number
-        for value in _array(run.get("pull_requests", []), "workflow pull requests")
+        JSON.object(value, "workflow pull request").get("number") == number
+        for value in JSON.array(run.get("pull_requests", []), "workflow pull requests")
     )
 
 
 def _repository_file(port: GitHubPort, path: str, ref: str) -> str:
     encoded_path = urllib.parse.quote(path, safe="")
     encoded_ref = urllib.parse.quote(ref, safe="")
-    response = _object(
+    response = JSON.object(
         port.request("GET", f"/contents/{encoded_path}?ref={encoded_ref}"),
         "repository file",
     )
-    content = _string(response.get("content"), "repository file content")
+    content = JSON.string(response.get("content"), "repository file content")
     try:
         return base64.b64decode(content.replace("\n", ""), validate=True).decode()
     except (ValueError, UnicodeDecodeError) as error:
@@ -426,7 +427,7 @@ def _publish_check(port: GitHubPort, model: DashboardModel) -> None:
     if completed:
         payload["conclusion"] = "success" if model.status is ResultStatus.PASSED else "failure"
     name = urllib.parse.quote("Quality Graph", safe="")
-    response = _object(
+    response = JSON.object(
         port.request(
             "GET",
             f"/commits/{model.head_sha}/check-runs"
@@ -436,9 +437,9 @@ def _publish_check(port: GitHubPort, model: DashboardModel) -> None:
     )
     check_id = next(
         (
-            _optional_integer(check.get("id"), "check run id")
-            for value in _array(response.get("check_runs", []), "check runs")
-            for check in (_object(value, "check run"),)
+            JSON.optional_integer(check.get("id"), "check run id")
+            for value in JSON.array(response.get("check_runs", []), "check runs")
+            for check in (JSON.object(value, "check run"),)
             if check.get("external_id") == external_id
         ),
         None,
@@ -453,43 +454,7 @@ def _publish_check(port: GitHubPort, model: DashboardModel) -> None:
 def read_event_json(value: str) -> dict[str, JsonValue]:
     """Decode and narrow one GitHub event JSON document."""
     event = cast("JsonValue", json.loads(value))
-    return _object(event, "GitHub event")
-
-
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict):
-        message = f"{context} must be an object"
-        raise TypeError(message)
-    return value
-
-
-def _array(value: JsonValue, context: str) -> list[JsonValue]:
-    if not isinstance(value, list):
-        message = f"{context} must be an array"
-        raise TypeError(message)
-    return value
-
-
-def _string(value: JsonValue, context: str) -> str:
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise TypeError(message)
-    return value
-
-
-def _optional_string(value: JsonValue, context: str) -> str | None:
-    return None if value is None else _string(value, context)
-
-
-def _integer(value: JsonValue, context: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        message = f"{context} must be an integer"
-        raise TypeError(message)
-    return value
-
-
-def _optional_integer(value: JsonValue, context: str) -> int | None:
-    return None if value is None else _integer(value, context)
+    return JSON.object(event, "GitHub event")
 
 
 def _workflow_node_jobs(

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, cast
 
 from qg_github.comments import DEFAULT_BOT_LOGIN
 from qg_github.github import GitHubPort, paged
+from quality_graph_core.json_values import JSON
 from quality_graph_core.policy import ApprovalTarget
 
 if TYPE_CHECKING:
@@ -55,23 +56,23 @@ class ApprovalRecord:
     @classmethod
     def from_json(cls, value: str) -> ApprovalRecord:
         """Parse a record from untrusted marker JSON."""
-        data = _object(cast("JsonValue", json.loads(value)), "approval record")
+        data = JSON.object(cast("JsonValue", json.loads(value)), "approval record")
         if data.get("version") != 0:
             message = "unsupported approval record version"
             raise ValueError(message)
-        operation = _string(data.get("operation"), "approval operation")
+        operation = JSON.string(data.get("operation"), "approval operation")
         if operation not in {"add", "remove"}:
             message = f"unknown approval operation: {operation}"
             raise ValueError(message)
         targets = tuple(
-            ApprovalTarget.from_key(_string(item, "approval target"))
-            for item in _array(data.get("targets"), "approval targets")
+            ApprovalTarget.from_key(JSON.string(item, "approval target"))
+            for item in JSON.array(data.get("targets"), "approval targets")
         )
         return cls(
             operation == "add",
             targets,
-            _string(data.get("actor"), "approval actor"),
-            _integer(data.get("sourceCommentId"), "approval source comment id"),
+            JSON.string(data.get("actor"), "approval actor"),
+            JSON.integer(data.get("sourceCommentId"), "approval source comment id"),
         )
 
 
@@ -105,7 +106,7 @@ def approval_ledger(
     approvals: set[ApprovalTarget] = set()
     comments = sorted(
         paged(port, f"/issues/{number}/comments"),
-        key=lambda item: _integer(item.get("id"), "approval comment id"),
+        key=lambda item: JSON.integer(item.get("id"), "approval comment id"),
     )
     for comment in comments:
         author = comment.get("user")
@@ -137,36 +138,8 @@ def append_approval_record(
         f"Quality Graph recorded that @{record.actor} {action} {targets}.\n\n"
         f"{record_marker(record)}"
     )
-    response = _object(
+    response = JSON.object(
         port.request("POST", f"/issues/{number}/comments", {"body": body}),
         "approval comment",
     )
-    return _integer(response.get("id"), "approval comment id")
-
-
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict):
-        message = f"{context} must be an object"
-        raise TypeError(message)
-    return value
-
-
-def _array(value: JsonValue, context: str) -> list[JsonValue]:
-    if not isinstance(value, list):
-        message = f"{context} must be an array"
-        raise TypeError(message)
-    return value
-
-
-def _string(value: JsonValue, context: str) -> str:
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise TypeError(message)
-    return value
-
-
-def _integer(value: JsonValue, context: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        message = f"{context} must be an integer"
-        raise TypeError(message)
-    return value
+    return JSON.integer(response.get("id"), "approval comment id")

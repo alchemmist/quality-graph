@@ -12,6 +12,7 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
+from quality_graph_core.json_values import JsonValidator
 from quality_graph_core.result import JsonValue, Provenance, Result, ResultStatus
 
 if TYPE_CHECKING:
@@ -28,6 +29,9 @@ MAX_ARTIFACT_CONTENT_BYTES = 50 * 1024 * 1024
 
 class ArtifactError(ValueError):
     """Represent an invalid or incompatible result artifact."""
+
+
+JSON = JsonValidator(ArtifactError)
 
 
 class DeclarationMismatchError(ArtifactError):
@@ -101,10 +105,10 @@ def _artifact_descriptors(port: GitHubPort, run_id: int) -> tuple[ArtifactDescri
     page = 1
     while True:
         path = f"/actions/runs/{run_id}/artifacts?per_page={GITHUB_PAGE_SIZE}&page={page}"
-        response = _object(port.request("GET", path), "workflow artifacts")
-        artifacts = _array(response.get("artifacts"), "workflow artifacts")
+        response = JSON.object(port.request("GET", path), "workflow artifacts")
+        artifacts = JSON.array(response.get("artifacts"), "workflow artifacts")
         for value in artifacts:
-            descriptor = _artifact_descriptor(_object(value, "workflow artifact"))
+            descriptor = _artifact_descriptor(JSON.object(value, "workflow artifact"))
             if descriptor is not None:
                 descriptors.append(descriptor)
         if len(artifacts) < GITHUB_PAGE_SIZE:
@@ -113,19 +117,19 @@ def _artifact_descriptors(port: GitHubPort, run_id: int) -> tuple[ArtifactDescri
 
 
 def _artifact_descriptor(data: dict[str, JsonValue]) -> ArtifactDescriptor | None:
-    name = _string(data.get("name"), "artifact name")
+    name = JSON.string(data.get("name"), "artifact name")
     match = ARTIFACT_NAME_RE.fullmatch(name)
     if match is None:
         return None
     if data.get("expired") is True:
         message = f"result artifact has expired: {name}"
         raise ArtifactError(message)
-    artifact_id = _integer(data.get("id"), "artifact id")
-    size = _integer(data.get("size_in_bytes"), "artifact size")
+    artifact_id = JSON.integer(data.get("id"), "artifact id")
+    size = JSON.integer(data.get("size_in_bytes"), "artifact size")
     if not 0 <= size <= MAX_ARTIFACT_ARCHIVE_BYTES:
         message = f"artifact exceeds the archive size limit: {name}"
         raise ArtifactError(message)
-    digest = _string(data.get("digest"), "artifact digest")
+    digest = JSON.string(data.get("digest"), "artifact digest")
     if not digest.startswith("sha256:") or len(digest) != len("sha256:") + 64:
         message = f"artifact has an invalid digest: {name}"
         raise ArtifactError(message)
@@ -223,31 +227,3 @@ def _validate_result(
     if observed[5:] != expected[5:]:
         message = f"artifact provenance does not match workflow metadata: {descriptor.id}"
         raise ArtifactError(message)
-
-
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict):
-        message = f"{context} must be an object"
-        raise ArtifactError(message)
-    return value
-
-
-def _array(value: JsonValue, context: str) -> list[JsonValue]:
-    if not isinstance(value, list):
-        message = f"{context} must be an array"
-        raise ArtifactError(message)
-    return value
-
-
-def _string(value: JsonValue, context: str) -> str:
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise ArtifactError(message)
-    return value
-
-
-def _integer(value: JsonValue, context: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        message = f"{context} must be an integer"
-        raise ArtifactError(message)
-    return value
