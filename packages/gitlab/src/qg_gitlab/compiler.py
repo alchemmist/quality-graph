@@ -115,6 +115,7 @@ def execution_graphs(graph: Graph) -> tuple[tuple[str, str, Graph], ...]:
         selected = tuple(node for node in graph.nodes if not node.events or event in node.events)
         membership = {node.id for node in selected}
         dependencies = graph.execution.get(event, DependencyPolicy.GRAPH)
+        _validate_event_dependencies(selected, dependencies, event)
         selected = tuple(
             replace(
                 node,
@@ -127,6 +128,22 @@ def execution_graphs(graph: Graph) -> tuple[tuple[str, str, Graph], ...]:
         if selected:
             result.append((flow_id, event, replace(graph, nodes=selected)))
     return tuple(result)
+
+
+def _validate_event_dependencies(
+    nodes: tuple[Node, ...], dependencies: DependencyPolicy, event: str
+) -> None:
+    if dependencies is DependencyPolicy.NONE:
+        return
+    membership = {node.id for node in nodes}
+    for node in nodes:
+        missing = set(node.needs) - membership
+        if missing:
+            message = (
+                f"GitLab {event} event projection excludes dependencies of {node.id}: "
+                f"{', '.join(sorted(missing))}"
+            )
+            raise ValueError(message)
 
 
 def job_name(flow_id: str, node_id: str) -> str:
