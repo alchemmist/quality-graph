@@ -10,4 +10,5 @@ GITHUB_TOKEN=… uv run --project tools/adopter-discovery --locked qg-find-adopt
 The tool reads `docs/adopters.json` from the current repository by default and marks its entries as
 already listed. Use `--new-only` to show only candidates that are absent from the ticker.
 
-From the Quality Graph repository, `make users` runs this new-candidates-only mode.
+From the Quality Graph repository, `make adopters-find` runs this new-candidates-only mode, while
+`make users` shows all candidates. Both targets load `GITHUB_TOKEN` from the repository-root `.env`.

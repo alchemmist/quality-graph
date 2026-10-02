@@ -98,11 +98,12 @@ graph-validate:
 	uv run --locked --all-packages qg validate
 
 adopters-find:
-	uv run --project tools/adopter-discovery --locked qg-find-adopters
+	@set -a; . ./.env; set +a; \
+	uv run --project tools/adopter-discovery --locked qg-find-adopters --new-only
 
 users:
 	@set -a; . ./.env; set +a; \
-	uv run --project tools/adopter-discovery --locked qg-find-adopters --new-only
+	uv run --project tools/adopter-discovery --locked qg-find-adopters
 
 examples-generate:
 	@for example in examples/python examples/typescript examples/go examples/gitlab; do \
