@@ -26,16 +26,30 @@ async def run_test(command: list[str]) -> ProcessResult:
 
 
 def changed_test_files(base: str) -> tuple[str, ...]:
-    """Return changed existing Python test files in deterministic order."""
+    """Return runnable test files or affected fixture scopes in stable order."""
+    selected = {
+        scope
+        for name in added_lines_by_path(patch_for_base(base))
+        for path in (Path(name),)
+        if path.is_file() and path.suffix == ".py"
+        for scope in (_test_scope(path),)
+        if scope is not None
+    }
     return tuple(
-        sorted(
-            path
-            for path in added_lines_by_path(patch_for_base(base))
-            if Path(path).is_file()
-            and Path(path).suffix == ".py"
-            and (Path(path).name.startswith("test_") or "/tests/" in f"/{path}")
-        )
+        str(path)
+        for path in sorted(selected)
+        if not any(parent in selected for parent in path.parents)
     )
+
+
+def _test_scope(path: Path) -> Path | None:
+    if path.name == "conftest.py":
+        return path.parent
+    if path.name.startswith("test_") or path.name.endswith("_test.py"):
+        return path
+    if "tests" in path.parts:
+        return Path(*path.parts[: path.parts.index("tests") + 1])
+    return None
 
 
 def repeat(files: tuple[str, ...], attempts: int) -> int:
