@@ -221,6 +221,25 @@ def _execution_job(
     return item
 
 
+def _execution_rule(graph: Graph, flow_id: str, event: str, settings: dict[str, JsonValue]) -> str:
+    rule = (
+        '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        if event == "pull-request"
+        else '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH'
+    )
+    if event == "pull-request":
+        target_branch = json.dumps(settings["default-branch"])
+        rule += f" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == {target_branch}"
+    if graph.flows and event == "push":
+        declared = next(flow for flow in graph.flows if flow.id == flow_id)
+        if declared.branches:
+            choices = " || ".join(
+                f"$CI_COMMIT_BRANCH == {json.dumps(branch)}" for branch in declared.branches
+            )
+            rule = f"({rule}) && ({choices})"
+    return rule
+
+
 def compile_graph(graph: Graph) -> GeneratedProject:
     """Generate CI, its execution manifest and a trusted publisher template."""
     settings = configuration(graph)
@@ -235,21 +254,14 @@ def compile_graph(graph: Graph) -> GeneratedProject:
     ):
         message = "GitLab MR publication requires a declared publisher-user-id"
         raise ValueError(message)
+    rules: list[JsonValue] = [
+        {"if": _execution_rule(graph, flow_id, event, settings)} for flow_id, event, _ in flows
+    ]
+    rules.append({"when": "never"})
     workflow: dict[str, JsonValue] = {
         "workflow": {
             "auto_cancel": {"on_new_commit": "interruptible"},
-            "rules": [
-                {"if": '$CI_PIPELINE_SOURCE == "merge_request_event"'},
-                {
-                    "if": (
-                        '$CI_PIPELINE_SOURCE == "push" && '
-                        "$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS"
-                    ),
-                    "when": "never",
-                },
-                {"if": '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH'},
-                {"when": "never"},
-            ],
+            "rules": rules,
         },
         "stages": ["quality"],
         "default": {
@@ -260,21 +272,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
     }
     manifests: list[JsonValue] = []
     for flow_id, event, projected in flows:
-        rule = (
-            '$CI_PIPELINE_SOURCE == "merge_request_event"'
-            if event == "pull-request"
-            else '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH'
-        )
-        if event == "pull-request":
-            target_branch = json.dumps(settings["default-branch"])
-            rule += f" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == {target_branch}"
-        if graph.flows and event == "push":
-            declared = next(flow for flow in graph.flows if flow.id == flow_id)
-            if declared.branches:
-                choices = " || ".join(
-                    f"$CI_COMMIT_BRANCH == {json.dumps(branch)}" for branch in declared.branches
-                )
-                rule = f"({rule}) && ({choices})"
+        rule = _execution_rule(graph, flow_id, event, settings)
         for node in projected.nodes:
             profile = profiles[node.profile]
             _validate_node(node, profile)
