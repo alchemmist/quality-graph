@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
 
@@ -115,18 +116,34 @@ def adapt_native(context: AdapterContext, report: bytes) -> Result:
 
 def adapt_sarif(context: AdapterContext, report: bytes) -> Result:
     """Translate SARIF findings and locations into the shared protocol."""
+    try:
+        return _adapt_sarif(context, report)
+    except (TypeError, ValueError) as error:
+        message = f"SARIF result is invalid: {error}"
+        raise AdapterError(message) from error
+
+
+def _adapt_sarif(context: AdapterContext, report: bytes) -> Result:
     data = _decode_json(report, "SARIF")
     root = _object(data, "SARIF report")
     runs = _array(root.get("runs"), "SARIF runs")
-    findings: list[Finding] = []
-    annotations: list[Annotation] = []
+    entries: dict[str, tuple[Finding, Annotation | None]] = {}
     for run_value in runs:
         run = _object(run_value, "SARIF run")
         for result_value in _array(run.get("results", []), "SARIF results"):
-            finding, annotation = _sarif_finding(_object(result_value, "SARIF result"))
-            findings.append(finding)
-            if annotation is not None:
-                annotations.append(annotation)
+            identity = json.dumps({"tool": run.get("tool"), "result": result_value}, sort_keys=True)
+            entries[identity] = _sarif_finding(_object(result_value, "SARIF result"))
+    counts = Counter(finding.id for finding, _ in entries.values())
+    findings: list[Finding] = []
+    annotations: list[Annotation] = []
+    for identity, (finding, annotation) in entries.items():
+        resolved = finding
+        if counts[finding.id] > 1:
+            fingerprint = hashlib.sha256(identity.encode()).hexdigest()
+            resolved = replace(finding, id=f"sarif-{fingerprint[:24]}", fingerprint=fingerprint)
+        findings.append(resolved)
+        if annotation is not None:
+            annotations.append(annotation)
     errors = sum(finding.severity is Severity.ERROR for finding in findings)
     status = ResultStatus.FAILED if errors or not context.command_succeeded else ResultStatus.PASSED
     result = Result(
