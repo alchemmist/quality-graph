@@ -276,3 +276,57 @@ def test_junit_rejects_file_locations_outside_the_repository(path: str) -> None:
     report = f'<testsuite><testcase name="fails" file="{path}"><failure /></testcase></testsuite>'
     with pytest.raises(ValueError, match="repository-relative"):
         adapt_junit(context(), report.encode())
+
+
+def test_sarif_repeated_occurrences_have_distinct_order_independent_ids() -> None:
+    findings = [
+        {
+            "ruleId": "same-rule",
+            "level": "error",
+            "message": {"text": "Repeated error"},
+            "locations": [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": "src/app.py"},
+                        "region": {"startLine": line},
+                    }
+                }
+            ],
+        }
+        for line in (1, 2)
+    ]
+    report = {"runs": [{"results": findings}]}
+    result = adapt_sarif(context(), json.dumps(report).encode())
+    assert len({finding.id for finding in result.findings}) == 2
+    report["runs"][0]["results"].reverse()
+    reversed_result = adapt_sarif(context(), json.dumps(report).encode())
+    assert result.findings == tuple(reversed(reversed_result.findings))
+
+
+def test_sarif_identical_occurrences_are_deduplicated() -> None:
+    finding = {"ruleId": "rule", "message": {"text": "Same finding"}}
+    report = {"runs": [{"results": [finding, finding]}]}
+    result = adapt_sarif(context(), json.dumps(report).encode())
+    assert len(result.findings) == 1
+
+
+def test_sarif_protocol_errors_use_the_adapter_error_contract() -> None:
+    report = {"runs": [{"results": [{"message": {"text": "x" * 1_001}}]}]}
+    with pytest.raises(AdapterError, match="finding message"):
+        adapt_sarif(context(), json.dumps(report).encode())
+
+
+def test_sarif_partial_fingerprints_do_not_collapse_different_tools() -> None:
+    finding = {
+        "ruleId": "rule",
+        "message": {"text": "Same finding"},
+        "partialFingerprints": {"hash": "same"},
+    }
+    report = {
+        "runs": [
+            {"tool": {"driver": {"name": tool}}, "results": [finding]}
+            for tool in ("first", "second")
+        ]
+    }
+    result = adapt_sarif(context(), json.dumps(report).encode())
+    assert len({item.id for item in result.findings}) == 2
