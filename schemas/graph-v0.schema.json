@@ -17,11 +17,8 @@
           "type": "string"
         },
         "execution": {
-          "enum": [
-            "design-only",
-            "github-actions"
-          ],
           "minLength": 0,
+          "pattern": "^[a-z][a-z0-9-]{0,62}$",
           "type": "string"
         },
         "nodes": {
@@ -75,23 +72,15 @@
           "type": "object"
         },
         "presentation": {
-          "enum": [
-            "none",
-            "github-pr",
-            "gitlab-mr",
-            "release"
-          ],
           "minLength": 0,
+          "pattern": "^[a-z][a-z0-9-]{0,62}$",
           "type": "string"
         },
         "trigger": {
           "oneOf": [
             {
-              "enum": [
-                "pull-request",
-                "workflow-dispatch"
-              ],
               "minLength": 0,
+              "pattern": "^(?!push$)[a-z][a-z0-9-]{0,62}$",
               "type": "string"
             },
             {

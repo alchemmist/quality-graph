@@ -13,7 +13,7 @@ import yaml
 
 from qg_gitlab.api import integer, server_url, string
 from quality_graph_core.projection import project_event
-from quality_graph_core.provider import GeneratedFile, GeneratedProject
+from quality_graph_core.provider import GeneratedFile, GeneratedProject, ProviderCapabilities
 
 if TYPE_CHECKING:
     from quality_graph_core.graph import Graph, Node, Profile
@@ -25,6 +25,16 @@ QUALITY_EXIT_CODE = 10
 DEFAULT_IMAGE = "python:3.12-slim"
 INSTALL_RUNTIME = (
     f"python -m pip install --disable-pip-version-check quality-graph-gitlab=={RUNTIME_VERSION}"
+)
+
+CAPABILITIES = ProviderCapabilities(
+    events=frozenset({"pull-request", "push", "workflow-dispatch"}),
+    presentations={
+        "none": frozenset({"pull-request", "push", "workflow-dispatch"}),
+        "gitlab-mr": frozenset({"pull-request"}),
+        "release": frozenset({"push", "workflow-dispatch"}),
+    },
+    execution_modes=frozenset({"design-only", "github-actions"}),
 )
 
 
@@ -155,7 +165,7 @@ def _validate_node(node: Node, profile: Profile) -> None:
             "GitLab quality jobs do not accept deployment permissions or service escape hatches"
         )
         raise ValueError(message)
-    if profile.permissions not in ({}, {"contents": "read"}):
+    if profile.permissions not in (None, {}, {"contents": "read"}):
         message = "GitHub permissions cannot be applied to GitLab quality jobs"
         raise ValueError(message)
     if profile.runner not in {None, "ubuntu-latest"}:
@@ -217,7 +227,8 @@ def compile_graph(graph: Graph) -> GeneratedProject:
     """Generate CI, its execution manifest and a trusted publisher template."""
     settings = configuration(graph)
     digest = graph_digest(graph)
-    profiles = graph.expanded_profiles()
+    CAPABILITIES.validate(graph)
+    profiles = graph.expanded_profiles(CAPABILITIES.profile_defaults)
     flows = execution_graphs(graph)
     if not flows:
         message = "GitLab requires at least one executable MR or branch flow"
@@ -305,6 +316,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
             PurePosixPath(string(settings["ci-path"], "CI path")),
             GENERATED_HEADER
             + yaml.safe_dump(workflow, sort_keys=False, width=80, explicit_start=True),
+            overwrite_marker=GENERATED_HEADER,
         ),
         GeneratedFile(
             PurePosixPath(".qg/gitlab.json"), json.dumps(manifest, indent=2, sort_keys=True) + "\n"
@@ -313,6 +325,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
             PurePosixPath(".qg/gitlab-publisher.yml"),
             GENERATED_HEADER
             + yaml.safe_dump(publisher, sort_keys=False, width=80, explicit_start=True),
+            overwrite_marker=GENERATED_HEADER,
         ),
     )
     return GeneratedProject(digest, files)

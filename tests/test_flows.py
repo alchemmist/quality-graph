@@ -6,6 +6,7 @@ from typing import cast
 import pytest
 import yaml
 
+from qg_github.compiler import CAPABILITIES
 from quality_graph_core.graph import FlowNode, Graph
 from quality_graph_core.result import JsonValue, Provenance
 from tests.test_flow_compiler import SOURCE
@@ -97,7 +98,7 @@ def test_flow_validation_rejects_ambiguous_or_unsafe_declarations(
         target = cast("dict[str, JsonValue]", target[key])
     target[path[-1]] = value
     with pytest.raises((ValueError, TypeError), match=message):
-        Graph.from_yaml(yaml.safe_dump(declaration))
+        CAPABILITIES.validate(Graph.from_yaml(yaml.safe_dump(declaration)))
 
 
 @pytest.mark.parametrize(
@@ -180,7 +181,7 @@ def test_programmatic_flows_validate_membership_and_unique_identities() -> None:
     with pytest.raises(ValueError, match="unknown flow"):
         graph.for_flow("missing")
     with pytest.raises(ValueError, match="unsupported flow trigger"):
-        replace(graph, flows=(replace(graph.flows[0], trigger="other"),))
+        CAPABILITIES.validate(replace(graph, flows=(replace(graph.flows[0], trigger="other"),)))
 
 
 @pytest.mark.parametrize("suffix", ["nodes: {}\n", "execution: {}\n"])

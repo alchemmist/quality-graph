@@ -501,7 +501,7 @@ def _flow_schema(identifier: dict[str, JsonValue]) -> dict[str, JsonValue]:
     )
     trigger: dict[str, JsonValue] = {
         "oneOf": [
-            _string_schema(enum=("pull-request", "workflow-dispatch")),
+            _string_schema(pattern=r"^(?!push$)[a-z][a-z0-9-]{0,62}$"),
             _object_schema(
                 {"push": _object_schema({"branches": branches}, ("branches",))}, ("push",)
             ),
@@ -542,9 +542,9 @@ def _flow_schema(identifier: dict[str, JsonValue]) -> dict[str, JsonValue]:
         {
             "trigger": trigger,
             "dependencies": _string_schema(enum=("graph", "none")),
-            "presentation": _string_schema(enum=("none", "github-pr", "gitlab-mr", "release")),
+            "presentation": identifier,
             "concurrency": identifier,
-            "execution": _string_schema(enum=("design-only", "github-actions")),
+            "execution": identifier,
             "nodes": {
                 "type": "object",
                 "minProperties": 1,
