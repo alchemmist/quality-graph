@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from quality_graph_core.graph import Graph
@@ -123,3 +125,24 @@ def test_node_can_disable_individual_finding_controls() -> None:
     effective = effective_graph(graph, {"lint": result()}, set())
 
     assert effective.targets == frozenset({ApprovalTarget(ControlKind.FILE, "src/app.py")})
+
+
+@pytest.mark.parametrize("severity", [Severity.WARNING, Severity.NOTICE])
+def test_configured_severity_blocks_a_successful_report(severity: Severity) -> None:
+    graph = Graph.from_yaml(GRAPH)
+    lint = next(node for node in graph.nodes if node.id == "lint")
+    lint = replace(lint, policy=replace(lint.policy, blocking_severities=(severity,)))
+    graph = replace(graph, nodes=(replace(lint, needs=()),))
+    passed = replace(
+        result(),
+        status=ResultStatus.PASSED,
+        failure_kind=None,
+        findings=(Finding("warning", severity, "Review this finding"),),
+    )
+    effective = effective_graph(graph, {"lint": passed}, set()).results["lint"]
+    assert effective.status is ResultStatus.FAILED
+    assert effective.failure_kind is FailureKind.QUALITY
+    approved = effective_graph(
+        graph, {"lint": passed}, {ApprovalTarget(ControlKind.FINDING, "warning")}
+    ).results["lint"]
+    assert approved.status is ResultStatus.PASSED
