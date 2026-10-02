@@ -1,6 +1,6 @@
 """Expose GitHub workflow generation through the core provider seam."""
 
-from qg_github.compiler import compile_graph
+from qg_github.compiler import CAPABILITIES, compile_graph
 from quality_graph_core.graph import Graph
 from quality_graph_core.provider import GeneratedProject
 
@@ -9,6 +9,7 @@ class GitHubProvider:
     """Generate the complete GitHub representation of a Quality Graph."""
 
     name = "github"
+    capabilities = CAPABILITIES
 
     def generate(self, graph: Graph) -> GeneratedProject:
         """Compile a graph into GitHub workflows and trusted metadata."""

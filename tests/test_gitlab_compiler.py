@@ -241,7 +241,7 @@ def test_github_rejects_gitlab_presentation() -> None:
     source["flows"] = {
         "review": {"trigger": "pull-request", "presentation": "gitlab-mr", "nodes": {"quality": {}}}
     }
-    with pytest.raises(ValueError, match="GitHub cannot use GitLab"):
+    with pytest.raises(ValueError, match="unsupported presentation adapter: gitlab-mr"):
         compile_github(Graph.from_yaml(yaml.safe_dump(source)))
 
 

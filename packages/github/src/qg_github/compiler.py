@@ -22,7 +22,12 @@ from quality_graph_core.graph import (
     Step,
 )
 from quality_graph_core.projection import project_event
-from quality_graph_core.provider import GeneratedFile, GeneratedProject
+from quality_graph_core.provider import (
+    GeneratedFile,
+    GeneratedProject,
+    ProfileDefaults,
+    ProviderCapabilities,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -61,6 +66,21 @@ INVALID_BRANCH_CHARACTER_RE = re.compile(r"[\x00-\x20\x7f ~^:?*\[\\]")
 MAX_BRANCH_NAME_LENGTH = 255
 SUPPORTED_EVENTS = ("pull-request", "push")
 
+CAPABILITIES = ProviderCapabilities(
+    events=frozenset((*SUPPORTED_EVENTS, "workflow-dispatch")),
+    presentations={
+        "none": frozenset((*SUPPORTED_EVENTS, "workflow-dispatch")),
+        "github-pr": frozenset({"pull-request"}),
+        "release": frozenset({"push", "workflow-dispatch"}),
+    },
+    execution_modes=frozenset({"design-only", "github-actions"}),
+    profile_defaults=ProfileDefaults("ubuntu-latest", {"contents": "read"}),
+)
+
+
+def _execution_mode(flow: Flow) -> str:
+    return flow.execution if flow.is_release else "github-actions"
+
 
 @dataclass(frozen=True)
 class EventProjection:
@@ -98,6 +118,7 @@ def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
     if graph.provider.name != "github":
         message = f"GitHub provider cannot compile provider '{graph.provider.name}'"
         raise ValueError(message)
+    CAPABILITIES.validate(graph)
     unknown = graph.provider.values.keys() - {"default-branch", "runtime", "merge"}
     if unknown:
         message = f"GitHub provider contains unknown configuration: {', '.join(sorted(unknown))}"
@@ -141,11 +162,15 @@ def _validate_execution_contracts(graph: Graph) -> None:
         for step in profile.setup:
             _validate_step(step)
     for node in graph.nodes:
-        _validate_node_contract(node, graph.expanded_profiles()[node.profile], allow_write=False)
+        _validate_node_contract(
+            node,
+            graph.expanded_profiles(CAPABILITIES.profile_defaults)[node.profile],
+            allow_write=False,
+        )
     for operation in graph.operations:
         _validate_node_contract(
             operation.place(FlowNode(operation.id, operation.id), DependencyPolicy.GRAPH),
-            graph.expanded_profiles()[operation.profile],
+            graph.expanded_profiles(CAPABILITIES.profile_defaults)[operation.profile],
             allow_write=True,
         )
     titles = [node.title for node in graph.nodes]
@@ -231,7 +256,9 @@ def _validate_explicit_flows(graph: Graph) -> None:
             message = f"GitHub supports one {trigger} flow per declaration"
             raise ValueError(message)
     releases = [
-        flow for flow in graph.flows if flow.is_release and flow.execution_mode == "github-actions"
+        flow
+        for flow in graph.flows
+        if flow.is_release and _execution_mode(flow) == "github-actions"
     ]
     if len(releases) > 1:
         message = "GitHub supports one executable release flow per declaration"
@@ -245,7 +272,9 @@ def _validate_explicit_flows(graph: Graph) -> None:
         _validate_release_contract(graph, flow)
         for node in graph.for_flow(flow.id).nodes:
             _validate_node_contract(
-                node, graph.expanded_profiles()[node.profile], allow_write=flow.is_release
+                node,
+                graph.expanded_profiles(CAPABILITIES.profile_defaults)[node.profile],
+                allow_write=flow.is_release,
             )
         if flow.presentation == "github-pr":
             titles = [node.title for node in graph.for_flow(flow.id).nodes]
@@ -276,14 +305,14 @@ def _validate_release_contract(graph: Graph, flow: Flow) -> None:
         ):
             message = "release tag patterns must be literal nonnegative filters without whitespace"
             raise ValueError(message)
-    if not flow.is_release or flow.execution_mode != "github-actions":
+    if not flow.is_release or _execution_mode(flow) != "github-actions":
         return
     if any(node.checkpoint for node in flow.nodes):
         message = (
             "executable release checkpoints require a resumable provider; use design-only mode"
         )
         raise ValueError(message)
-    profiles = graph.expanded_profiles()
+    profiles = graph.expanded_profiles(CAPABILITIES.profile_defaults)
     for node in graph.for_flow(flow.id).nodes:
         profile = profiles[node.profile]
         for step in (*profile.setup, *(node.steps or (node.step,))):
@@ -328,7 +357,7 @@ def _upload_artifact_action(runtime: Mapping[str, JsonValue]) -> str:
 
 
 def _validate_permissions(profile: Profile, *, allow_write: bool = False) -> None:
-    for permission, access in profile.permissions.items():
+    for permission, access in (profile.permissions or {}).items():
         if permission not in PERMISSION_NAMES:
             message = f"unknown GitHub permission: {permission}"
             raise ValueError(message)
@@ -390,7 +419,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
 
 def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> GeneratedProject:
     manifest = _manifest_value(graph, configuration)
-    profiles = graph.expanded_profiles()
+    profiles = graph.expanded_profiles(CAPABILITIES.profile_defaults)
     manifest.pop("nodes")
     manifest["manifestVersion"] = 1
     manifest["operations"] = {
@@ -413,7 +442,7 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
     manifest.update({"graphDigest": digest, "_generated": GENERATED_NOTICE})
     files: list[GeneratedFile] = []
     for flow in graph.flows:
-        if flow.execution_mode == "design-only":
+        if _execution_mode(flow) == "design-only":
             continue
         projection = EventProjection(flow.trigger, graph.for_flow(flow.id).nodes, flow.dependencies)
         flow_configuration = configuration
@@ -478,7 +507,7 @@ def _flow_value(flow: Flow) -> dict[str, JsonValue]:
         "dependencies": flow.dependencies.value,
         "presentation": flow.presentation,
         "concurrency": flow.concurrency,
-        "execution": flow.execution_mode,
+        "execution": _execution_mode(flow),
         "nodes": [
             {
                 "id": node.id,
@@ -498,7 +527,7 @@ def _manifest_value(
     graph: Graph,
     configuration: _GitHubConfiguration,
 ) -> dict[str, JsonValue]:
-    profiles = graph.expanded_profiles()
+    profiles = graph.expanded_profiles(CAPABILITIES.profile_defaults)
     value: dict[str, JsonValue] = {
         "manifestVersion": 0,
         "graphVersion": graph.version,
@@ -538,7 +567,7 @@ def _profile_value(profile: Profile) -> dict[str, JsonValue]:
         "runner": profile.runner,
         "setup": [_step_value(step) for step in profile.setup],
         "env": dict(profile.environment),
-        "permissions": dict(profile.permissions),
+        "permissions": dict(profile.permissions or {}),
         "services": dict(profile.services),
     }
     _put_optional(value, "timeoutMinutes", profile.timeout_minutes)
@@ -605,7 +634,7 @@ def _labels_value(graph: Graph) -> dict[str, JsonValue]:
 
 def pr_contract(graph: Graph) -> dict[str, JsonValue]:
     """Describe effective PR checks and governance independently of pin revisions."""
-    profiles = graph.expanded_profiles()
+    profiles = graph.expanded_profiles(CAPABILITIES.profile_defaults)
     configuration = dict(graph.provider.values)
     runtime = cast("dict[str, JsonValue]", configuration.pop("runtime"))
     return {
@@ -637,7 +666,7 @@ def _execution_workflow(
     *,
     flow: Flow | None = None,
 ) -> dict[str, JsonValue]:
-    profiles = graph.expanded_profiles()
+    profiles = graph.expanded_profiles(CAPABILITIES.profile_defaults)
     jobs: dict[str, JsonValue] = {
         node.id: _execution_job(
             node,
@@ -717,7 +746,7 @@ def _execution_job(
     value: dict[str, JsonValue] = {
         "name": node.title,
         "runs-on": runner,
-        "permissions": dict(profile.permissions),
+        "permissions": dict(profile.permissions or {}),
         "steps": [
             *(_workflow_step(step) for step in profile.setup),
             *([_workflow_step(step) for step in node.steps] if node.steps else [command]),

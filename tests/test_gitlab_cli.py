@@ -93,7 +93,7 @@ def test_gitlab_unmanaged_ci_is_preserved(tmp_path: Path) -> None:
     project = Project.open(tmp_path)
     ci = tmp_path / ".gitlab-ci.yml"
     ci.write_text("existing: {script: 'echo keep'}\n")
-    with pytest.raises(FileExistsError, match="unmanaged GitLab"):
+    with pytest.raises(FileExistsError, match="unmanaged generated file"):
         project.generate()
     assert ci.read_text() == "existing: {script: 'echo keep'}\n"
     source = yaml.safe_load((tmp_path / "qg.yaml").read_text())
