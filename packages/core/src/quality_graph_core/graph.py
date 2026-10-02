@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, cast
 
 import yaml
 
+from quality_graph_core.json_values import JSON
 from quality_graph_core.provider import ProfileDefaults
 from quality_graph_core.result import JsonValue, Severity
 
@@ -404,7 +405,7 @@ class Graph:
             raise ValueError(message)
         _reject_duplicate_yaml_keys(node)
         value = _narrow_yaml(cast("object", yaml.safe_load(source)), "qg.yaml")
-        return _parse_graph(_object(value, "qg.yaml"))
+        return _parse_graph(JSON.object(value, "qg.yaml"))
 
 
 # pragma: no mutate start
@@ -437,20 +438,22 @@ def _parse_graph(data: dict[str, JsonValue]) -> Graph:
     return Graph(
         _parse_provider(data.get("provider", "github"), data.get("runtime")),
         tuple(
-            _parse_profile(name, _object(value, f"profile {name}"))
+            _parse_profile(name, JSON.object(value, f"profile {name}"))
             for name, value in profiles.items()
         ),
-        tuple(_parse_node(name, _object(value, f"node {name}")) for name, value in nodes.items()),
-        _parse_labels(_object(data.get("labels", {}), "labels")),
-        _parse_administration(_object(data.get("administration", {}), "administration")),
-        _integer(data.get("version"), "graph version"),
+        tuple(
+            _parse_node(name, JSON.object(value, f"node {name}")) for name, value in nodes.items()
+        ),
+        _parse_labels(JSON.object(data.get("labels", {}), "labels")),
+        _parse_administration(JSON.object(data.get("administration", {}), "administration")),
+        JSON.integer(data.get("version"), "graph version"),
         _parse_execution(_mapping(data.get("execution", {}), "execution")),
         tuple(
-            _parse_operation(name, _object(value, f"operation {name}"))
+            _parse_operation(name, JSON.object(value, f"operation {name}"))
             for name, value in _mapping(data.get("operations", {}), "operations").items()
         ),
         tuple(
-            _parse_flow(name, _object(value, f"flow {name}"))
+            _parse_flow(name, JSON.object(value, f"flow {name}"))
             for name, value in _mapping(data.get("flows", {}), "flows").items()
         ),
     )
@@ -459,14 +462,14 @@ def _parse_graph(data: dict[str, JsonValue]) -> Graph:
 def _parse_provider(value: JsonValue, legacy_runtime: JsonValue) -> ProviderConfiguration:
     if isinstance(value, str):
         configuration = {} if legacy_runtime is None else {"runtime": legacy_runtime}
-        return ProviderConfiguration(_string(value, "provider"), configuration)
-    data = _object(value, "provider")
+        return ProviderConfiguration(JSON.string(value, "provider"), configuration)
+    data = JSON.object(value, "provider")
     _reject_unknown(data, {"name", "configuration"}, "provider")
     if legacy_runtime is not None:
         message = "provider configuration cannot be combined with legacy runtime"
         raise ValueError(message)
     return ProviderConfiguration(
-        _string(data.get("name"), "provider name"),
+        JSON.string(data.get("name"), "provider name"),
         _mapping(data.get("configuration", {}), "provider configuration"),
     )
 
@@ -476,7 +479,7 @@ def _parse_operation(name: str, data: dict[str, JsonValue]) -> Operation:
         message = f"operation {name} cannot own needs or events; declare flow placements"
         raise ValueError(message)
     contract = dict(data)
-    diff_only = _boolean(contract.pop("diff-only", False), f"operation {name} diff-only")
+    diff_only = JSON.boolean(contract.pop("diff-only", False), f"operation {name} diff-only")
     node = _parse_node(name, contract)
     return Operation(
         node.id,
@@ -507,15 +510,15 @@ def _parse_flow(name: str, data: dict[str, JsonValue]) -> Flow:
         raise ValueError(message)
     nodes: list[FlowNode] = []
     for node_id, value in _mapping(data.get("nodes"), f"flow {name} nodes").items():
-        placement = _object(value, f"flow {name} node {node_id}")
+        placement = JSON.object(value, f"flow {name} node {node_id}")
         _reject_unknown(placement, {"operation", "needs", "checkpoint"}, "flow node")
         nodes.append(
             FlowNode(
                 node_id,
-                _string(placement.get("operation", node_id), "operation reference"),
+                JSON.string(placement.get("operation", node_id), "operation reference"),
                 tuple(
-                    _string(item, "dependency")
-                    for item in _array(placement.get("needs", []), "needs")
+                    JSON.string(item, "dependency")
+                    for item in JSON.array(placement.get("needs", []), "needs")
                 ),
                 _mapping(placement.get("checkpoint", {}), "checkpoint"),
             )
@@ -525,17 +528,17 @@ def _parse_flow(name: str, data: dict[str, JsonValue]) -> Flow:
         trigger,
         tuple(nodes),
         DependencyPolicy(
-            _string(
+            JSON.string(
                 data.get("dependencies", "none" if trigger == "push" and not tags else "graph"),
                 "dependencies",
             )
         ),
-        _string(data.get("presentation", "none"), "presentation"),
+        JSON.string(data.get("presentation", "none"), "presentation"),
         branches,
         inputs,
-        _optional_string(data.get("concurrency"), "flow concurrency"),
+        JSON.optional_string(data.get("concurrency"), "flow concurrency"),
         tags,
-        _string(data.get("execution", "design-only"), "release execution"),
+        JSON.string(data.get("execution", "design-only"), "release execution"),
     )
 
 
@@ -548,12 +551,12 @@ def _parse_trigger(
             message = "trigger must be pull-request, workflow-dispatch or a push branch mapping"
             raise ValueError(message)
         return value, (), {}, ()
-    data = _object(value, "flow trigger")
+    data = JSON.object(value, "flow trigger")
     if len(data) != 1 or not set(data) <= {"push", "workflow-dispatch"}:
         message = "flow trigger must select exactly one supported event"
         raise ValueError(message)
     trigger, raw = next(iter(data.items()))
-    configuration = _object(raw, "trigger configuration")
+    configuration = JSON.object(raw, "trigger configuration")
     if trigger == "push":
         _reject_unknown(configuration, {"branches", "tags"}, "push trigger")
         if ("branches" in configuration) == ("tags" in configuration):
@@ -561,8 +564,8 @@ def _parse_trigger(
             raise ValueError(message)
         selection = "tags" if "tags" in configuration else "branches"
         branches = tuple(
-            _string(item, "push branch")
-            for item in _array(configuration[selection], f"push {selection}")
+            JSON.string(item, "push branch")
+            for item in JSON.array(configuration[selection], f"push {selection}")
         )
         if (
             not branches
@@ -576,7 +579,7 @@ def _parse_trigger(
     inputs = _mapping(configuration.get("inputs", {}), "dispatch inputs")
     for name, raw_input in inputs.items():
         _identifier(name, "dispatch input")
-        _validate_dispatch_input(_object(raw_input, f"input {name}"))
+        _validate_dispatch_input(JSON.object(raw_input, f"input {name}"))
     return trigger, (), inputs, ()
 
 
@@ -584,14 +587,15 @@ def _validate_dispatch_input(data: dict[str, JsonValue]) -> None:
     _reject_unknown(
         data, {"type", "description", "required", "default", "options"}, "dispatch input"
     )
-    kind = _string(data.get("type"), "input type")
+    kind = JSON.string(data.get("type"), "input type")
     if kind not in {"string", "boolean", "number", "choice", "environment"}:
         message = f"unsupported dispatch input type: {kind}"
         raise ValueError(message)
-    _string(data.get("description", ""), "input description")
-    _boolean(data.get("required", False), "input required")
+    JSON.string(data.get("description", ""), "input description")
+    JSON.boolean(data.get("required", False), "input required")
     options = tuple(
-        _string(item, "input option") for item in _array(data.get("options", []), "input options")
+        JSON.string(item, "input option")
+        for item in JSON.array(data.get("options", []), "input options")
     )
     if (kind == "choice") != bool(options) or len(set(options)) != len(options):
         message = "only choice inputs require nonempty unique options"
@@ -677,11 +681,11 @@ def _validate_checkpoint(data: Mapping[str, JsonValue], trigger: str) -> None:
         message = "checkpoints are only supported in release flow contracts"
         raise ValueError(message)
     _reject_unknown(data, {"environment", "approval", "observation-seconds"}, "checkpoint")
-    if not _string(data.get("environment"), "checkpoint environment").strip():
+    if not JSON.string(data.get("environment"), "checkpoint environment").strip():
         message = "checkpoint environment must not be empty"
         raise ValueError(message)
-    _boolean(data.get("approval", False), "checkpoint approval")
-    if _integer(data.get("observation-seconds", 0), "observation seconds") < 0:
+    JSON.boolean(data.get("approval", False), "checkpoint approval")
+    if JSON.integer(data.get("observation-seconds", 0), "observation seconds") < 0:
         message = "observation seconds must not be negative"
         raise ValueError(message)
 
@@ -700,18 +704,18 @@ def _parse_profile(name: str, data: dict[str, JsonValue]) -> Profile:
     _reject_unknown(data, known, f"profile {name}")
     return Profile(
         name,
-        _optional_string(data.get("extends"), f"profile {name} parent"),
-        _optional_string(data.get("runner"), f"profile {name} runner"),
+        JSON.optional_string(data.get("extends"), f"profile {name} parent"),
+        JSON.optional_string(data.get("runner"), f"profile {name} runner"),
         tuple(
-            _parse_step(_object(value, f"profile {name} setup step"))
-            for value in _array(data.get("setup", []), f"profile {name} setup")
+            _parse_step(JSON.object(value, f"profile {name} setup step"))
+            for value in JSON.array(data.get("setup", []), f"profile {name} setup")
         ),
         _string_mapping(data.get("env", {}), f"profile {name} env"),
         _string_mapping(data["permissions"], f"profile {name} permissions")
         if "permissions" in data
         else None,
-        _optional_integer(data.get("timeout-minutes"), f"profile {name} timeout"),
-        _optional_string(data.get("container"), f"profile {name} container"),
+        JSON.optional_integer(data.get("timeout-minutes"), f"profile {name} timeout"),
+        JSON.optional_string(data.get("container"), f"profile {name} container"),
         _mapping(data.get("services", {}), f"profile {name} services"),
     )
 
@@ -740,18 +744,18 @@ def _parse_node(name: str, data: dict[str, JsonValue]) -> Node:
     steps = _parse_execution_steps(data)
     return Node(
         name,
-        _string(data.get("title", name.replace("-", " ").title()), f"node {name} title"),
+        JSON.string(data.get("title", name.replace("-", " ").title()), f"node {name} title"),
         steps[0] if steps else _parse_step(data),
-        _string(data.get("profile", "default"), f"node {name} profile"),
+        JSON.string(data.get("profile", "default"), f"node {name} profile"),
         tuple(
-            _string(value, f"node {name} dependency")
-            for value in _array(data.get("needs", []), f"node {name} needs")
+            JSON.string(value, f"node {name} dependency")
+            for value in JSON.array(data.get("needs", []), f"node {name} needs")
         ),
-        _parse_results(_object(data.get("results", {}), f"node {name} results")),
-        _parse_policy(_object(data.get("policy", {}), f"node {name} policy")),
+        _parse_results(JSON.object(data.get("results", {}), f"node {name} results")),
+        _parse_policy(JSON.object(data.get("policy", {}), f"node {name} policy")),
         _parse_node_label(data.get("label"), f"node {name} label"),
         _string_mapping(data.get("env", {}), f"node {name} env"),
-        _optional_integer(data.get("timeout-minutes"), f"node {name} timeout"),
+        JSON.optional_integer(data.get("timeout-minutes"), f"node {name} timeout"),
         _parse_node_events(name, data),
         steps=steps,
         permissions=_string_mapping(data["permissions"], "operation permissions")
@@ -768,8 +772,8 @@ def _parse_execution_steps(data: dict[str, JsonValue]) -> tuple[Step, ...]:
         message = "steps cannot be combined with a single run/uses contract"
         raise ValueError(message)
     steps: list[Step] = []
-    for value in _array(data["steps"], "execution steps"):
-        step = _object(value, "execution step")
+    for value in JSON.array(data["steps"], "execution steps"):
+        step = JSON.object(value, "execution step")
         _reject_unknown(
             step,
             {"name", "run", "uses", "with", "env", "working-directory", "shell"},
@@ -801,19 +805,19 @@ def _parse_deployment_environment(value: JsonValue) -> Mapping[str, str]:
 def _parse_node_events(name: str, data: dict[str, JsonValue]) -> tuple[str, ...]:
     if "events" not in data:
         return ()
-    values = _array(data["events"], f"node {name} events")
+    values = JSON.array(data["events"], f"node {name} events")
     if not values:
         message = f"node {name} events must not be empty"
         raise ValueError(message)
-    return tuple(_string(value, f"node {name} event") for value in values)
+    return tuple(JSON.string(value, f"node {name} event") for value in values)
 
 
 def _parse_execution(data: Mapping[str, JsonValue]) -> dict[str, DependencyPolicy]:
     result: dict[str, DependencyPolicy] = {}
     for event, value in data.items():
-        configuration = _object(value, f"execution event {event}")
+        configuration = JSON.object(value, f"execution event {event}")
         _reject_unknown(configuration, {"dependencies"}, f"execution event {event}")
-        dependency = _string(
+        dependency = JSON.string(
             configuration.get("dependencies", DependencyPolicy.GRAPH.value),
             f"execution event {event} dependencies",
         )
@@ -827,13 +831,13 @@ def _parse_execution(data: Mapping[str, JsonValue]) -> dict[str, DependencyPolic
 
 def _parse_step(data: dict[str, JsonValue]) -> Step:
     return Step(
-        _optional_string(data.get("name"), "step name"),
-        _optional_string(data.get("run"), "step run"),
-        _optional_string(data.get("uses"), "step action"),
+        JSON.optional_string(data.get("name"), "step name"),
+        JSON.optional_string(data.get("run"), "step run"),
+        JSON.optional_string(data.get("uses"), "step action"),
         _string_mapping(data.get("with", {}), "step arguments"),
         _string_mapping(data.get("env", {}), "step env"),
-        _optional_string(data.get("working-directory"), "step working directory"),
-        _optional_string(data.get("shell"), "step shell"),
+        JSON.optional_string(data.get("working-directory"), "step working directory"),
+        JSON.optional_string(data.get("shell"), "step shell"),
     )
 
 
@@ -846,32 +850,32 @@ def _parse_results(data: dict[str, JsonValue]) -> ResultAdapter:
         raise ValueError(message)
     name, value = next(iter(data.items()))
     kind = AdapterKind(name)
-    path = None if value is None else _string(value, f"{name} report path")
+    path = None if value is None else JSON.string(value, f"{name} report path")
     return ResultAdapter(kind, path)
 
 
 def _parse_policy(data: dict[str, JsonValue]) -> NodePolicy:
     _reject_unknown(data, {"blocking", "blocking-severities", "approvals"}, "node policy")
-    approvals = _object(data.get("approvals", {}), "approval policy")
+    approvals = JSON.object(data.get("approvals", {}), "approval policy")
     _reject_unknown(approvals, {"findings", "files", "node"}, "approval policy")
     severities = tuple(
-        Severity(_string(value, "blocking severity"))
-        for value in _array(data.get("blocking-severities", ["error"]), "blocking severities")
+        Severity(JSON.string(value, "blocking severity"))
+        for value in JSON.array(data.get("blocking-severities", ["error"]), "blocking severities")
     )
     return NodePolicy(
-        _boolean(data.get("blocking", True), "node blocking"),
+        JSON.boolean(data.get("blocking", True), "node blocking"),
         severities,
         ApprovalPolicy(
-            _boolean(approvals.get("findings", True), "finding approvals"),
-            _boolean(approvals.get("files", False), "file approvals"),
-            _boolean(approvals.get("node", False), "node approvals"),
+            JSON.boolean(approvals.get("findings", True), "finding approvals"),
+            JSON.boolean(approvals.get("files", False), "file approvals"),
+            JSON.boolean(approvals.get("node", False), "node approvals"),
         ),
     )
 
 
 def _parse_labels(data: dict[str, JsonValue]) -> LabelPolicy:
     _reject_unknown(data, {"enabled", "failing"}, "labels")
-    enabled = _boolean(data.get("enabled", False), "labels enabled")
+    enabled = JSON.boolean(data.get("enabled", False), "labels enabled")
     failing = data.get("failing")
     label = _parse_label(failing, "aggregate label") if failing is not None else None
     return LabelPolicy(enabled, label)
@@ -886,21 +890,21 @@ def _parse_node_label(value: JsonValue, context: str) -> LabelSpec | None | bool
 def _parse_label(value: JsonValue, context: str) -> LabelSpec:
     if isinstance(value, str):
         return LabelSpec(value)
-    data = _object(value, context)
+    data = JSON.object(value, context)
     _reject_unknown(data, {"name", "color", "description", "create"}, context)
     return LabelSpec(
-        _string(data.get("name"), f"{context} name"),
-        _string(data.get("color", "b60205"), f"{context} color"),
-        _string(data.get("description", "Quality Graph failure"), f"{context} description"),
-        _boolean(data.get("create", False), f"{context} create"),
+        JSON.string(data.get("name"), f"{context} name"),
+        JSON.string(data.get("color", "b60205"), f"{context} color"),
+        JSON.string(data.get("description", "Quality Graph failure"), f"{context} description"),
+        JSON.boolean(data.get("create", False), f"{context} create"),
     )
 
 
 def _parse_administration(data: dict[str, JsonValue]) -> tuple[str, ...]:
     _reject_unknown(data, {"roles"}, "administration")
     return tuple(
-        _string(value, "administrator role")
-        for value in _array(data.get("roles", ["admin"]), "administrator roles")
+        JSON.string(value, "administrator role")
+        for value in JSON.array(data.get("roles", ["admin"]), "administrator roles")
     )
 
 
@@ -1034,57 +1038,14 @@ def _narrow_yaml(value: object, context: str) -> JsonValue:
     raise TypeError(message)
 
 
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict):
-        message = f"{context} must be an object"
-        raise TypeError(message)
-    return value
-
-
 def _mapping(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    return _object(value, context)
-
-
-def _array(value: JsonValue, context: str) -> list[JsonValue]:
-    if not isinstance(value, list):
-        message = f"{context} must be an array"
-        raise TypeError(message)
-    return value
-
-
-def _string(value: JsonValue, context: str) -> str:
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise TypeError(message)
-    return value
-
-
-def _optional_string(value: JsonValue, context: str) -> str | None:
-    return None if value is None else _string(value, context)
+    return JSON.object(value, context)
 
 
 def _string_mapping(value: JsonValue, context: str) -> dict[str, str]:
     return {
-        key: _string(item, f"{context}.{key}") for key, item in _mapping(value, context).items()
+        key: JSON.string(item, f"{context}.{key}") for key, item in _mapping(value, context).items()
     }
-
-
-def _integer(value: JsonValue, context: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        message = f"{context} must be an integer"
-        raise TypeError(message)
-    return value
-
-
-def _optional_integer(value: JsonValue, context: str) -> int | None:
-    return None if value is None else _integer(value, context)
-
-
-def _boolean(value: JsonValue, context: str) -> bool:
-    if not isinstance(value, bool):
-        message = f"{context} must be a boolean"
-        raise TypeError(message)
-    return value
 
 
 def _reject_unknown(data: Mapping[str, JsonValue], known: Iterable[str], context: str) -> None:

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, cast
 from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
 
+from quality_graph_core.json_values import JsonValidator
 from quality_graph_core.result import (
     MAX_FINDINGS,
     Annotation,
@@ -62,6 +63,9 @@ class AdapterError(ValueError):
     """Represent deterministic failure to read or translate a report."""
 
 
+JSON = JsonValidator(AdapterError)
+
+
 @dataclass(frozen=True)
 class AdapterContext:
     """Provide trusted node and workflow metadata to an adapter."""
@@ -99,7 +103,7 @@ def adapt_exit(context: AdapterContext, output: str = "") -> Result:
 def adapt_native(context: AdapterContext, report: bytes) -> Result:
     """Validate a native result and bind it to trusted execution metadata."""
     try:
-        data = _object(_decode_json(report, "Native result"), "native result")
+        data = JSON.object(_decode_json(report, "Native result"), "native result")
         if "reportVersion" in data:
             data = _bind_producer(context, data)
         result = Result.from_value(data)
@@ -126,14 +130,14 @@ def adapt_sarif(context: AdapterContext, report: bytes) -> Result:
 
 def _adapt_sarif(context: AdapterContext, report: bytes) -> Result:
     data = _decode_json(report, "SARIF")
-    root = _object(data, "SARIF report")
-    runs = _array(root.get("runs"), "SARIF runs")
+    root = JSON.object(data, "SARIF report")
+    runs = JSON.array(root.get("runs"), "SARIF runs")
     entries: dict[str, tuple[Finding, Annotation | None]] = {}
     for run_value in runs:
-        run = _object(run_value, "SARIF run")
-        for result_value in _array(run.get("results", []), "SARIF results"):
+        run = JSON.object(run_value, "SARIF run")
+        for result_value in JSON.array(run.get("results", []), "SARIF results"):
             identity = json.dumps({"tool": run.get("tool"), "result": result_value}, sort_keys=True)
-            entries[identity] = _sarif_finding(_object(result_value, "SARIF result"))
+            entries[identity] = _sarif_finding(JSON.object(result_value, "SARIF result"))
     counts = Counter(finding.id for finding, _ in entries.values())
     findings: list[Finding] = []
     annotations: list[Annotation] = []
@@ -316,11 +320,11 @@ def _decode_json(value: bytes, context: str) -> JsonValue:
 
 
 def _sarif_finding(data: dict[str, JsonValue]) -> tuple[Finding, Annotation | None]:
-    rule_id = _optional_string(data.get("ruleId"), "SARIF rule id")
-    message = _sarif_message(_object(data.get("message"), "SARIF message"))
-    severity = _sarif_severity(_optional_string(data.get("level"), "SARIF level"))
+    rule_id = JSON.optional_string(data.get("ruleId"), "SARIF rule id")
+    message = _sarif_message(JSON.object(data.get("message"), "SARIF message"))
+    severity = _sarif_severity(JSON.optional_string(data.get("level"), "SARIF level"))
     location = _sarif_location(data.get("locations"))
-    partial = _optional_object(data.get("partialFingerprints"), "SARIF partial fingerprints")
+    partial = JSON.optional_object(data.get("partialFingerprints"), "SARIF partial fingerprints")
     fingerprint = _sarif_fingerprint(rule_id, message, location, partial)
     finding_id = f"sarif-{fingerprint[:24]}"
     finding = Finding(
@@ -337,7 +341,7 @@ def _sarif_finding(data: dict[str, JsonValue]) -> tuple[Finding, Annotation | No
 
 def _sarif_message(data: dict[str, JsonValue]) -> str:
     text = data.get("text", data.get("markdown"))
-    return _string(text, "SARIF message text")
+    return JSON.string(text, "SARIF message text")
 
 
 def _sarif_severity(value: str | None) -> Severity:
@@ -349,21 +353,21 @@ def _sarif_severity(value: str | None) -> Severity:
 
 
 def _sarif_location(value: JsonValue) -> SourceLocation | None:
-    locations = _array(value if value is not None else [], "SARIF locations")
+    locations = JSON.array(value if value is not None else [], "SARIF locations")
     if not locations:
         return None
-    location = _object(locations[0], "SARIF location")
-    physical = _object(location.get("physicalLocation"), "SARIF physical location")
-    artifact = _object(physical.get("artifactLocation"), "SARIF artifact location")
-    region = _object(physical.get("region"), "SARIF region")
-    start_line = _integer(region.get("startLine"), "SARIF start line")
-    end_line = _optional_integer(region.get("endLine"), "SARIF end line") or start_line
+    location = JSON.object(locations[0], "SARIF location")
+    physical = JSON.object(location.get("physicalLocation"), "SARIF physical location")
+    artifact = JSON.object(physical.get("artifactLocation"), "SARIF artifact location")
+    region = JSON.object(physical.get("region"), "SARIF region")
+    start_line = JSON.integer(region.get("startLine"), "SARIF start line")
+    end_line = JSON.optional_integer(region.get("endLine"), "SARIF end line") or start_line
     return SourceLocation(
-        _string(artifact.get("uri"), "SARIF artifact URI"),
+        JSON.string(artifact.get("uri"), "SARIF artifact URI"),
         start_line,
         end_line,
-        _optional_integer(region.get("startColumn"), "SARIF start column"),
-        _optional_integer(region.get("endColumn"), "SARIF end column"),
+        JSON.optional_integer(region.get("startColumn"), "SARIF start column"),
+        JSON.optional_integer(region.get("endColumn"), "SARIF end column"),
     )
 
 
@@ -375,7 +379,8 @@ def _sarif_fingerprint(
 ) -> str:
     if partial:
         semantic = "\n".join(
-            f"{key}={_string(value, 'SARIF fingerprint')}" for key, value in sorted(partial.items())
+            f"{key}={JSON.string(value, 'SARIF fingerprint')}"
+            for key, value in sorted(partial.items())
         )
     else:
         semantic = "\n".join((rule_id or "", message, location.path if location else ""))
@@ -399,43 +404,3 @@ def _junit_finding(case: XmlElement, failure: XmlElement) -> Finding:
         group=class_name or None,
         location=SourceLocation(case.get("file"), 1, 1) if case.get("file") else None,
     )
-
-
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict):
-        message = f"{context} must be an object"
-        raise AdapterError(message)
-    return value
-
-
-def _optional_object(value: JsonValue, context: str) -> dict[str, JsonValue] | None:
-    return None if value is None else _object(value, context)
-
-
-def _array(value: JsonValue, context: str) -> list[JsonValue]:
-    if not isinstance(value, list):
-        message = f"{context} must be an array"
-        raise AdapterError(message)
-    return value
-
-
-def _string(value: JsonValue, context: str) -> str:
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise AdapterError(message)
-    return value
-
-
-def _optional_string(value: JsonValue, context: str) -> str | None:
-    return None if value is None else _string(value, context)
-
-
-def _integer(value: JsonValue, context: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        message = f"{context} must be an integer"
-        raise AdapterError(message)
-    return value
-
-
-def _optional_integer(value: JsonValue, context: str) -> int | None:
-    return None if value is None else _integer(value, context)

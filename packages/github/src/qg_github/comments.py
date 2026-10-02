@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from qg_github.github import GitHubPort, paged
+from quality_graph_core.json_values import JSON
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from quality_graph_core.result import JsonValue
 
 GITHUB_COMMENT_BODY_LIMIT = 65_536
 DEFAULT_BOT_LOGIN = "github-actions[bot]"
@@ -87,7 +87,7 @@ def upsert_managed_comment(
         return existing
     else:
         response = port.request("PATCH", f"/issues/comments/{existing.id}", {"body": rendered})
-    data = _object(response, "managed comment")
+    data = JSON.object(response, "managed comment")
     comment_id = data.get("id")
     response_body = data.get("body")
     if not isinstance(comment_id, int) or isinstance(comment_id, bool):
@@ -97,10 +97,3 @@ def upsert_managed_comment(
         message = "managed comment response has no body"
         raise TypeError(message)
     return ManagedComment(comment_id, response_body)
-
-
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict):
-        message = f"{context} must be an object"
-        raise TypeError(message)
-    return value

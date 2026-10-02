@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, cast
 
 from qg_github.github import GitHubPort, paged
 from quality_graph_core.graph import Graph, LabelSpec
+from quality_graph_core.json_values import JSON
 from quality_graph_core.result import JsonValue, Result, ResultStatus
 
 if TYPE_CHECKING:
@@ -67,7 +68,7 @@ def reconcile_labels(
     if not graph.labels.enabled:
         return
     current = {
-        _string(item.get("name"), "pull request label")
+        JSON.string(item.get("name"), "pull request label")
         for item in paged(port, f"/issues/{number}/labels")
     }
     desired = _desired_labels(graph, results)
@@ -124,10 +125,3 @@ def _ensure_label(port: GitHubPort, specification: LabelSpec) -> None:
                 "description": specification.description,
             },
         )
-
-
-def _string(value: JsonValue, context: str) -> str:
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise TypeError(message)
-    return value
