@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from importlib.metadata import version
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -12,11 +12,11 @@ from typing import TYPE_CHECKING
 import yaml
 
 from qg_gitlab.api import integer, server_url, string
-from quality_graph_core.graph import DependencyPolicy, Graph
+from quality_graph_core.projection import project_event
 from quality_graph_core.provider import GeneratedFile, GeneratedProject
 
 if TYPE_CHECKING:
-    from quality_graph_core.graph import Node, Profile
+    from quality_graph_core.graph import Graph, Node, Profile
     from quality_graph_core.result import JsonValue
 
 RUNTIME_VERSION = version("quality-graph-gitlab")
@@ -108,42 +108,15 @@ def execution_graphs(graph: Graph) -> tuple[tuple[str, str, Graph], ...]:
                 )
                 raise ValueError(message)
             events.add(flow.trigger)
-            result.append((flow.id, flow.trigger, graph.for_flow(flow.id)))
+            projected = project_event(graph, flow.trigger, flow_id=flow.id)
+            result.append((flow.id, flow.trigger, projected))
         return tuple(result)
     result = []
     for event, flow_id in (("pull-request", "mr"), ("push", "push")):
-        selected = tuple(node for node in graph.nodes if not node.events or event in node.events)
-        membership = {node.id for node in selected}
-        dependencies = graph.execution.get(event, DependencyPolicy.GRAPH)
-        _validate_event_dependencies(selected, dependencies, event)
-        selected = tuple(
-            replace(
-                node,
-                needs=tuple(need for need in node.needs if need in membership)
-                if dependencies is DependencyPolicy.GRAPH
-                else (),
-            )
-            for node in selected
-        )
-        if selected:
-            result.append((flow_id, event, replace(graph, nodes=selected)))
+        projected = project_event(graph, event)
+        if projected.nodes:
+            result.append((flow_id, event, projected))
     return tuple(result)
-
-
-def _validate_event_dependencies(
-    nodes: tuple[Node, ...], dependencies: DependencyPolicy, event: str
-) -> None:
-    if dependencies is DependencyPolicy.NONE:
-        return
-    membership = {node.id for node in nodes}
-    for node in nodes:
-        missing = set(node.needs) - membership
-        if missing:
-            message = (
-                f"GitLab {event} event projection excludes dependencies of {node.id}: "
-                f"{', '.join(sorted(missing))}"
-            )
-            raise ValueError(message)
 
 
 def job_name(flow_id: str, node_id: str) -> str:
