@@ -6,8 +6,8 @@ provider:
     merge:
       required: true
     runtime:
-      action: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
-      publisher-action: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+      action: alchemmist/quality-graph@634e7f4f49e4c49a045b03e6ffc438946db60729
+      publisher-action: alchemmist/quality-graph@634e7f4f49e4c49a045b03e6ffc438946db60729
 
 profiles:
   default:
