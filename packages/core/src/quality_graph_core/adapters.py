@@ -110,7 +110,10 @@ def adapt_native(context: AdapterContext, report: bytes) -> Result:
     if result.provenance != context.provenance:
         message = "Native result provenance does not match the current workflow attempt"
         raise AdapterError(message)
-    return _reconcile_command(context, result)
+    result = _reconcile_command(context, result)
+    if result.status is ResultStatus.PASSED and result.omitted_findings:
+        return replace(result, status=ResultStatus.FAILED, failure_kind=FailureKind.QUALITY)
+    return result
 
 
 def adapt_sarif(context: AdapterContext, report: bytes) -> Result:
