@@ -405,3 +405,22 @@ def test_flaky_gate_does_not_collect_application_modules(
         ),
     )
     assert flaky.changed_test_files("main") == ()
+
+
+def test_flaky_gate_selects_the_directory_containing_a_nested_helper(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    changed = "tests/unit/helpers.py"
+    (tmp_path / "tests/unit").mkdir(parents=True)
+    (tmp_path / changed).write_text("value = 1\n")
+    (tmp_path / "tests/unit/test_sample.py").write_text("def test_sample():\n    assert 1 == 1\n")
+    monkeypatch.setattr(
+        "qg_python.flaky.patch_for_base",
+        lambda _base: (
+            f"diff --git a/{changed} b/{changed}\n+++ b/{changed}\n@@ -1 +1 @@\n+value = 1\n"
+        ),
+    )
+
+    assert flaky.changed_test_files("main") == ("tests/unit",)
