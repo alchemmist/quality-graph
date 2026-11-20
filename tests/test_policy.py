@@ -81,18 +81,21 @@ def test_finding_approval_only_removes_its_own_blocking_failure() -> None:
     assert effective.results["lint"].status is ResultStatus.FAILED
 
 
-def test_non_quality_failure_cannot_be_approved() -> None:
+@pytest.mark.parametrize(
+    "failure",
+    [FailureKind.COMMAND, FailureKind.ADAPTER, FailureKind.INFRASTRUCTURE],
+)
+def test_non_quality_failure_cannot_be_approved(failure: FailureKind) -> None:
     graph = Graph.from_yaml(GRAPH)
     approval = ApprovalTarget(ControlKind.FILE, "src/app.py")
 
-    effective = effective_graph(
-        graph,
-        {"lint": result(failure=FailureKind.ADAPTER)},
-        {approval},
-    )
+    effective = effective_graph(graph, {"lint": result(failure=failure)}, {approval}).results[
+        "lint"
+    ]
 
-    assert effective.results["lint"].failure_kind is FailureKind.ADAPTER
-    assert effective.results["lint"].controls[0].checked is False
+    assert effective.status is ResultStatus.FAILED
+    assert effective.failure_kind is failure
+    assert effective.controls[0].checked is False
 
 
 def test_node_approval_handles_quality_failure_without_findings() -> None:
@@ -146,3 +149,21 @@ def test_configured_severity_blocks_a_successful_report(severity: Severity) -> N
         graph, {"lint": passed}, {ApprovalTarget(ControlKind.FINDING, "warning")}
     ).results["lint"]
     assert approved.status is ResultStatus.PASSED
+
+
+def test_successful_warning_stays_passed_under_default_error_severity() -> None:
+    graph = Graph.from_yaml(GRAPH)
+    lint = next(node for node in graph.nodes if node.id == "lint")
+    lint = replace(lint, policy=replace(lint.policy, blocking_severities=(Severity.ERROR,)))
+    graph = replace(graph, nodes=(replace(lint, needs=()),))
+    passed = replace(
+        result(),
+        status=ResultStatus.PASSED,
+        failure_kind=None,
+        findings=(Finding("warning", Severity.WARNING, "Review this finding"),),
+    )
+
+    effective = effective_graph(graph, {"lint": passed}, set()).results["lint"]
+
+    assert effective.status is ResultStatus.PASSED
+    assert effective.failure_kind is None
