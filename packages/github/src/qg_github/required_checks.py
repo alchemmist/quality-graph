@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, cast
 
 from qg_github.compiler import _validate_github_graph
 from qg_github.github import GitHubError
+from quality_graph_core.json_values import JSON
 
 if TYPE_CHECKING:
     from qg_github.github import GitHubPort
@@ -49,23 +50,23 @@ def plan_required_checks(port: GitHubPort, graph: Graph) -> RequiredChecksPlan:
     configuration = _validate_github_graph(graph)
     branch = configuration.default_branch
     encoded = urllib.parse.quote(branch, safe="")
-    rules = _array(_request(port, "GET", f"/rules/branches/{encoded}"), "branch rules")
+    rules = JSON.array(_request(port, "GET", f"/rules/branches/{encoded}"), "branch rules")
     sources = {
         (
-            _string(rule.get("ruleset_source_type"), "ruleset source type"),
-            _integer(rule.get("ruleset_id"), "ruleset id"),
+            JSON.string(rule.get("ruleset_source_type"), "ruleset source type"),
+            JSON.integer(rule.get("ruleset_id"), "ruleset id"),
         )
         for value in rules
-        for rule in (_object(value, "branch rule"),)
+        for rule in (JSON.object(value, "branch rule"),)
     }
     required_sources = {
         source
         for value in rules
-        for rule in (_object(value, "branch rule"),)
+        for rule in (JSON.object(value, "branch rule"),)
         for source in (
             (
-                _string(rule.get("ruleset_source_type"), "ruleset source type"),
-                _integer(rule.get("ruleset_id"), "ruleset id"),
+                JSON.string(rule.get("ruleset_source_type"), "ruleset source type"),
+                JSON.integer(rule.get("ruleset_id"), "ruleset id"),
             ),
         )
         if rule.get("type") == "required_status_checks"
@@ -124,13 +125,13 @@ def _ruleset_plan(
     required: bool,
 ) -> RequiredChecksPlan:
     path = f"/rulesets/{ruleset_id}"
-    ruleset = _object(_request(port, "GET", path), "repository ruleset")
-    rules = _array(ruleset.get("rules"), "repository ruleset rules")
+    ruleset = JSON.object(_request(port, "GET", path), "repository ruleset")
+    rules = JSON.array(ruleset.get("rules"), "repository ruleset rules")
     index = next(
         (
             position
             for position, value in enumerate(rules)
-            if _object(value, "ruleset rule").get("type") == "required_status_checks"
+            if JSON.object(value, "ruleset rule").get("type") == "required_status_checks"
         ),
         None,
     )
@@ -152,16 +153,16 @@ def _ruleset_plan(
             "repository ruleset", branch, None, None, None, (), (QUALITY_GRAPH_CONTEXT,)
         )
         return _ruleset_update(ruleset, desired_rules, path, plan)
-    current_rule = _object(rules[index], "required status checks rule")
-    parameters = _object(current_rule.get("parameters"), "required status checks parameters")
-    checks = _array(parameters.get("required_status_checks"), "required status checks")
+    current_rule = JSON.object(rules[index], "required status checks rule")
+    parameters = JSON.object(current_rule.get("parameters"), "required status checks parameters")
+    checks = JSON.array(parameters.get("required_status_checks"), "required status checks")
     before = tuple(
-        _string(_object(value, "required status check").get("context"), "status context")
+        JSON.string(JSON.object(value, "required status check").get("context"), "status context")
         for value in checks
     )
     desired_checks = _desired_check_objects(checks, required=required)
     after = tuple(
-        _string(_object(value, "required status check").get("context"), "status context")
+        JSON.string(JSON.object(value, "required status check").get("context"), "status context")
         for value in desired_checks
     )
     if checks == desired_checks:
@@ -213,18 +214,18 @@ def _classic_plan(
         before: tuple[str, ...] = ()
         strict = False
         checks: list[JsonValue] | None = None
-        full_protection = _object(protection, "branch protection")
+        full_protection = JSON.object(protection, "branch protection")
     else:
-        value = _object(status, "required status check protection")
+        value = JSON.object(status, "required status check protection")
         strict = bool(value.get("strict", False))
         raw_checks = value.get("checks")
-        checks = None if raw_checks is None else _array(raw_checks, "status checks")
+        checks = None if raw_checks is None else JSON.array(raw_checks, "status checks")
         if checks is None:
-            contexts = _array(value.get("contexts", []), "status contexts")
-            before = tuple(_string(item, "status context") for item in contexts)
+            contexts = JSON.array(value.get("contexts", []), "status contexts")
+            before = tuple(JSON.string(item, "status context") for item in contexts)
         else:
             before = tuple(
-                _string(_object(item, "status check").get("context"), "status context")
+                JSON.string(JSON.object(item, "status check").get("context"), "status context")
                 for item in checks
             )
     desired = _desired_contexts(before, required=required)
@@ -283,7 +284,7 @@ def _branch_protection_payload(
 def _pull_request_reviews(value: JsonValue) -> JsonValue:
     if value is None:
         return None
-    reviews = _object(value, "pull request review protection")
+    reviews = JSON.object(value, "pull request review protection")
     payload: dict[str, JsonValue] = {
         key: reviews[key]
         for key in (
@@ -303,7 +304,7 @@ def _pull_request_reviews(value: JsonValue) -> JsonValue:
 def _restrictions(value: JsonValue) -> JsonValue:
     if value is None:
         return None
-    restrictions = _object(value, "branch restrictions")
+    restrictions = JSON.object(value, "branch restrictions")
     return {
         "users": _actor_names(restrictions.get("users", []), "login"),
         "teams": _actor_names(restrictions.get("teams", []), "slug"),
@@ -313,8 +314,8 @@ def _restrictions(value: JsonValue) -> JsonValue:
 
 def _actor_names(value: JsonValue, field: str) -> list[JsonValue]:
     return [
-        _string(_object(actor, "branch restriction actor").get(field), field)
-        for actor in _array(value, "branch restriction actors")
+        JSON.string(JSON.object(actor, "branch restriction actor").get(field), field)
+        for actor in JSON.array(value, "branch restriction actors")
     ]
 
 
@@ -323,7 +324,7 @@ def _enabled_or_none(value: JsonValue) -> JsonValue:
 
 
 def _enabled(value: JsonValue, context: str) -> bool:
-    enabled = _object(value, context).get("enabled")
+    enabled = JSON.object(value, context).get("enabled")
     if not isinstance(enabled, bool):
         message = f"{context} enabled must be a boolean"
         raise TypeError(message)
@@ -334,7 +335,7 @@ def _desired_check_objects(checks: list[JsonValue], *, required: bool) -> list[J
     managed = [
         item
         for item in checks
-        if _object(item, "status check").get("context") == QUALITY_GRAPH_CONTEXT
+        if JSON.object(item, "status check").get("context") == QUALITY_GRAPH_CONTEXT
     ]
     if required and managed:
         return list(checks)
@@ -359,31 +360,3 @@ def _request(port: GitHubPort, method: str, path: str, payload: JsonValue = None
             message = "GitHub token requires repository Administration write permission"
             raise PermissionError(message) from error
         raise
-
-
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict):
-        message = f"{context} must be an object"
-        raise TypeError(message)
-    return value
-
-
-def _array(value: JsonValue, context: str) -> list[JsonValue]:
-    if not isinstance(value, list):
-        message = f"{context} must be an array"
-        raise TypeError(message)
-    return value
-
-
-def _string(value: JsonValue, context: str) -> str:
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise TypeError(message)
-    return value
-
-
-def _integer(value: JsonValue, context: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        message = f"{context} must be an integer"
-        raise TypeError(message)
-    return value

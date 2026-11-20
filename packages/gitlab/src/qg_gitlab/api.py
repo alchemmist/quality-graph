@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Self, cast
 
 import httpx
 
+from quality_graph_core.json_values import JSON
+
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
     from types import TracebackType
@@ -26,32 +28,25 @@ RETRY_STATUSES = {409, 429, 502, 503, 504}
 
 def object_value(value: JsonValue, context: str) -> dict[str, JsonValue]:
     """Require a JSON object at an external interface."""
-    if not isinstance(value, dict):
-        message = f"{context} must be an object"
-        raise TypeError(message)
-    return value
+    return JSON.object(value, context)
 
 
 def integer(value: JsonValue, context: str) -> int:
     """Require a positive integer identity without coercion."""
-    if not isinstance(value, int) or isinstance(value, bool):
-        message = f"{context} must be an integer"
-        raise TypeError(message)
-    if value < 1:
+    result = JSON.integer(value, context)
+    if result < 1:
         message = f"{context} must be positive"
         raise ValueError(message)
-    return value
+    return result
 
 
 def string(value: JsonValue, context: str) -> str:
     """Require a nonempty string at an external interface."""
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise TypeError(message)
-    if not value:
+    result = JSON.string(value, context)
+    if not result:
         message = f"{context} must not be empty"
         raise ValueError(message)
-    return value
+    return result
 
 
 def server_url(value: str) -> str:

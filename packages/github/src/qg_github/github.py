@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Protocol, cast
 
 import httpx
 
+from quality_graph_core.json_values import JsonValidator
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -17,6 +19,9 @@ if TYPE_CHECKING:
 
 REQUEST_TIMEOUT_SECONDS = 30.0
 GITHUB_PAGE_SIZE = 100
+
+
+JSON = JsonValidator(verb="return")
 
 
 class GitHubPort(Protocol):
@@ -162,22 +167,8 @@ def paged(port: GitHubPort, path: str) -> tuple[dict[str, JsonValue], ...]:
     while True:
         separator = "&" if "?" in path else "?"
         page_path = f"{path}{separator}per_page={GITHUB_PAGE_SIZE}&page={page}"
-        items = _array(port.request("GET", page_path), page_path)
-        result.extend(_object(item, page_path) for item in items)
+        items = JSON.array(port.request("GET", page_path), page_path)
+        result.extend(JSON.object(item, page_path) for item in items)
         if len(items) < GITHUB_PAGE_SIZE:
             return tuple(result)
         page += 1
-
-
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict):
-        message = f"{context} must return an object"
-        raise TypeError(message)
-    return value
-
-
-def _array(value: JsonValue, context: str) -> list[JsonValue]:
-    if not isinstance(value, list):
-        message = f"{context} must return an array"
-        raise TypeError(message)
-    return value

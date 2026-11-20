@@ -10,6 +10,8 @@ from enum import StrEnum
 from pathlib import PurePosixPath
 from typing import Self, cast
 
+from quality_graph_core.json_values import JSON
+
 type JsonScalar = bool | float | int | None | str
 type JsonValue = JsonScalar | list[JsonValue] | dict[str, JsonValue]
 
@@ -89,11 +91,11 @@ class Metric:
     @classmethod
     def from_value(cls, value: JsonValue) -> Self:
         """Parse a metric from untrusted JSON."""
-        data = _object(value, "metric")
+        data = JSON.object(value, "metric")
         _reject_unknown(data, {"label", "value"}, "metric")
         return cls(
-            _string(data.get("label"), "metric label"),
-            _string(data.get("value"), "metric value"),
+            JSON.string(data.get("label"), "metric label"),
+            JSON.string(data.get("value"), "metric value"),
         )
 
 
@@ -147,18 +149,18 @@ class SourceLocation:
     @classmethod
     def from_value(cls, value: JsonValue) -> Self:
         """Parse a source range from untrusted JSON."""
-        data = _object(value, "source location")
+        data = JSON.object(value, "source location")
         _reject_unknown(
             data,
             {"path", "startLine", "endLine", "startColumn", "endColumn"},
             "source location",
         )
         return cls(
-            _string(data.get("path"), "source path"),
-            _integer(data.get("startLine"), "source start line"),
-            _integer(data.get("endLine"), "source end line"),
-            _optional_integer(data.get("startColumn"), "source start column"),
-            _optional_integer(data.get("endColumn"), "source end column"),
+            JSON.string(data.get("path"), "source path"),
+            JSON.integer(data.get("startLine"), "source start line"),
+            JSON.integer(data.get("endLine"), "source end line"),
+            JSON.optional_integer(data.get("startColumn"), "source start column"),
+            JSON.optional_integer(data.get("endColumn"), "source end column"),
         )
 
 
@@ -207,7 +209,7 @@ class Finding:
     @classmethod
     def from_value(cls, value: JsonValue) -> Self:
         """Parse a finding from untrusted JSON."""
-        data = _object(value, "finding")
+        data = JSON.object(value, "finding")
         known = {
             "id",
             "severity",
@@ -221,14 +223,14 @@ class Finding:
         _reject_unknown(data, known, "finding")
         location = data.get("location")
         return cls(
-            _string(data.get("id"), "finding id"),
-            Severity(_string(data.get("severity"), "finding severity")),
-            _string(data.get("message"), "finding message"),
-            _optional_string(data.get("ruleId"), "finding rule"),
-            _optional_string(data.get("documentationUrl"), "finding documentation URL"),
-            _optional_string(data.get("fingerprint"), "finding fingerprint"),
+            JSON.string(data.get("id"), "finding id"),
+            Severity(JSON.string(data.get("severity"), "finding severity")),
+            JSON.string(data.get("message"), "finding message"),
+            JSON.optional_string(data.get("ruleId"), "finding rule"),
+            JSON.optional_string(data.get("documentationUrl"), "finding documentation URL"),
+            JSON.optional_string(data.get("fingerprint"), "finding fingerprint"),
             SourceLocation.from_value(location) if location is not None else None,
-            _optional_string(data.get("group"), "finding group"),
+            JSON.optional_string(data.get("group"), "finding group"),
         )
 
 
@@ -259,13 +261,13 @@ class Annotation:
     @classmethod
     def from_value(cls, value: JsonValue) -> Self:
         """Parse an annotation from untrusted JSON."""
-        data = _object(value, "annotation")
+        data = JSON.object(value, "annotation")
         _reject_unknown(data, {"level", "message", "location", "title"}, "annotation")
         return cls(
-            Severity(_string(data.get("level"), "annotation level")),
-            _string(data.get("message"), "annotation message"),
+            Severity(JSON.string(data.get("level"), "annotation level")),
+            JSON.string(data.get("message"), "annotation message"),
             SourceLocation.from_value(data.get("location")),
-            _optional_string(data.get("title"), "annotation title"),
+            JSON.optional_string(data.get("title"), "annotation title"),
         )
 
 
@@ -289,12 +291,12 @@ class Diagnostic:
     @classmethod
     def from_value(cls, value: JsonValue) -> Self:
         """Parse a diagnostic from untrusted JSON."""
-        data = _object(value, "diagnostic")
+        data = JSON.object(value, "diagnostic")
         _reject_unknown(data, {"kind", "message", "detail"}, "diagnostic")
         return cls(
-            DiagnosticKind(_string(data.get("kind"), "diagnostic kind")),
-            _string(data.get("message"), "diagnostic message"),
-            _string(data.get("detail", ""), "diagnostic detail"),
+            DiagnosticKind(JSON.string(data.get("kind"), "diagnostic kind")),
+            JSON.string(data.get("message"), "diagnostic message"),
+            JSON.string(data.get("detail", ""), "diagnostic detail"),
         )
 
 
@@ -317,12 +319,12 @@ class Control:
     @classmethod
     def from_value(cls, value: JsonValue) -> Self:
         """Parse a control from untrusted JSON."""
-        data = _object(value, "control")
+        data = JSON.object(value, "control")
         _reject_unknown(data, {"kind", "target", "checked"}, "control")
         return cls(
-            ControlKind(_string(data.get("kind"), "control kind")),
-            _string(data.get("target"), "control target"),
-            _boolean(data.get("checked", False), "control checked"),
+            ControlKind(JSON.string(data.get("kind"), "control kind")),
+            JSON.string(data.get("target"), "control target"),
+            JSON.boolean(data.get("checked", False), "control checked"),
         )
 
 
@@ -381,7 +383,7 @@ class Provenance:
     @classmethod
     def from_value(cls, value: JsonValue) -> Self:
         """Parse provenance from untrusted JSON."""
-        data = _object(value, "provenance")
+        data = JSON.object(value, "provenance")
         known = {
             "repository",
             "pullRequest",
@@ -394,14 +396,14 @@ class Provenance:
         }
         _reject_unknown(data, known, "provenance")
         return cls(
-            _string(data.get("repository"), "repository"),
-            _string(data.get("headSha"), "head SHA"),
-            _integer(data.get("workflowRunId"), "workflow run id"),
-            _integer(data.get("runAttempt"), "run attempt"),
-            _string(data.get("graphDigest"), "graph digest"),
-            _optional_integer(data.get("pullRequest"), "pull request"),
-            _optional_string(data.get("flowId"), "flow id"),
-            _optional_string(data.get("operationId"), "operation id"),
+            JSON.string(data.get("repository"), "repository"),
+            JSON.string(data.get("headSha"), "head SHA"),
+            JSON.integer(data.get("workflowRunId"), "workflow run id"),
+            JSON.integer(data.get("runAttempt"), "run attempt"),
+            JSON.string(data.get("graphDigest"), "graph digest"),
+            JSON.optional_integer(data.get("pullRequest"), "pull request"),
+            JSON.optional_string(data.get("flowId"), "flow id"),
+            JSON.optional_string(data.get("operationId"), "operation id"),
         )
 
 
@@ -441,7 +443,7 @@ class GitLabProvenance:
             ("target project", self.target_project_id),
             ("merge request", self.merge_request),
         ):
-            if number is not None and (_integer(number, name) < 1):
+            if number is not None and (JSON.integer(number, name) < 1):
                 message = f"GitLab {name} identity must be positive"
                 raise ValueError(message)
         if GIT_SHA_RE.fullmatch(self.head_sha) is None:
@@ -481,7 +483,7 @@ class GitLabProvenance:
     @classmethod
     def from_value(cls, value: JsonValue) -> Self:
         """Parse the GitLab variant of version-one result provenance."""
-        data = _object(value, "GitLab provenance")
+        data = JSON.object(value, "GitLab provenance")
         _reject_unknown(
             data,
             {
@@ -503,16 +505,16 @@ class GitLabProvenance:
             message = "version-one provenance requires the gitlab provider"
             raise ValueError(message)
         return cls(
-            _string(data.get("serverUrl"), "GitLab server URL"),
-            _integer(data.get("projectId"), "GitLab project"),
-            _string(data.get("headSha"), "head SHA"),
-            _integer(data.get("pipelineId"), "GitLab pipeline"),
-            _integer(data.get("jobId"), "GitLab job"),
-            _string(data.get("graphDigest"), "graph digest"),
-            _optional_integer(data.get("targetProjectId"), "GitLab target project"),
-            _optional_integer(data.get("mergeRequest"), "GitLab merge request"),
-            _optional_string(data.get("flowId"), "flow id"),
-            _optional_string(data.get("operationId"), "operation id"),
+            JSON.string(data.get("serverUrl"), "GitLab server URL"),
+            JSON.integer(data.get("projectId"), "GitLab project"),
+            JSON.string(data.get("headSha"), "head SHA"),
+            JSON.integer(data.get("pipelineId"), "GitLab pipeline"),
+            JSON.integer(data.get("jobId"), "GitLab job"),
+            JSON.string(data.get("graphDigest"), "graph digest"),
+            JSON.optional_integer(data.get("targetProjectId"), "GitLab target project"),
+            JSON.optional_integer(data.get("mergeRequest"), "GitLab merge request"),
+            JSON.optional_string(data.get("flowId"), "flow id"),
+            JSON.optional_string(data.get("operationId"), "operation id"),
         )
 
 
@@ -549,7 +551,7 @@ class Result:
         _bounded_text(self.title, "result title", minimum=1, maximum=255)
         _bounded_text(self.summary, "result summary", maximum=200_000)
         _bounded_collection(self.metrics, "metrics", 100)
-        if _integer(self.omitted_findings, "omitted findings") < 0:
+        if JSON.integer(self.omitted_findings, "omitted findings") < 0:
             message = "omitted findings must be nonnegative"
             raise ValueError(message)
         _bounded_collection(self.findings, "findings", MAX_FINDINGS)
@@ -592,7 +594,7 @@ class Result:
     @classmethod
     def from_value(cls, value: JsonValue) -> Self:
         """Parse a result from untrusted JSON."""
-        data = _object(value, "result")
+        data = JSON.object(value, "result")
         known = {
             "schemaVersion",
             "nodeId",
@@ -610,36 +612,43 @@ class Result:
             "omittedFindings",
         }
         _reject_unknown(data, known, "result")
-        failure_kind = _optional_string(data.get("failureKind"), "failure kind")
+        failure_kind = JSON.optional_string(data.get("failureKind"), "failure kind")
         return cls(
-            _string(data.get("nodeId"), "node id"),
-            _string(data.get("title"), "result title"),
-            ResultStatus(_string(data.get("status"), "result status")),
+            JSON.string(data.get("nodeId"), "node id"),
+            JSON.string(data.get("title"), "result title"),
+            ResultStatus(JSON.string(data.get("status"), "result status")),
             (
                 GitLabProvenance.from_value(data.get("provenance"))
                 if data.get("schemaVersion") == 1
                 else Provenance.from_value(data.get("provenance"))
             ),
             FailureKind(failure_kind) if failure_kind is not None else None,
-            _string(data.get("summary", ""), "result summary"),
-            tuple(Metric.from_value(item) for item in _array(data.get("metrics", []), "metrics")),
+            JSON.string(data.get("summary", ""), "result summary"),
             tuple(
-                Finding.from_value(item) for item in _array(data.get("findings", []), "findings")
+                Metric.from_value(item) for item in JSON.array(data.get("metrics", []), "metrics")
+            ),
+            tuple(
+                Finding.from_value(item)
+                for item in JSON.array(data.get("findings", []), "findings")
             ),
             tuple(
                 Annotation.from_value(item)
-                for item in _array(data.get("annotations", []), "annotations")
+                for item in JSON.array(data.get("annotations", []), "annotations")
             ),
             tuple(
                 Diagnostic.from_value(item)
-                for item in _array(data.get("diagnostics", []), "diagnostics")
+                for item in JSON.array(data.get("diagnostics", []), "diagnostics")
             ),
             tuple(
-                Control.from_value(item) for item in _array(data.get("controls", []), "controls")
+                Control.from_value(item)
+                for item in JSON.array(data.get("controls", []), "controls")
             ),
-            tuple(_string(item, "result note") for item in _array(data.get("notes", []), "notes")),
-            _integer(data.get("schemaVersion"), "schema version"),
-            _integer(data.get("omittedFindings", 0), "omitted findings"),
+            tuple(
+                JSON.string(item, "result note")
+                for item in JSON.array(data.get("notes", []), "notes")
+            ),
+            JSON.integer(data.get("schemaVersion"), "schema version"),
+            JSON.integer(data.get("omittedFindings", 0), "omitted findings"),
         )
 
     @classmethod
@@ -650,49 +659,6 @@ class Result:
     def to_json(self) -> str:
         """Serialize the result as deterministic canonical JSON."""
         return json.dumps(self.to_value(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-
-
-def _object(value: JsonValue, context: str) -> dict[str, JsonValue]:
-    if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
-        message = f"{context} must be an object"
-        raise TypeError(message)
-    return value
-
-
-def _array(value: JsonValue, context: str) -> list[JsonValue]:
-    if not isinstance(value, list):
-        message = f"{context} must be an array"
-        raise TypeError(message)
-    return value
-
-
-def _string(value: JsonValue, context: str) -> str:
-    if not isinstance(value, str):
-        message = f"{context} must be a string"
-        raise TypeError(message)
-    return value
-
-
-def _optional_string(value: JsonValue, context: str) -> str | None:
-    return None if value is None else _string(value, context)
-
-
-def _integer(value: JsonValue, context: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        message = f"{context} must be an integer"
-        raise TypeError(message)
-    return value
-
-
-def _optional_integer(value: JsonValue, context: str) -> int | None:
-    return None if value is None else _integer(value, context)
-
-
-def _boolean(value: JsonValue, context: str) -> bool:
-    if not isinstance(value, bool):
-        message = f"{context} must be a boolean"
-        raise TypeError(message)
-    return value
 
 
 def _bounded_text(value: str, context: str, *, minimum: int = 0, maximum: int) -> None:
