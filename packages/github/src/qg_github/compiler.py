@@ -21,6 +21,7 @@ from quality_graph_core.graph import (
     Profile,
     Step,
 )
+from quality_graph_core.projection import project_event
 from quality_graph_core.provider import GeneratedFile, GeneratedProject
 
 if TYPE_CHECKING:
@@ -178,7 +179,7 @@ def _event_projections(graph: Graph) -> tuple[EventProjection, ...]:
         return tuple(
             EventProjection(
                 "push" if flow.trigger == "push" else "pull-request",
-                graph.for_flow(flow.id).nodes,
+                project_event(graph, flow.trigger, flow_id=flow.id).nodes,
                 flow.dependencies,
             )
             for flow in graph.flows
@@ -194,23 +195,11 @@ def _event_projections(graph: Graph) -> tuple[EventProjection, ...]:
         raise ValueError(message)
     projections: list[EventProjection] = []
     for event in SUPPORTED_EVENTS:
-        nodes = tuple(node for node in graph.nodes if not node.events or event in node.events)
+        nodes = project_event(graph, event).nodes
         if not nodes:
             message = f"GitHub {event} event projection must contain at least one node"
             raise ValueError(message)
         dependency_policy = graph.execution.get(event, DependencyPolicy.GRAPH)
-        if dependency_policy is DependencyPolicy.GRAPH:
-            selected = {node.id for node in nodes}
-            for node in nodes:
-                missing = set(node.needs) - selected
-                if missing:
-                    message = (
-                        f"GitHub {event} event projection excludes dependencies of {node.id}: "
-                        f"{', '.join(sorted(missing))}"
-                    )
-                    raise ValueError(message)
-        else:
-            nodes = tuple(replace(node, needs=()) for node in nodes)
         projections.append(EventProjection(event, nodes, dependency_policy))
     return tuple(projections)
 
@@ -229,7 +218,7 @@ def project_graph(graph: Graph, event: str) -> Graph:
     if graph.flows:
         for flow in graph.flows:
             if flow.trigger == event and not flow.is_release:
-                return graph.for_flow(flow.id)
+                return project_event(graph, event, flow_id=flow.id)
         message = f"no flow declares the {event} trigger"
         raise ValueError(message)
     return replace(graph, nodes=event_projection(graph, event).nodes)
