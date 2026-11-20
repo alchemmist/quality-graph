@@ -288,3 +288,20 @@ def test_mr_without_publication_does_not_require_publisher_identity() -> None:
     )
     assert "qg:review:quality" in workflow
     assert "qg-internal:admission:review" not in workflow
+
+
+@pytest.mark.parametrize("event", ["pull-request", "push"])
+def test_gitlab_rejects_missing_event_dependencies(event: str) -> None:
+    source = yaml.safe_load(starter("main"))
+    other = "push" if event == "pull-request" else "pull-request"
+    source["nodes"] = {
+        "build": {"run": "make build", "events": [other]},
+        "test": {"run": "make test", "needs": ["build"]},
+    }
+    with pytest.raises(ValueError, match="excludes dependencies of test: build"):
+        compile_graph(Graph.from_yaml(yaml.safe_dump(source)))
+    source["execution"] = {event: {"dependencies": "none"}}
+    generated = compile_graph(Graph.from_yaml(yaml.safe_dump(source)))
+    workflow = yaml.safe_load(generated.files[0].content)
+    flow = "mr" if event == "pull-request" else "push"
+    assert workflow[f"qg:{flow}:test"]["needs"] == []
