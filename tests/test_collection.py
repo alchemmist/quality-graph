@@ -20,6 +20,7 @@ from tests.test_runtime import environment, event
         (AdapterKind.EXIT_CODE, b"\xff", FailureKind.ADAPTER),
         (AdapterKind.NATIVE, b'{"reportVersion":0,"status":"passed"}', None),
         (AdapterKind.SARIF, b'{"runs":[{"results":[]}]}', None),
+        (AdapterKind.SARIF, b"invalid", FailureKind.ADAPTER),
         (AdapterKind.JUNIT, b'<testsuite><testcase name="ok"/></testsuite>', None),
         (AdapterKind.NATIVE, b"invalid", FailureKind.ADAPTER),
         (AdapterKind.JUNIT, b"invalid", FailureKind.ADAPTER),
