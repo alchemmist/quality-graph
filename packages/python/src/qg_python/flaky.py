@@ -48,7 +48,7 @@ def _test_scope(path: Path) -> Path | None:
     if path.name.startswith("test_") or path.name.endswith("_test.py"):
         return path
     if "tests" in path.parts:
-        return Path(*path.parts[: path.parts.index("tests") + 1])
+        return path.parent
     return None
 
 

@@ -66,6 +66,14 @@ def test_incomplete_passing_producer_cannot_establish_success() -> None:
     assert result.status is ResultStatus.FAILED
 
 
+def test_passing_native_report_with_omissions_is_a_quality_failure() -> None:
+    report = b'{"reportVersion":0,"status":"passed","omittedFindings":1}'
+    result = adapt_native(context(), report)
+    assert result.status is ResultStatus.FAILED
+    assert result.failure_kind is FailureKind.QUALITY
+    assert result.omitted_findings == 1
+
+
 def test_incomplete_passing_report_cannot_hide_command_failure() -> None:
     result = adapt_native(
         context(succeeded=False),
@@ -89,4 +97,22 @@ def test_sarif_retains_full_counts_when_findings_are_bounded() -> None:
     assert len(result.findings) == 10_000
     assert result.omitted_findings == 1
     assert result.metrics[0].value == "10001"
+    assert result.status is ResultStatus.FAILED
+
+
+def test_bounded_sarif_warnings_remain_a_quality_failure() -> None:
+    report = {
+        "runs": [
+            {
+                "results": [
+                    {"level": "warning", "message": {"text": f"warning {index}"}}
+                    for index in range(10_001)
+                ]
+            }
+        ]
+    }
+    result = adapt_sarif(context(), json.dumps(report).encode())
+    assert len(result.findings) == 10_000
+    assert result.omitted_findings == 1
+    assert result.failure_kind is FailureKind.QUALITY
     assert result.status is ResultStatus.FAILED
