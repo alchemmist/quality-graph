@@ -228,13 +228,14 @@ def _execution_rule(graph: Graph, flow_id: str, event: str, settings: dict[str, 
         else '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH'
     )
     if event == "pull-request":
-        target_branch = json.dumps(settings["default-branch"])
+        target_branch = json.dumps(settings["default-branch"], ensure_ascii=False)
         rule += f" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == {target_branch}"
     if graph.flows and event == "push":
         declared = next(flow for flow in graph.flows if flow.id == flow_id)
         if declared.branches:
             choices = " || ".join(
-                f"$CI_COMMIT_BRANCH == {json.dumps(branch)}" for branch in declared.branches
+                f"$CI_COMMIT_BRANCH == {json.dumps(branch, ensure_ascii=False)}"
+                for branch in declared.branches
             )
             rule = f"({rule}) && ({choices})"
     return rule
