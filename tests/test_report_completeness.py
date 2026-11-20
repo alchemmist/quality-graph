@@ -3,7 +3,7 @@ import pytest
 from quality_graph_core.adapters import AdapterError, adapt_junit, adapt_native
 from quality_graph_core.graph import Graph
 from quality_graph_core.policy import ApprovalTarget, effective_graph
-from quality_graph_core.result import ControlKind, Result, ResultStatus
+from quality_graph_core.result import ControlKind, FailureKind, Result, ResultStatus
 from tests.test_adapters import context
 
 
@@ -40,3 +40,11 @@ def test_omitted_finding_counts_are_nonnegative_integers(count: str) -> None:
     )
     with pytest.raises(AdapterError):
         adapt_native(context(), report.encode())
+
+
+def test_passing_native_report_with_omissions_is_a_quality_failure() -> None:
+    report = b'{"reportVersion":0,"status":"passed","omittedFindings":1}'
+    result = adapt_native(context(), report)
+    assert result.status is ResultStatus.FAILED
+    assert result.failure_kind is FailureKind.QUALITY
+    assert result.omitted_findings == 1
