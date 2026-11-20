@@ -7,8 +7,9 @@ import pytest
 @pytest.mark.parametrize(
     ("root", "forbidden"),
     [
-        ("packages/core/src", ("qg_github", "qg_cli")),
-        ("packages/github/src", ("qg_cli",)),
+        ("packages/core/src", ("qg_github", "qg_gitlab", "qg_cli")),
+        ("packages/github/src", ("qg_gitlab", "qg_cli")),
+        ("packages/gitlab/src", ("qg_github", "qg_cli")),
         ("apps/qg/src", ("qg_github",)),
         ("packages/python/src", ("qg_github", "qg_cli")),
     ],

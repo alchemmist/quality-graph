@@ -1,6 +1,6 @@
 """Expose the independently installed GitLab provider."""
 
-from qg_gitlab.compiler import compile_graph, starter
+from qg_gitlab.compiler import CAPABILITIES, compile_graph, starter
 from quality_graph_core.graph import Graph
 from quality_graph_core.provider import GeneratedProject
 
@@ -9,6 +9,7 @@ class GitLabProvider:
     """Own GitLab compilation and provider-native initialization."""
 
     name = "gitlab"
+    capabilities = CAPABILITIES
 
     def generate(self, graph: Graph) -> GeneratedProject:
         """Return the complete deterministic GitLab project."""

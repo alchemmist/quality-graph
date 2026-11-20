@@ -18,3 +18,20 @@ Generated files must be deterministic, repository-relative, and complete. A prov
 its wheel independently, verify discovery from package metadata, and reject configuration for a
 different provider name. Provider releases must declare a compatible core version and document any
 generated-output migration.
+
+Providers can declare `ProviderCapabilities` (supported events, presentations and execution modes)
+and call its `validate(graph)` before generation. Core checks portable structure and identifiers;
+capability support belongs to the provider. Custom string event and presentation identifiers do
+not require editing core. Existing structured push and dispatch declarations remain supported.
+
+Profiles leave omitted runners and permissions unspecified. A provider supplies `ProfileDefaults`
+to `graph.expanded_profiles(defaults)`. GitHub retains `ubuntu-latest` and read-only contents;
+GitLab uses its configured execution image and runner tags. Explicit empty permissions stay empty.
+Code consuming the Python graph model should resolve provider defaults before using a profile.
+
+A `GeneratedFile` can specify `overwrite_marker`. The CLI refuses to overwrite existing content
+without that prefix, regardless of provider name. Path traversal and symlink checks still apply.
+An omitted marker retains the previous unconditional generated-file overwrite behavior.
+
+GitLab declarations remain valid, but removing implicit GitHub defaults changes their manifest
+digest. Regenerate committed files and deploy matching collector and publisher versions together.

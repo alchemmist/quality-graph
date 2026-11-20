@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, cast
 
 import yaml
 
+from quality_graph_core.provider import ProfileDefaults
 from quality_graph_core.result import JsonValue, Severity
 
 if TYPE_CHECKING:
@@ -66,10 +67,10 @@ class Profile:
 
     id: str
     extends: str | None = None
-    runner: str | None = "ubuntu-latest"
+    runner: str | None = None
     setup: tuple[Step, ...] = ()
     environment: Mapping[str, str] = field(default_factory=dict)
-    permissions: Mapping[str, str] = field(default_factory=lambda: {"contents": "read"})
+    permissions: Mapping[str, str] | None = None
     timeout_minutes: int | None = None
     container: str | None = None
     services: Mapping[str, JsonValue] = field(default_factory=dict)
@@ -77,9 +78,6 @@ class Profile:
     def __post_init__(self) -> None:
         """Validate profile identity and least-privilege execution policy."""
         _identifier(self.id, "profile")
-        if self.runner is None and self.extends is None:
-            message = "profile runner must not be empty"
-            raise ValueError(message)
         if self.runner == "":
             message = "profile runner must not be empty"
             raise ValueError(message)
@@ -285,11 +283,6 @@ class Flow:
         """Identify manual and tag-triggered release flows."""
         return self.trigger == "workflow-dispatch" or bool(self.tags)
 
-    @property
-    def execution_mode(self) -> str:
-        """Keep legacy release plans opt-in while PR/main execute normally."""
-        return self.execution if self.is_release else "github-actions"
-
 
 @dataclass(frozen=True)
 class ProviderConfiguration:
@@ -345,9 +338,23 @@ class Graph:
         )
         return replace(self, nodes=nodes, operations=(), flows=(), flow_id=flow.id)
 
-    def expanded_profiles(self) -> dict[str, Profile]:
+    def expanded_profiles(self, defaults: ProfileDefaults | None = None) -> dict[str, Profile]:
         """Return profiles with inheritance resolved in declaration order."""
-        source = {profile.id: profile for profile in self.profiles}
+        defaults = defaults or ProfileDefaults()
+        source = {
+            profile.id: replace(
+                profile,
+                runner=(
+                    profile.runner
+                    if profile.extends or profile.runner is not None
+                    else defaults.runner
+                ),
+                permissions=(
+                    defaults.permissions if profile.permissions is None else profile.permissions
+                ),
+            )
+            for profile in self.profiles
+        }
         expanded: dict[str, Profile] = {}
 
         def expand(profile: Profile) -> Profile:
@@ -361,7 +368,7 @@ class Graph:
                     profile,
                     setup=(*parent.setup, *profile.setup),
                     environment={**parent.environment, **profile.environment},
-                    permissions={**parent.permissions, **profile.permissions},
+                    permissions={**(parent.permissions or {}), **(profile.permissions or {})},
                     runner=profile.runner or parent.runner,
                     timeout_minutes=profile.timeout_minutes or parent.timeout_minutes,
                     container=profile.container or parent.container,
@@ -371,7 +378,7 @@ class Graph:
             expanded[profile.id] = result
             return result
 
-        for profile in self.profiles:
+        for profile in source.values():
             expand(profile)
         return expanded
 
@@ -536,7 +543,8 @@ def _parse_trigger(
     value: JsonValue,
 ) -> tuple[str, tuple[str, ...], Mapping[str, JsonValue], tuple[str, ...]]:
     if isinstance(value, str):
-        if value not in {"pull-request", "workflow-dispatch"}:
+        _identifier(value, "flow trigger")
+        if value == "push":
             message = "trigger must be pull-request, workflow-dispatch or a push branch mapping"
             raise ValueError(message)
         return value, (), {}, ()
@@ -624,17 +632,9 @@ def _validate_flows(graph: Graph) -> None:
 
 def _validate_flow_settings(flow: Flow) -> None:
     _identifier(flow.id, "flow")
-    if flow.trigger not in {"pull-request", "push", "workflow-dispatch"}:
-        message = f"unsupported flow trigger: {flow.trigger}"
-        raise ValueError(message)
-    if flow.presentation not in {"none", "github-pr", "gitlab-mr", "release"}:
-        message = f"unsupported presentation adapter: {flow.presentation}"
-        raise ValueError(message)
-    if (flow.presentation in {"github-pr", "gitlab-mr"} and flow.trigger != "pull-request") or (
-        flow.presentation == "release" and not flow.is_release
-    ):
-        message = "presentation adapter is incompatible with flow trigger"
-        raise ValueError(message)
+    _identifier(flow.trigger, "flow trigger")
+    _identifier(flow.presentation, "presentation adapter")
+    _identifier(flow.execution, "release execution mode")
     if not flow.nodes:
         message = f"flow {flow.id} must contain at least one node"
         raise ValueError(message)
@@ -642,9 +642,6 @@ def _validate_flow_settings(flow: Flow) -> None:
         not flow.concurrency or flow.dependencies is not DependencyPolicy.GRAPH
     ):
         message = "release flows require an exclusive concurrency lane and graph dependencies"
-        raise ValueError(message)
-    if flow.execution not in {"design-only", "github-actions"}:
-        message = "unsupported release execution mode"
         raise ValueError(message)
     if flow.concurrency is not None:
         _identifier(flow.concurrency, "flow concurrency lane")
@@ -704,20 +701,15 @@ def _parse_profile(name: str, data: dict[str, JsonValue]) -> Profile:
     return Profile(
         name,
         _optional_string(data.get("extends"), f"profile {name} parent"),
-        (
-            _optional_string(data.get("runner"), f"profile {name} runner")
-            if "extends" in data
-            else _string(data.get("runner", "ubuntu-latest"), f"profile {name} runner")
-        ),
+        _optional_string(data.get("runner"), f"profile {name} runner"),
         tuple(
             _parse_step(_object(value, f"profile {name} setup step"))
             for value in _array(data.get("setup", []), f"profile {name} setup")
         ),
         _string_mapping(data.get("env", {}), f"profile {name} env"),
-        _string_mapping(
-            data.get("permissions", {"contents": "read"}),
-            f"profile {name} permissions",
-        ),
+        _string_mapping(data["permissions"], f"profile {name} permissions")
+        if "permissions" in data
+        else None,
         _optional_integer(data.get("timeout-minutes"), f"profile {name} timeout"),
         _optional_string(data.get("container"), f"profile {name} container"),
         _mapping(data.get("services", {}), f"profile {name} services"),

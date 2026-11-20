@@ -174,7 +174,7 @@ def test_profile_inheritance_appends_setup_and_merges_mappings() -> None:
         "astral-sh/setup-uv@v7",
     ]
     assert python.environment == {"UV_NO_SYNC": "1"}
-    assert python.permissions == {"contents": "read"}
+    assert python.permissions == {}
     assert python.runner == "ubuntu-latest"
     assert python.extends is None
 
@@ -363,6 +363,7 @@ def test_graph_narrows_untrusted_yaml_types(source: str) -> None:
         Graph.from_yaml(source)
 
 
-def test_root_profile_requires_a_runner() -> None:
-    with pytest.raises(ValueError, match="runner must not be empty"):
-        Profile("default", runner=None)
+def test_root_profile_leaves_execution_defaults_to_the_provider() -> None:
+    profile = Profile("default")
+    assert profile.runner is None
+    assert profile.permissions is None
