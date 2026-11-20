@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
     from quality_graph_core.graph import ApprovalPolicy, Graph, Node
 
+_MAX_RESULT_NOTES = 100
+
 
 @dataclass(frozen=True, order=True)
 class ApprovalTarget:
@@ -110,7 +112,10 @@ def _effective_result(
     approvals: AbstractSet[ApprovalTarget],
 ) -> Result:
     controls = policy_controls(node.id, result.findings, node.policy.approvals, approvals)
-    if result.failure_kind is not FailureKind.QUALITY:
+    if result.failure_kind not in {None, FailureKind.QUALITY} or result.status not in {
+        ResultStatus.PASSED,
+        ResultStatus.FAILED,
+    }:
         return replace(result, controls=controls)
     node_target = ApprovalTarget(ControlKind.NODE, node.id)
     if node_target in approvals:
@@ -125,17 +130,22 @@ def _effective_result(
             or ApprovalTarget(ControlKind.FILE, finding.location.path) not in approvals
         )
     )
-    if result.findings and not blocking and not result.omitted_findings:
+    if blocking or result.omitted_findings:
+        return replace(
+            result, status=ResultStatus.FAILED, failure_kind=FailureKind.QUALITY, controls=controls
+        )
+    if result.findings and result.failure_kind is FailureKind.QUALITY:
         return _passed(result, controls)
     return replace(result, controls=controls)
 
 
 def _passed(result: Result, controls: tuple[Control, ...]) -> Result:
     note = "The effective result passes because every blocking quality finding is approved."
+    notes = result.notes if len(result.notes) >= _MAX_RESULT_NOTES else (*result.notes, note)
     return replace(
         result,
         status=ResultStatus.PASSED,
         failure_kind=None,
         controls=controls,
-        notes=(*result.notes, note),
+        notes=notes,
     )

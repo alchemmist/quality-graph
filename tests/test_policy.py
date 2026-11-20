@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from quality_graph_core.graph import Graph
@@ -79,18 +81,23 @@ def test_finding_approval_only_removes_its_own_blocking_failure() -> None:
     assert effective.results["lint"].status is ResultStatus.FAILED
 
 
-def test_non_quality_failure_cannot_be_approved() -> None:
+@pytest.mark.parametrize(
+    "failure",
+    [FailureKind.COMMAND, FailureKind.ADAPTER, FailureKind.INFRASTRUCTURE],
+)
+def test_non_quality_failure_cannot_be_approved(failure: FailureKind) -> None:
     graph = Graph.from_yaml(GRAPH)
     approval = ApprovalTarget(ControlKind.FILE, "src/app.py")
 
-    effective = effective_graph(
-        graph,
-        {"lint": result(failure=FailureKind.ADAPTER)},
-        {approval},
-    )
+    effective = effective_graph(graph, {"lint": result(failure=failure)}, {approval}).results[
+        "lint"
+    ]
 
-    assert effective.results["lint"].failure_kind is FailureKind.ADAPTER
-    assert effective.results["lint"].controls[0].checked is False
+    assert effective.status is ResultStatus.FAILED
+    assert effective.failure_kind is failure
+    checked = {(control.kind, control.target): control.checked for control in effective.controls}
+    assert checked[ControlKind.FILE, "src/app.py"] is True
+    assert checked[ControlKind.FINDING, "error"] is False
 
 
 def test_node_approval_handles_quality_failure_without_findings() -> None:
@@ -123,3 +130,61 @@ def test_node_can_disable_individual_finding_controls() -> None:
     effective = effective_graph(graph, {"lint": result()}, set())
 
     assert effective.targets == frozenset({ApprovalTarget(ControlKind.FILE, "src/app.py")})
+
+
+@pytest.mark.parametrize("severity", [Severity.WARNING, Severity.NOTICE])
+def test_configured_severity_blocks_a_successful_report(severity: Severity) -> None:
+    graph = Graph.from_yaml(GRAPH)
+    lint = next(node for node in graph.nodes if node.id == "lint")
+    lint = replace(lint, policy=replace(lint.policy, blocking_severities=(severity,)))
+    graph = replace(graph, nodes=(replace(lint, needs=()),))
+    passed = replace(
+        result(),
+        status=ResultStatus.PASSED,
+        failure_kind=None,
+        findings=(Finding("warning", severity, "Review this finding"),),
+    )
+    effective = effective_graph(graph, {"lint": passed}, set()).results["lint"]
+    assert effective.status is ResultStatus.FAILED
+    assert effective.failure_kind is FailureKind.QUALITY
+    approved = effective_graph(
+        graph, {"lint": passed}, {ApprovalTarget(ControlKind.FINDING, "warning")}
+    ).results["lint"]
+    assert approved.status is ResultStatus.PASSED
+
+
+def test_successful_warning_stays_passed_under_default_error_severity() -> None:
+    graph = Graph.from_yaml(GRAPH)
+    lint = next(node for node in graph.nodes if node.id == "lint")
+    lint = replace(lint, policy=replace(lint.policy, blocking_severities=(Severity.ERROR,)))
+    graph = replace(graph, nodes=(replace(lint, needs=()),))
+    passed = replace(
+        result(),
+        status=ResultStatus.PASSED,
+        failure_kind=None,
+        findings=(Finding("warning", Severity.WARNING, "Review this finding"),),
+    )
+
+    effective = effective_graph(graph, {"lint": passed}, set()).results["lint"]
+
+    assert effective.status is ResultStatus.PASSED
+    assert effective.failure_kind is None
+
+
+def test_approval_at_note_limit_keeps_existing_notes() -> None:
+    graph = Graph.from_yaml(GRAPH.replace("files: true", "files: true\n        node: true"))
+    notes = tuple(f"note-{index}" for index in range(100))
+    passed = replace(result(), status=ResultStatus.PASSED, failure_kind=None, notes=notes)
+    failed = replace(result(), notes=notes)
+
+    approved_pass = effective_graph(
+        graph, {"lint": passed}, {ApprovalTarget(ControlKind.NODE, "lint")}
+    ).results["lint"]
+    approved_failure = effective_graph(
+        graph, {"lint": failed}, {ApprovalTarget(ControlKind.FILE, "src/app.py")}
+    ).results["lint"]
+
+    assert approved_pass.status is ResultStatus.PASSED
+    assert approved_pass.notes == notes
+    assert approved_failure.status is ResultStatus.PASSED
+    assert approved_failure.notes == notes
