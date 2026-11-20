@@ -305,3 +305,37 @@ def test_gitlab_rejects_missing_event_dependencies(event: str) -> None:
     workflow = yaml.safe_load(generated.files[0].content)
     flow = "mr" if event == "pull-request" else "push"
     assert workflow[f"qg:{flow}:test"]["needs"] == []
+
+
+@pytest.mark.parametrize("events", [("push",), ("pull-request",), ("push", "pull-request")])
+def test_gitlab_workflow_rules_follow_declared_execution_events(events: tuple[str, ...]) -> None:
+    source = yaml.safe_load(starter("main"))
+    source["nodes"]["quality"]["events"] = list(events)
+    compiled = compile_graph(Graph.from_yaml(yaml.safe_dump(source)))
+    workflow = yaml.safe_load(compiled.files[0].content)
+    rules = workflow["workflow"]["rules"]
+    assert "CI_OPEN_MERGE_REQUESTS" not in str(rules)
+    assert any('"push"' in rule.get("if", "") for rule in rules) == ("push" in events)
+    assert any('"merge_request_event"' in rule.get("if", "") for rule in rules) == (
+        "pull-request" in events
+    )
+    for rule in rules:
+        if '"merge_request_event"' in rule.get("if", ""):
+            assert '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"' in rule["if"]
+
+
+def test_gitlab_mr_rule_preserves_non_ascii_default_branch() -> None:
+    source = yaml.safe_load(starter("d\u00e9veloppement"))
+    compiled = compile_graph(Graph.from_yaml(yaml.safe_dump(source)))
+    workflow = yaml.safe_load(compiled.files[0].content)
+    rules = [
+        rule["if"]
+        for rule in workflow["workflow"]["rules"]
+        if "merge_request_event" in rule.get("if", "")
+    ]
+
+    assert rules
+    assert all(
+        '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "d\u00e9veloppement"' in rule for rule in rules
+    )
+    assert all("\\u00e9" not in rule for rule in rules)
