@@ -95,7 +95,9 @@ def test_non_quality_failure_cannot_be_approved(failure: FailureKind) -> None:
 
     assert effective.status is ResultStatus.FAILED
     assert effective.failure_kind is failure
-    assert effective.controls[0].checked is False
+    checked = {(control.kind, control.target): control.checked for control in effective.controls}
+    assert checked[ControlKind.FILE, "src/app.py"] is True
+    assert checked[ControlKind.FINDING, "error"] is False
 
 
 def test_node_approval_handles_quality_failure_without_findings() -> None:
@@ -167,3 +169,22 @@ def test_successful_warning_stays_passed_under_default_error_severity() -> None:
 
     assert effective.status is ResultStatus.PASSED
     assert effective.failure_kind is None
+
+
+def test_approval_at_note_limit_keeps_existing_notes() -> None:
+    graph = Graph.from_yaml(GRAPH.replace("files: true", "files: true\n        node: true"))
+    notes = tuple(f"note-{index}" for index in range(100))
+    passed = replace(result(), status=ResultStatus.PASSED, failure_kind=None, notes=notes)
+    failed = replace(result(), notes=notes)
+
+    approved_pass = effective_graph(
+        graph, {"lint": passed}, {ApprovalTarget(ControlKind.NODE, "lint")}
+    ).results["lint"]
+    approved_failure = effective_graph(
+        graph, {"lint": failed}, {ApprovalTarget(ControlKind.FILE, "src/app.py")}
+    ).results["lint"]
+
+    assert approved_pass.status is ResultStatus.PASSED
+    assert approved_pass.notes == notes
+    assert approved_failure.status is ResultStatus.PASSED
+    assert approved_failure.notes == notes
