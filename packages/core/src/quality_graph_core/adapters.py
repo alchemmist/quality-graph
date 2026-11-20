@@ -110,7 +110,10 @@ def adapt_native(context: AdapterContext, report: bytes) -> Result:
     if result.provenance != context.provenance:
         message = "Native result provenance does not match the current workflow attempt"
         raise AdapterError(message)
-    return _reconcile_command(context, result)
+    result = _reconcile_command(context, result)
+    if result.status is ResultStatus.PASSED and result.omitted_findings:
+        return replace(result, status=ResultStatus.FAILED, failure_kind=FailureKind.QUALITY)
+    return result
 
 
 def adapt_sarif(context: AdapterContext, report: bytes) -> Result:
@@ -196,6 +199,7 @@ def junit_report(report: bytes) -> dict[str, JsonValue]:
         else [],
     }
     if failures > MAX_JUNIT_FINDINGS:
+        value["omittedFindings"] = failures - MAX_JUNIT_FINDINGS
         notes = cast("list[JsonValue]", value["notes"])
         notes.append(f"{failures - MAX_JUNIT_FINDINGS} additional findings omitted.")
     if findings:

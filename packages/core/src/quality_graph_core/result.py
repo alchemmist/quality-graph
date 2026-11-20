@@ -530,6 +530,7 @@ class Result:
     controls: tuple[Control, ...] = ()
     notes: tuple[str, ...] = ()
     schema_version: int = 0
+    omitted_findings: int = 0
 
     def __post_init__(self) -> None:
         """Validate result identity, bounds, and lifecycle consistency."""
@@ -545,6 +546,9 @@ class Result:
         _bounded_text(self.title, "result title", minimum=1, maximum=255)
         _bounded_text(self.summary, "result summary", maximum=200_000)
         _bounded_collection(self.metrics, "metrics", 100)
+        if _integer(self.omitted_findings, "omitted findings") < 0:
+            message = "omitted findings must be nonnegative"
+            raise ValueError(message)
         _bounded_collection(self.findings, "findings", 10_000)
         _bounded_collection(self.annotations, "annotations", 10_000)
         _bounded_collection(self.diagnostics, "diagnostics", 100)
@@ -578,6 +582,8 @@ class Result:
         }
         failure_kind = self.failure_kind.value if self.failure_kind else None
         _put_optional(value, "failureKind", failure_kind)
+        if self.omitted_findings:
+            value["omittedFindings"] = self.omitted_findings
         return value
 
     @classmethod
@@ -598,6 +604,7 @@ class Result:
             "controls",
             "notes",
             "provenance",
+            "omittedFindings",
         }
         _reject_unknown(data, known, "result")
         failure_kind = _optional_string(data.get("failureKind"), "failure kind")
@@ -629,6 +636,7 @@ class Result:
             ),
             tuple(_string(item, "result note") for item in _array(data.get("notes", []), "notes")),
             _integer(data.get("schemaVersion"), "schema version"),
+            _integer(data.get("omittedFindings", 0), "omitted findings"),
         )
 
     @classmethod
