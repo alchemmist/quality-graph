@@ -23,17 +23,9 @@ from qg_gitlab.compiler import (
 )
 from qg_gitlab.markers import execution_marker, gate_marker
 from qg_gitlab.publication import publish_from_environment
-from quality_graph_core.adapters import (
-    AdapterContext,
-    AdapterError,
-    adapt_exit,
-    adapt_junit,
-    adapt_native,
-    adapt_sarif,
-    adapter_failure,
-    read_report,
-)
-from quality_graph_core.graph import AdapterKind, Graph
+from quality_graph_core.adapters import AdapterContext
+from quality_graph_core.collection import collect_report
+from quality_graph_core.graph import Graph
 from quality_graph_core.result import FailureKind, GitLabProvenance, Result
 
 if TYPE_CHECKING:
@@ -110,18 +102,7 @@ def run_step(step: Step, root: Path, environment: Mapping[str, str]) -> bool:
 
 def collect(context: AdapterContext, node: Node, root: Path) -> Result:
     """Adapt the existing command execution without rerunning any checks."""
-    if node.result.kind is AdapterKind.EXIT_CODE:
-        return adapt_exit(context)
-    try:
-        report = read_report(root, node.result.path or "")
-        adapters = {
-            AdapterKind.NATIVE: adapt_native,
-            AdapterKind.JUNIT: adapt_junit,
-            AdapterKind.SARIF: adapt_sarif,
-        }
-        return adapters[node.result.kind](context, report)
-    except (AdapterError, OSError, ValueError) as error:
-        return adapter_failure(context, AdapterError(str(error)))
+    return collect_report(context, node.result.kind, root, node.result.path)
 
 
 def execute(root: Path, flow_id: str, node_id: str) -> int:
