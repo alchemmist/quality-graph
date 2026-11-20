@@ -20,6 +20,9 @@ GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
+MAX_FINDINGS = 10_000
+
+
 class ResultStatus(StrEnum):
     """Represent a node lifecycle state."""
 
@@ -549,7 +552,7 @@ class Result:
         if _integer(self.omitted_findings, "omitted findings") < 0:
             message = "omitted findings must be nonnegative"
             raise ValueError(message)
-        _bounded_collection(self.findings, "findings", 10_000)
+        _bounded_collection(self.findings, "findings", MAX_FINDINGS)
         _bounded_collection(self.annotations, "annotations", 10_000)
         _bounded_collection(self.diagnostics, "diagnostics", 100)
         _bounded_collection(self.controls, "controls", 10_000)

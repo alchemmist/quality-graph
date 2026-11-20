@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from quality_graph_core.adapters import AdapterError, junit_report, read_report
+from quality_graph_core.result import MAX_FINDINGS
 
 if TYPE_CHECKING:
     from quality_graph_core.result import JsonValue
@@ -111,6 +112,7 @@ def combine(reports: list[tuple[str, dict[str, JsonValue]]]) -> dict[str, JsonVa
                 "quality",
             ),
         )
+    omitted = sum(_omitted_findings(report) for _, report in reports)
     for field in ("metrics", "findings", "notes"):
         values: list[JsonValue] = []
         for group, report in reports:
@@ -131,13 +133,29 @@ def combine(reports: list[tuple[str, dict[str, JsonValue]]]) -> dict[str, JsonVa
                             f"{hashlib.sha256(group.encode()).hexdigest()[:8]}:{item['id']}"
                         )
                 values.append(item)
-        limit = 10_000 if field == "findings" else 100
+        limit = MAX_FINDINGS if field == "findings" else 100
+        if field == "findings":
+            omitted += max(0, len(values) - limit)
         output[field] = values[:limit]
+    if omitted:
+        output.update(
+            omittedFindings=omitted,
+            status="failed",
+            failureKind=output.get("failureKind", "quality"),
+        )
     diagnostics, notices = _bounded_diagnostics(reports)
     output["diagnostics"] = diagnostics
     notes = cast("list[JsonValue]", output["notes"])
     output["notes"] = [*notes[: MAX_NOTES - len(notices)], *notices]
     return output
+
+
+def _omitted_findings(report: dict[str, JsonValue]) -> int:
+    value = report.get("omittedFindings", 0)
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        message = "omittedFindings must be a nonnegative integer"
+        raise ValueError(message)
+    return value
 
 
 def _bounded_diagnostics(

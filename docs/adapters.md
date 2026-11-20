@@ -129,3 +129,10 @@ not infer source findings or test counts from arbitrary stdout.
 Reports with omitted JUnit failures carry `omittedFindings`. Finding and file approvals
 cannot clear these unknown failures; an explicitly enabled whole-node approval is required.
 Upgrade the collector and trusted publisher together before emitting this optional field.
+
+`omittedFindings` is an optional nonnegative integer (default zero) describing findings
+excluded from the report. It is evidence metadata, not a display note. Producers must retain
+the full count when truncating; combining reports adds prior omissions and newly discarded
+findings. A positive count prevents raw success and partial approvals from clearing the check.
+Whole-node approval remains an explicit policy decision. Diagnostic and display limits do not
+change the count. Complete reports preserve their existing wire representation.
