@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
     from quality_graph_core.graph import ApprovalPolicy, Graph, Node
 
+_MAX_RESULT_NOTES = 100
+
 
 @dataclass(frozen=True, order=True)
 class ApprovalTarget:
@@ -139,10 +141,11 @@ def _effective_result(
 
 def _passed(result: Result, controls: tuple[Control, ...]) -> Result:
     note = "The effective result passes because every blocking quality finding is approved."
+    notes = result.notes if len(result.notes) >= _MAX_RESULT_NOTES else (*result.notes, note)
     return replace(
         result,
         status=ResultStatus.PASSED,
         failure_kind=None,
         controls=controls,
-        notes=(*result.notes, note),
+        notes=notes,
     )

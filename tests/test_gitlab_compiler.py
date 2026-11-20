@@ -322,3 +322,20 @@ def test_gitlab_workflow_rules_follow_declared_execution_events(events: tuple[st
     for rule in rules:
         if '"merge_request_event"' in rule.get("if", ""):
             assert '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"' in rule["if"]
+
+
+def test_gitlab_mr_rule_preserves_non_ascii_default_branch() -> None:
+    source = yaml.safe_load(starter("d\u00e9veloppement"))
+    compiled = compile_graph(Graph.from_yaml(yaml.safe_dump(source)))
+    workflow = yaml.safe_load(compiled.files[0].content)
+    rules = [
+        rule["if"]
+        for rule in workflow["workflow"]["rules"]
+        if "merge_request_event" in rule.get("if", "")
+    ]
+
+    assert rules
+    assert all(
+        '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "d\u00e9veloppement"' in rule for rule in rules
+    )
+    assert all("\\u00e9" not in rule for rule in rules)
