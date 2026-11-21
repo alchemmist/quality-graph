@@ -232,3 +232,55 @@ def test_required_check_accepts_enabled_pr_presentation() -> None:
         str(item.path) == ".github/workflows/quality-graph-publish.yml"
         for item in compile_graph(graph).files
     )
+
+
+SHARDS = """version: 0
+runtime: {action: 'owner/runtime@1111111111111111111111111111111111111111'}
+profiles: {default: {}}
+operations:
+  chart:
+    items: [api, web, worker, cron]
+    run: ./ci/check-chart "$QG_ITEM"
+    results: {junit: 'reports/{item}.xml'}
+flows:
+  review:
+    trigger: pull-request
+    presentation: github-pr
+    nodes: {chart-api: {}, chart-web: {}, chart-worker: {}, chart-cron: {}}
+"""
+
+
+def test_shards_compile_as_four_explicit_jobs() -> None:
+    graph = Graph.from_yaml(SHARDS)
+    explicit = yaml.safe_load(SHARDS)
+    template = explicit["operations"].pop("chart")
+    for item in template.pop("items"):
+        explicit["operations"][f"chart-{item}"] = {
+            **template,
+            "env": {"QG_ITEM": item},
+            "results": {"junit": f"reports/{item}.xml"},
+        }
+    compiled = compile_graph(graph)
+    assert compiled == compile_graph(Graph.from_yaml(yaml.safe_dump(explicit, sort_keys=False)))
+    files = {str(file.path): file.content for file in compiled.files}
+    jobs = yaml.safe_load(files[".github/workflows/quality-graph.yml"])["jobs"]
+    for operation in explicit["operations"]:
+        collect = jobs[operation]["steps"][1]["with"]
+        assert (collect["flow-id"], collect["operation-id"]) == ("review", operation)
+
+
+@pytest.mark.parametrize(
+    ("original", "invalid", "message"),
+    [
+        ("[api, web, worker, cron]", "[]", "1 to 64"),
+        ("[api, web, worker, cron]", str(["api"] * 65), "1 to 64"),
+        ("api, web", "api, api", "unique"),
+        ("api, web", "api, '../web'", "invalid operation item"),
+        ("  chart:", "  chart-api: {run: other}\n  chart:", "unique"),
+        ("    items:", "    env: {QG_ITEM: override}\n    items:", "cannot override"),
+        ("reports/{item}.xml", "reports/shared.xml", "must contain"),
+    ],
+)
+def test_invalid_shards(original: str, invalid: str, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        Graph.from_yaml(SHARDS.replace(original, invalid))
