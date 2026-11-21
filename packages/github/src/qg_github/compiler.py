@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, replace
+from importlib.resources import files
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, cast, override
 
@@ -410,7 +411,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
         ),
         GeneratedFile(
             PUBLICATION_WORKFLOW,
-            _yaml_file(_publication_workflow(configuration.publisher_action)),
+            _publication_yaml(configuration.publisher_action),
         ),
         GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)),
     )
@@ -484,7 +485,7 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
         files.append(
             GeneratedFile(
                 PUBLICATION_WORKFLOW,
-                _yaml_file(_publication_workflow(configuration.publisher_action)),
+                _publication_yaml(configuration.publisher_action),
             )
         )
     files.append(GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)))
@@ -819,71 +820,9 @@ def _workflow_step(step: Step) -> dict[str, JsonValue]:
     return _step_value(step)
 
 
-def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
-    publish_permissions: dict[str, JsonValue] = {
-        "actions": "read",
-        "checks": "write",
-        "contents": "read",
-        "issues": "write",
-        "pull-requests": "write",
-    }
-    publish_job: dict[str, JsonValue] = {
-        "name": "Publish Quality Graph",
-        "if": (
-            "github.event_name == 'workflow_run' "
-            "&& github.event.workflow_run.event == 'pull_request'"
-        ),
-        "runs-on": "ubuntu-latest",
-        "permissions": publish_permissions,
-        "steps": [
-            {
-                "name": "Publish trusted Quality Graph state",
-                "uses": runtime_action,
-                "with": {
-                    "operation": (
-                        "${{ github.event.action == 'completed' && 'publish' || 'watch' }}"
-                    )
-                },
-            }
-        ],
-    }
-    command_job: dict[str, JsonValue] = {
-        "name": "Handle Quality Graph command",
-        "if": "github.event_name == 'issue_comment' && github.event.issue.pull_request",
-        "runs-on": "ubuntu-latest",
-        "permissions": {
-            "actions": "write",
-            "contents": "read",
-            "issues": "write",
-            "pull-requests": "write",
-        },
-        "steps": [
-            {
-                "name": "Handle trusted Quality Graph command",
-                "uses": runtime_action,
-                "with": {"operation": "command"},
-            }
-        ],
-    }
-    return {
-        "name": "Quality Graph Publisher",
-        "on": {
-            "workflow_run": {
-                "workflows": ["Quality Graph"],
-                "types": ["requested", "completed"],
-            },
-            "issue_comment": {"types": ["created", "edited"]},
-        },
-        "permissions": {},
-        "concurrency": {
-            "group": (
-                "quality-graph-publish-"
-                "${{ github.event.workflow_run.id || github.event.issue.number }}"
-            ),
-            "cancel-in-progress": False,
-        },
-        "jobs": {"publish": publish_job, "command": command_job},
-    }
+def _publication_yaml(runtime_action: str) -> str:
+    template = files("qg_github").joinpath("publisher.yaml.in").read_text(encoding="utf-8")
+    return GENERATED_HEADER + template.replace("@PUBLISHER_ACTION@", runtime_action)
 
 
 def _yaml_file(value: Mapping[str, JsonValue], *, width: int = 1_000) -> str:

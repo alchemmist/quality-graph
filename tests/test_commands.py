@@ -10,6 +10,7 @@ from qg_github.commands import (
     CommandName,
     CommandOutcome,
     command_request,
+    dispatch_pr_command,
     handle_command,
     parse_command,
 )
@@ -22,12 +23,14 @@ from quality_graph_core.result import (
     ControlKind,
     FailureKind,
     Finding,
+    JsonValue,
     Provenance,
     Result,
     ResultStatus,
     Severity,
     SourceLocation,
 )
+from tests.test_flow_compiler import SOURCE
 from tests.test_graph import GRAPH, NONE_PROJECTION_GRAPH
 
 RUNS_PATH = "/actions/workflows/quality-graph.yml/runs?event=pull_request&per_page=100&page=1"
@@ -329,19 +332,66 @@ def test_command_context_rejects_missing_run_and_future_artifact_attempt() -> No
 
 
 @pytest.mark.parametrize(
-    "value",
+    ("value", "diagnostic"),
     [
-        [],
-        {"comment": [], "issue": {}},
-        {"comment": {"id": "one", "body": "ordinary"}, "issue": {}},
-        {"comment": {"id": 1, "body": 2}, "issue": {}},
-        {"comment": {"id": 1, "body": "ordinary"}, "issue": []},
-        {"comment": {"id": 1, "body": "ordinary"}, "issue": {"number": "42"}},
+        ([], "issue comment event must be an object"),
+        ({"comment": [], "issue": {}}, "issue comment must be an object"),
+        (
+            {"comment": {"id": "one", "body": "ordinary"}, "issue": {}},
+            "comment id must be an integer",
+        ),
+        ({"comment": {"id": 1, "body": 2}, "issue": {}}, "comment body must be a string"),
+        ({"comment": {"id": 1, "body": "ordinary"}, "issue": []}, "issue must be an object"),
+        (
+            {"comment": {"id": 1, "body": "ordinary"}, "issue": {"number": "42"}},
+            "issue number must be an integer",
+        ),
     ],
 )
-def test_command_request_narrows_untrusted_event_shapes(value: object) -> None:
-    with pytest.raises(TypeError):
+def test_command_request_narrows_untrusted_event_shapes(value: JsonValue, diagnostic: str) -> None:
+    with pytest.raises(TypeError, match=f"^{diagnostic}$"):
         command_request(value)
+
+
+@pytest.mark.parametrize(
+    ("pull", "diagnostic"),
+    [
+        ([], "pull request must be an object"),
+        ({"base": []}, "pull request base must be an object"),
+        ({"head": {"sha": "untrusted"}, "base": {}}, "pull request base SHA must be a string"),
+    ],
+)
+def test_command_dispatch_rejects_malformed_trusted_context(
+    pull: JsonValue, diagnostic: str
+) -> None:
+    port = MemoryGitHubPort()
+    port.enqueue("GET", "/pulls/42", pull)
+    with pytest.raises(TypeError, match=f"^{diagnostic}$"):
+        dispatch_pr_command(port, direct_event())
+    assert port.requests == [("GET", "/pulls/42", None)]
+
+
+@pytest.mark.parametrize("presentation", ["none", "github-pr"])
+def test_command_dispatch_uses_base_declaration_before_writing(presentation: str) -> None:
+    port = MemoryGitHubPort()
+    base = "d" * 40
+    declaration = SOURCE.replace("presentation: github-pr", f"presentation: {presentation}")
+    port.enqueue("GET", "/pulls/42", {"base": {"sha": base}, "head": {"sha": "a" * 40}})
+    port.enqueue(
+        "GET",
+        f"/contents/qg.yaml?ref={base}",
+        {"content": base64.b64encode(declaration.encode()).decode()},
+    )
+    enabled = presentation == "github-pr"
+    if enabled:
+        port.enqueue("POST", "/issues/42/comments", None)
+        port.enqueue("POST", "/issues/comments/10/reactions", None)
+    assert dispatch_pr_command(port, direct_event("/qg help")) == CommandOutcome(
+        handled=enabled, authorized=enabled
+    )
+    assert [method for method, _, _ in port.requests] == (
+        ["GET", "GET", "POST", "POST"] if enabled else ["GET", "GET"]
+    )
 
 
 @pytest.mark.parametrize(

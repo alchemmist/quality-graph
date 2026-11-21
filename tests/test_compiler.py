@@ -16,7 +16,7 @@ from qg_github.compiler import (
     event_projection,
     project_graph,
 )
-from quality_graph_core.graph import Graph
+from quality_graph_core.graph import DependencyPolicy, Graph
 from tests.test_graph import GRAPH, MAXIMAL_GRAPH, RUNTIME
 
 
@@ -179,13 +179,24 @@ def test_publication_workflow_is_privileged_without_untrusted_checkout() -> None
     assert value["on"]["workflow_run"]["types"] == ["requested", "completed"]
     assert publish["steps"][0]["with"]["operation"].endswith("'publish' || 'watch' }}")
     assert publish["permissions"]["actions"] == "read"
-    assert publish["permissions"]["pull-requests"] == "write"
+    assert publish["permissions"]["pull-requests"] == "read"
     assert publish["permissions"]["checks"] == "write"
-    assert command["permissions"]["pull-requests"] == "write"
+    assert command["permissions"]["pull-requests"] == "read"
     assert publish["if"].endswith("workflow_run.event == 'pull_request'")
     assert command["permissions"]["actions"] == "write"
     assert "actions/checkout" not in serialized
     assert "pull_request_target" not in serialized
+
+
+def test_every_publisher_job_grant_has_an_inline_rationale() -> None:
+    serialized = generated()[str(PUBLICATION_WORKFLOW)]
+    lines = serialized.splitlines()
+    root = yaml.compose(serialized, Loader=yaml.SafeLoader)
+    jobs = next(value for key, value in root.value if key.value == "jobs")
+    for _, job in jobs.value:
+        permissions = next(value for key, value in job.value if key.value == "permissions")
+        for _, grant in permissions.value:
+            assert lines[grant.end_mark.line][grant.end_mark.column :].strip().startswith("# ")
 
 
 def test_publisher_runtime_can_roll_forward_without_changing_execution_provenance() -> None:
@@ -293,6 +304,12 @@ def test_event_projection_validation_rejects_invalid_provider_contracts(
         compile_graph(Graph.from_yaml(source))
 
 
+def test_event_projection_reports_all_unsupported_execution_events() -> None:
+    source = GRAPH.replace("title: Lint", "title: Lint\n    events: [schedule, issue-comment]")
+    with pytest.raises(ValueError, match=r"unsupported execution events: issue-comment, schedule$"):
+        event_projection(Graph.from_yaml(source), "push")
+
+
 def test_event_projection_rejects_unknown_requested_event() -> None:
     with pytest.raises(ValueError, match="does not support execution event"):
         event_projection(Graph.from_yaml(GRAPH), "schedule")
@@ -308,6 +325,8 @@ def test_none_dependency_policy_allows_excluded_scheduling_dependencies() -> Non
     )
 
     graph = Graph.from_yaml(source)
+    assert event_projection(graph, "pull-request").dependencies is DependencyPolicy.GRAPH
+    assert event_projection(graph, "push").dependencies is DependencyPolicy.NONE
     projected = project_graph(graph, "push")
     project = compile_graph(graph)
     push = yaml.safe_load(
@@ -360,7 +379,10 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
             ),
             "unknown GitHub permission",
         ),
-        (GRAPH.replace(RUNTIME, "alchemmist/quality-graph@main"), "40-character-commit"),
+        (
+            GRAPH.replace(RUNTIME, "alchemmist/quality-graph@main"),
+            "GitHub runtime action must use owner/repository@40-character-commit",
+        ),
         (
             GRAPH.replace(
                 f"      action: {RUNTIME}",
@@ -440,3 +462,11 @@ def test_github_provider_rejects_platform_specific_invalid_configuration(
 ) -> None:
     with pytest.raises((TypeError, ValueError), match=message):
         compile_graph(Graph.from_yaml(source))
+
+
+def test_repository_flows_match_checked_in_workflows() -> None:
+    root = Path(__file__).parents[1]
+    project = compile_graph(Graph.from_yaml((root / "qg.yaml").read_text()))
+    for item in project.files:
+        if item.path.suffix == ".yml":
+            assert item.content == (root / item.path).read_text(), str(item.path)
