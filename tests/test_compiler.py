@@ -463,6 +463,10 @@ def test_scheduled_publication_only_replaces_base_publisher(source: str) -> None
         assert job["permissions"]["pull-requests"] == "read"
     if source == GRAPH:
         assert content == Path("tests/snapshots/scheduled-publisher.yml").read_text()
+    else:
+        for workflow in after.files:
+            if workflow.path.suffix == ".yml" and workflow.path != PUBLICATION_WORKFLOW:
+                assert workflow.content == Path(workflow.path).read_text(), str(workflow.path)
 
 
 def test_invalid_publication_mode_rejected() -> None:

@@ -5,9 +5,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from qg_github.commands import CommandOutcome, dispatch_pr_command
 from qg_github.github import MemoryGitHubPort
 from qg_github.reconciliation import reconcile_open_pulls
 from qg_github.runtime import main
+from tests.test_commands import direct_event
 from tests.test_flow_compiler import SOURCE
 from tests.test_graph import GRAPH
 from tests.test_publication import JOBS_PATH, artifact, configure_publication, result_archive
@@ -189,3 +191,63 @@ def test_runtime_requires_expected_default_branch_event(
             scoped.setenv(name, value)
             with pytest.raises(ValueError, match="trusted default-branch"):
                 main([operation])
+
+
+@pytest.mark.parametrize(
+    ("branch", "state", "presentation", "enabled"),
+    [
+        ("main", "open", "github-pr", True),
+        ("main", "closed", "github-pr", False),
+        ("feature", "open", "github-pr", False),
+        ("main", "open", "none", False),
+    ],
+)
+def test_scheduled_command_uses_admitted_open_pr_snapshot(
+    branch: str, state: str, presentation: str, *, enabled: bool
+) -> None:
+    port = setup(source=SOURCE.replace("presentation: github-pr", f"presentation: {presentation}"))
+    set_response(port, "/pulls/42", PULL | {"state": state, "base": {"ref": branch, "sha": BASE}})
+    port.enqueue("POST", "/issues/comments/10/reactions", None)
+    assert dispatch_pr_command(
+        port, direct_event("/qg status"), default_branch="main"
+    ) == CommandOutcome(handled=enabled, authorized=enabled)
+    assert port.requests.count(("GET", "/pulls/42", None)) == 1
+    if branch == "main" and state == "open":
+        assert ("GET", f"/contents/qg.yaml?ref={BASE}", None) in port.requests
+    else:
+        assert len(port.requests) == 1
+    if enabled:
+        post, reaction = [call for call in port.requests if call[0] != "GET"]
+        assert post[0:2] == ("POST", "/issues/42/comments")
+        assert (
+            post[2]["body"]
+            == f"Quality Graph status for `{HEAD}`: no current Quality Graph execution found."
+        )
+        assert reaction == ("POST", "/issues/comments/10/reactions", {"content": "+1"})
+    else:
+        assert all(method == "GET" for method, _, _ in port.requests)
+
+
+@pytest.mark.parametrize("body", ["hello", "/qg!"])
+def test_scheduled_ignores_non_commands_before_reading_pr(body: str) -> None:
+    port = MemoryGitHubPort()
+    assert dispatch_pr_command(port, direct_event(body), default_branch="main") == CommandOutcome(
+        handled=False
+    )
+    assert port.requests == []
+
+
+@pytest.mark.parametrize(
+    ("pull", "error"),
+    [
+        (None, "pull request must be an object"),
+        ({"base": []}, "pull request base must be an object"),
+        (PULL | {"base": {"ref": "main"}}, "pull request base SHA must be a string"),
+    ],
+)
+def test_scheduled_command_rejects_malformed_pr_snapshot(pull: JsonValue, error: str) -> None:
+    port = MemoryGitHubPort()
+    port.enqueue("GET", "/pulls/42", pull)
+    with pytest.raises(TypeError, match=f"^{error}$"):
+        dispatch_pr_command(port, direct_event("/qg help"), default_branch="main")
+    assert port.requests == [("GET", "/pulls/42", None)]
