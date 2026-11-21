@@ -22,6 +22,7 @@ MAX_TIMEOUT_MINUTES = 360
 MAX_LABEL_NAME_LENGTH = 50
 MAX_LABEL_DESCRIPTION_LENGTH = 100
 MAX_NODE_TITLE_LENGTH = 255
+MAX_OPERATION_ITEMS = 64
 
 
 class AdapterKind(StrEnum):
@@ -449,8 +450,9 @@ def _parse_graph(data: dict[str, JsonValue]) -> Graph:
         JSON.integer(data.get("version"), "graph version"),
         _parse_execution(_mapping(data.get("execution", {}), "execution")),
         tuple(
-            _parse_operation(name, JSON.object(value, f"operation {name}"))
+            operation
             for name, value in _mapping(data.get("operations", {}), "operations").items()
+            for operation in _expand_operation(name, JSON.object(value, f"operation {name}"))
         ),
         tuple(
             _parse_flow(name, JSON.object(value, f"flow {name}"))
@@ -472,6 +474,43 @@ def _parse_provider(value: JsonValue, legacy_runtime: JsonValue) -> ProviderConf
         JSON.string(data.get("name"), "provider name"),
         _mapping(data.get("configuration", {}), "provider configuration"),
     )
+
+
+def _expand_operation(name: str, data: dict[str, JsonValue]) -> tuple[Operation, ...]:
+    if "items" not in data:
+        return (_parse_operation(name, data),)
+    _identifier(name, "operation family")
+    contract = dict(data)
+    items = JSON.array(contract.pop("items"), f"operation {name} items")
+    if not 1 <= len(items) <= MAX_OPERATION_ITEMS:
+        message = f"operation {name} requires 1 to {MAX_OPERATION_ITEMS} items"
+        raise ValueError(message)
+    env = _mapping(contract.get("env", {}), "operation env")
+    if "QG_ITEM" in env:
+        message = f"operation {name} cannot override QG_ITEM"
+        raise ValueError(message)
+    expanded = []
+    for literal in items:
+        item = JSON.string(literal, "operation item")
+        _identifier(item, "operation item")
+        operation = _parse_operation(
+            f"{name}-{item}", {**contract, "env": {**env, "QG_ITEM": item}}
+        )
+        if any("QG_ITEM" in step.environment for step in operation.steps):
+            message = f"operation {name} steps cannot override QG_ITEM"
+            raise ValueError(message)
+        if "title" in contract:
+            operation = replace(operation, title=f"{operation.title} ({item})")
+        path = operation.result.path
+        if path is not None:
+            if "{item}" not in path:
+                message = f"operation {name} report path must contain {{item}}"
+                raise ValueError(message)
+            operation = replace(
+                operation, result=replace(operation.result, path=path.replace("{item}", item))
+            )
+        expanded.append(operation)
+    return tuple(expanded)
 
 
 def _parse_operation(name: str, data: dict[str, JsonValue]) -> Operation:

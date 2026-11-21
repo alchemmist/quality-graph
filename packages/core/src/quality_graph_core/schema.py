@@ -451,6 +451,11 @@ def graph_schema_value() -> dict[str, JsonValue]:
     operation_properties.pop("needs")
     operation_properties.pop("events")
     operation_properties["diff-only"] = {"type": "boolean"}
+    operation_properties["items"] = {
+        **_array_schema(identifier, 64),
+        "minItems": 1,
+        "uniqueItems": True,
+    }
     operation = _object_schema(operation_properties, ())
     operation["oneOf"] = node["oneOf"]
     properties = cast("dict[str, JsonValue]", schema["properties"])

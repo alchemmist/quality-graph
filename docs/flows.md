@@ -169,3 +169,30 @@ Changes to PR checks or governance do not qualify and still fail closed. Activat
 publisher on the default branch before migrating a repository that runs an older publisher.
 Updating only `publisher-action` and its generated workflow is compatible with existing result
 digests, so this activation can be reviewed and merged before the configuration migration.
+
+## Fixed shards
+
+Declare a literal `items` list on an operation to share its contract. Choose placements
+explicitly so each flow can select and depend on individual shards:
+
+```yaml
+operations:
+  chart:
+    items: [api, web, worker, cron]
+    run: ./ci/check-chart "charts/$QG_ITEM" "reports/$QG_ITEM.xml"
+    results: {junit: "reports/{item}.xml"}
+flows:
+  review:
+    trigger: pull-request
+    presentation: github-pr
+    nodes: {chart-api: {}, chart-web: {}, chart-worker: {}, chart-cron: {}}
+```
+
+Each of the 1–64 items must be a distinct literal identifier. Expansion follows list order;
+`chart` itself is not an operation. The combined IDs must also be valid and unique. The
+compiler sets `QG_ITEM` as operation environment data; neither the family nor its execution
+steps may override it. Command text is never rewritten. An explicit family title gains an
+item suffix, for example `Check chart (api)`.
+Only report paths substitute `{item}`, which is required when specifying a report file.
+`qg generate` emits the same manifest and jobs as the equivalent explicit operations;
+review and commit those files as usual. No runtime matrix or discovery step is involved.
