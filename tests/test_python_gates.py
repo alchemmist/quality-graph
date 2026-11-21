@@ -472,3 +472,11 @@ def test_comment_indentation_error(tmp_path: Path) -> None:
     source = tmp_path / "app.py"
     source.write_text("if True:\n    pass\n  pass\n")
     assert no_comments.scan_file(source)[0].line == 3
+
+
+def test_native_missing_revision(tmp_path: Path) -> None:
+    output = tmp_path / "result.json"
+    assert time_bombs.main(["--base", "nonexistent-base-for-qg-test", "--output", str(output)]) == 2
+    payload = json.loads(output.read_bytes())
+    assert payload["failureKind"] == "infrastructure"
+    assert "git diff against nonexistent-base-for-qg-test failed" in payload["summary"]

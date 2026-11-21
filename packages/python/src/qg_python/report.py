@@ -8,7 +8,6 @@ import sys
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from subprocess import CalledProcessError
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -54,7 +53,7 @@ def run_gate[T](
         if output is not None:
             payload = native_report(rule, findings, len(files))
         code = report(findings)
-    except (OSError, ValueError, SyntaxError, RuntimeError, CalledProcessError) as error:
+    except (OSError, ValueError, SyntaxError, RuntimeError) as error:
         message = f"Cannot scan sources: {error}"[:1000]
         sys.stderr.write(message + "\n")
         payload = {

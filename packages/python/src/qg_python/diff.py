@@ -7,6 +7,7 @@ import re
 import shutil
 import tokenize
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 import anyio
@@ -39,7 +40,7 @@ def patch_for_base(base: str) -> str:
         message = "git executable is required"
         raise RuntimeError(message)
     completed = anyio.run(
-        anyio.run_process,
+        partial(anyio.run_process, check=False),
         [
             GIT,
             "diff",
@@ -50,6 +51,10 @@ def patch_for_base(base: str) -> str:
             "--",
         ],
     )
+    if completed.returncode:
+        detail = completed.stderr.decode(errors="replace").strip()
+        message = f"git diff against {base} failed: {detail}"
+        raise RuntimeError(message)
     return completed.stdout.decode()
 
 
