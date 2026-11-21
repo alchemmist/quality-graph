@@ -62,7 +62,7 @@ flows:
           observation-seconds: 3600
 ```
 
-Use the matching [released toolchain](installation.md) with this runtime. Explicit flow inputs are unavailable in older pinned Actions. This sample describes a
+Use the matching [released toolchain](installation.md) with the runtime pinned above. Explicit flow inputs are unavailable in older pinned Actions. This sample describes a
 release contract; it does not deploy anything. See [Release flow contracts](release-flows.md).
 
 ## Validation and scheduling

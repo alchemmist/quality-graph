@@ -40,7 +40,11 @@ PY
 tag=$(cat release-tag)
 refs=$(git ls-remote --tags https://github.com/alchemmist/quality-graph.git "refs/tags/$tag" "refs/tags/$tag^{}")
 commit=$(awk -v tag="refs/tags/$tag" '$2 == tag {direct=$1} $2 == tag "^{}" {peeled=$1} END {print peeled ? peeled : direct}' <<<"$refs")
-if [[ -z $commit || $commit != "$(cat release-commit)" ]]; then
+if [[ -z $commit ]]; then
+	echo "Release tag $tag not found" >&2
+	exit 1
+fi
+if [[ $commit != "$(cat release-commit)" ]]; then
 	echo "Documented runtime does not match release tag $tag" >&2
 	exit 1
 fi
