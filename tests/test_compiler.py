@@ -188,6 +188,17 @@ def test_publication_workflow_is_privileged_without_untrusted_checkout() -> None
     assert "pull_request_target" not in serialized
 
 
+def test_every_publisher_job_grant_has_an_inline_rationale() -> None:
+    serialized = generated()[str(PUBLICATION_WORKFLOW)]
+    lines = serialized.splitlines()
+    root = yaml.compose(serialized, Loader=yaml.SafeLoader)
+    jobs = next(value for key, value in root.value if key.value == "jobs")
+    for _, job in jobs.value:
+        permissions = next(value for key, value in job.value if key.value == "permissions")
+        for _, grant in permissions.value:
+            assert lines[grant.end_mark.line][grant.end_mark.column :].strip().startswith("# ")
+
+
 def test_publisher_runtime_can_roll_forward_without_changing_execution_provenance() -> None:
     publisher = "alchemmist/quality-graph@" + "b" * 40
     source = GRAPH.replace(
