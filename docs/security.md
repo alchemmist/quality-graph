@@ -62,7 +62,7 @@ replacement:
    separate push-only configuration if their replacements need code not yet on main.
    Generate and validate the workflows (`qg generate`, then `qg validate`). Review this
    change as a replacement of required checks, and merge it before relying on them.
-2. Update the application PR against that base. Its push graph can now use the new
+1. Update the application PR against that base. Its push graph can now use the new
    implementation and drop the bootstrap checks. Verify that the effective PR contracts
    match (`pr_contract(project_graph(graph, "pull-request"))` for each declaration),
    regenerate and validate, and run the checks on the updated PR head. If governance or
