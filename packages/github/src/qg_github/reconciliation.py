@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 
 SHA = re.compile(r"[0-9a-f]{40}")
 WORKFLOW_PATH = ".github/workflows/quality-graph.yml"
+RUN_STATUSES = ("queued", "in_progress", "completed", "waiting", "requested", "pending")
+SEARCH_RUN_LIMIT = 1_000
 
 
 def default_branch_for_event(
@@ -85,18 +87,32 @@ def _candidate(port: GitHubPort, branch: str, number: int) -> _Candidate | None:
 
 def _latest_head_run(port: GitHubPort, sha: str) -> tuple[int, int] | None:
     path = f"/actions/workflows/quality-graph.yml/runs?event=pull_request&head_sha={sha}"
-    value = JSON.object(port.request("GET", f"{path}&per_page={GITHUB_PAGE_SIZE}"), "runs")
-    runs = JSON.array(value.get("workflow_runs"), "workflow runs")
-    if value.get("total_count") != len(runs):
+    path = f"{path}&per_page={GITHUB_PAGE_SIZE}"
+    first = JSON.object(port.request("GET", path), "workflow runs")
+    count = JSON.integer(first.get("total_count"), "workflow run count")
+    if not 0 < count <= SEARCH_RUN_LIMIT:
         return None
-    return max(
-        (
-            (JSON.integer(run.get("id"), "run id"), JSON.integer(run.get("run_attempt"), "attempt"))
-            for item in runs
-            for run in (JSON.object(item, "workflow run"),)
-        ),
-        default=None,
-    )
+    runs: dict[int, int] = {}
+    for offset in range(0, count, GITHUB_PAGE_SIZE):
+        response = (
+            first
+            if offset == 0
+            else JSON.object(
+                port.request("GET", f"{path}&page={offset // GITHUB_PAGE_SIZE + 1}"),
+                "workflow runs",
+            )
+        )
+        values = JSON.array(response.get("workflow_runs"), "workflow runs")
+        if response.get("total_count") != count or len(values) != min(
+            GITHUB_PAGE_SIZE, count - offset
+        ):
+            return None
+        for value in values:
+            run = JSON.object(value, "workflow run")
+            runs[JSON.integer(run.get("id"), "run id")] = JSON.integer(
+                run.get("run_attempt"), "attempt"
+            )
+    return max(runs.items()) if len(runs) == count else None
 
 
 def _matches_run(
@@ -111,6 +127,7 @@ def _matches_run(
     repo = JSON.object(run.get("repository"), "workflow repository")
     return (
         repo.get("full_name") == repository
+        and run.get("status") in RUN_STATUSES
         and run.get("path") == WORKFLOW_PATH
         and run.get("event") == "pull_request"
         and run.get("head_sha") == state.head_sha

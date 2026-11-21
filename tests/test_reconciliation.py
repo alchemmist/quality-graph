@@ -102,6 +102,8 @@ def test_successful_reconcile_then_duplicate_tick_is_read_only() -> None:
         ("/actions/runs/10", RUN | {"run_attempt": 2}),
         ("/actions/runs/10", RUN | {"repository": {"full_name": "other/repo"}}),
         ("/actions/runs/10", RUN | {"event": "push"}),
+        ("/actions/runs/10", RUN | {"status": "unknown"}),
+        (RUNS, {"total_count": 1001, "workflow_runs": []}),
         ("/actions/runs/10", RUN | {"path": ".github/workflows/other.yml"}),
         ("/actions/runs/10", RUN | {"head_sha": BASE}),
         ("/actions/runs/10", RUN | {"pull_requests": []}),
@@ -251,3 +253,28 @@ def test_scheduled_command_rejects_malformed_pr_snapshot(pull: JsonValue, error:
     with pytest.raises(TypeError, match=f"^{error}$"):
         dispatch_pr_command(port, direct_event("/qg help"), default_branch="main")
     assert port.requests == [("GET", "/pulls/42", None)]
+
+
+@pytest.mark.parametrize("second_id", [10, 102])
+def test_full_run_listing_finds_latest_attempt_on_second_page_without_accepting_overlap(
+    second_id: int,
+) -> None:
+    port = setup()
+    counts = {"total_count": 101}
+    set_response(port, RUNS, counts | {"workflow_runs": [RUN | {"id": i} for i in range(1, 101)]})
+    set_response(port, RUNS + "&page=2", counts | {"workflow_runs": [RUN | {"id": second_id}]})
+    port.enqueue("GET", "/actions/runs/102", RUN | {"id": 102})
+    set_response(port, CHECKS, {"check_runs": [COMPLETED | {"external_id": "quality-graph:102:1"}]})
+    reconcile_open_pulls(port, "main")
+    assert (("GET", "/actions/runs/102", None) in port.requests) == (second_id == 102)
+    assert all(method == "GET" for method, _, _ in port.requests)
+
+
+def test_repeated_check_page_never_posts_a_duplicate() -> None:
+    port = setup()
+    full = {"check_runs": [COMPLETED | {"id": i, "external_id": "other"} for i in range(100)]}
+    set_response(port, CHECKS, full)
+    port.enqueue("GET", CHECKS + "&page=2", full)
+    with pytest.raises(ValueError, match="check run listing repeated a full page"):
+        reconcile_open_pulls(port, "main")
+    assert all(method == "GET" for method, _, _ in port.requests)

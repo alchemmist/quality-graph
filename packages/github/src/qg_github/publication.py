@@ -453,6 +453,7 @@ def _existing_check(port: GitHubPort, sha: str, external_id: str) -> dict[str, J
         f"&per_page={GITHUB_PAGE_SIZE}"
     )
     page = 1
+    page_ends: set[int] = set()
     while True:
         response = JSON.object(
             port.request("GET", path if page == 1 else f"{path}&page={page}"), "check runs"
@@ -469,6 +470,11 @@ def _existing_check(port: GitHubPort, sha: str, external_id: str) -> dict[str, J
                 return check
         if len(checks) < GITHUB_PAGE_SIZE:
             return None
+        last = JSON.integer(JSON.object(checks[-1], "last check").get("id"), "last check id")
+        if last in page_ends:
+            message = "check run listing repeated a full page"
+            raise ValueError(message)
+        page_ends.add(last)
         page += 1
 
 
