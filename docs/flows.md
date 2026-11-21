@@ -190,7 +190,9 @@ flows:
 
 Each of the 1–64 items must be a distinct literal identifier. Expansion follows list order;
 `chart` itself is not an operation. The combined IDs must also be valid and unique. The
-compiler sets `QG_ITEM` as operation environment data; it never rewrites command text.
+compiler sets `QG_ITEM` as operation environment data; neither the family nor its execution
+steps may override it. Command text is never rewritten. An explicit family title gains an
+item suffix, for example `Check chart (api)`.
 Only report paths substitute `{item}`, which is required when specifying a report file.
 `qg generate` emits the same manifest and jobs as the equivalent explicit operations;
 review and commit those files as usual. No runtime matrix or discovery step is involved.

@@ -285,3 +285,17 @@ def test_shards_compile_as_four_explicit_jobs() -> None:
 def test_invalid_shards(original: str, invalid: str, message: str) -> None:
     with pytest.raises(ValueError, match=message):
         Graph.from_yaml(SHARDS.replace(original, invalid))
+
+
+def test_titled_shard_steps() -> None:
+    source = SHARDS.replace(
+        'run: ./ci/check-chart "$QG_ITEM"',
+        "title: Check chart\n    steps: [{run: check, env: {MODE: strict}}]",
+    )
+    graph = Graph.from_yaml(source)
+    compile_graph(graph)
+    for op in graph.operations:
+        assert op.title == f"Check chart ({op.environment['QG_ITEM']})"
+        assert op.steps[0].environment == {"MODE": "strict"}
+    with pytest.raises(ValueError, match="steps cannot override QG_ITEM"):
+        Graph.from_yaml(source.replace("MODE: strict", "QG_ITEM: api"))

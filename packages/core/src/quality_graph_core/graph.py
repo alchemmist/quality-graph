@@ -496,6 +496,11 @@ def _expand_operation(name: str, data: dict[str, JsonValue]) -> tuple[Operation,
         operation = _parse_operation(
             f"{name}-{item}", {**contract, "env": {**env, "QG_ITEM": item}}
         )
+        if any("QG_ITEM" in step.environment for step in operation.steps):
+            message = f"operation {name} steps cannot override QG_ITEM"
+            raise ValueError(message)
+        if "title" in contract:
+            operation = replace(operation, title=f"{operation.title} ({item})")
         path = operation.result.path
         if path is not None:
             if "{item}" not in path:
