@@ -9,16 +9,18 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from qg_github.approvals import ApprovalRecord, append_approval_record
-from qg_github.artifacts import ArtifactExpectation
+from qg_github.artifacts import ArtifactError, ArtifactExpectation
+from qg_github.comments import find_managed_comment
 from qg_github.compiler import compile_graph
 from qg_github.controls import control_states, decode_control_marker
+from qg_github.dashboard import DASHBOARD_MARKER
 from qg_github.declarations import read_pr_results
-from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
+from qg_github.github import GITHUB_PAGE_SIZE, GitHubError, GitHubPort
 from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
 from quality_graph_core.json_values import JSON
 from quality_graph_core.policy import ApprovalTarget, effective_graph
-from quality_graph_core.result import ControlKind, JsonValue
+from quality_graph_core.result import ControlKind, JsonValue, Result
 
 COMMAND_RE = re.compile(
     r"^/qg(?:\s+(help|status|ignore|remove-ignore|ignore-file|remove-ignore-file)"
@@ -158,7 +160,7 @@ def handle_command(port: GitHubPort, event_value: JsonValue) -> CommandOutcome:
         reply = (
             _help_body()
             if command.name is CommandName.HELP
-            else "Quality Graph command handling is available."
+            else _status_body(port, request.pull_request)
         )
         _reply(port, request.pull_request, reply)
         _react(port, request.comment_id, "+1")
@@ -195,6 +197,40 @@ def dispatch_pr_command(port: GitHubPort, event_value: JsonValue) -> CommandOutc
     return handle_command(port, event_value)
 
 
+def _status_body(port: GitHubPort, number: int) -> str:
+    pull = JSON.object(port.request("GET", f"/pulls/{number}"), "pull request")
+    head_sha = JSON.string(JSON.object(pull.get("head"), "head").get("sha"), "head SHA")
+    summary = f"Quality Graph status for `{head_sha}`: "
+    dashboard = find_managed_comment(port, number, DASHBOARD_MARKER)
+    link = f" · [Dashboard](#issuecomment-{dashboard.id})" if dashboard else ""
+    run = _latest_run(port, number, head_sha=head_sha)
+    if run is None:
+        return summary + "no current Quality Graph execution found." + link
+    run_id = JSON.integer(run.get("id"), "workflow run id")
+    if run.get("run_attempt") is None:
+        return (
+            summary + f"run #{run_id} has no verified attempt. Result admission incomplete." + link
+        )
+    attempt = JSON.integer(run.get("run_attempt"), "workflow run attempt")
+    status = JSON.string(run.get("status"), "workflow run status")
+    url = f"https://github.com/{port.repository}/actions/runs/{run_id}/attempts/{attempt}"
+    summary += f"[Run #{run_id}, attempt {attempt}]({url}) is {status.replace('_', ' ')}. "
+    if status != "completed":
+        return summary + "Final result admission is pending." + link
+    base_sha = JSON.string(JSON.object(pull.get("base"), "base").get("sha"), "base SHA")
+    try:
+        graph, results = _run_results(port, number, head_sha, base_sha, run)
+    except (ArtifactError, GitHubError):
+        return (
+            summary + "Result admission incomplete: artifact evidence could not be verified." + link
+        )
+    complete = all(node.id in results for node in graph.nodes)
+    admission = "complete" if complete else "incomplete"
+    return (
+        summary + f"Result admission {admission} ({len(results)}/{len(graph.nodes)} nodes)." + link
+    )
+
+
 # pragma: no mutate start
 def _command_context(port: GitHubPort, number: int) -> CommandContext:
     pull = JSON.object(port.request("GET", f"/pulls/{number}"), "pull request")
@@ -202,6 +238,19 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
     base = JSON.object(pull.get("base"), "pull request base")
     head_sha = JSON.string(head.get("sha"), "pull request head SHA")
     base_sha = JSON.string(base.get("sha"), "pull request base SHA")
+    run = _latest_run(port, number)
+    if run is None:
+        message = f"no Quality Graph workflow run found for PR #{number}"
+        raise ValueError(message)
+    run_id = JSON.integer(run.get("id"), "workflow run id")
+    graph, results = _run_results(port, number, head_sha, base_sha, run)
+    state = effective_graph(graph, results, set())
+    return CommandContext(graph, run_id, state.targets)
+
+
+def _run_results(
+    port: GitHubPort, number: int, head_sha: str, base_sha: str, run: dict[str, JsonValue]
+) -> tuple[Graph, dict[str, Result]]:
     graph = Graph.from_yaml(_repository_file(port, "qg.yaml", base_sha))
     compiled = compile_graph(graph)
     projected = pr_presentation_graph(graph)
@@ -209,7 +258,6 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
         message = "GitHub PR presentation is disabled"
         raise ValueError(message)
     graph = projected
-    run = _latest_run(port, number)
     run_id = JSON.integer(run.get("id"), "workflow run id")
     attempt = JSON.integer(run.get("run_attempt", 1), "workflow run attempt")
     expectation = ArtifactExpectation(
@@ -223,12 +271,12 @@ def _command_context(port: GitHubPort, number: int) -> CommandContext:
         {node.id: node.operation_id for node in graph.nodes if node.operation_id is not None},
         run_attempt=attempt,
     )
-    graph, results = read_pr_results(port, graph, expectation)
-    state = effective_graph(graph, results, set())
-    return CommandContext(graph, run_id, state.targets)
+    return read_pr_results(port, graph, expectation)
 
 
-def _latest_run(port: GitHubPort, number: int) -> dict[str, JsonValue]:
+def _latest_run(
+    port: GitHubPort, number: int, *, head_sha: str | None = None
+) -> dict[str, JsonValue] | None:
     runs: list[dict[str, JsonValue]] = []
     page = 1
     while True:
@@ -242,7 +290,8 @@ def _latest_run(port: GitHubPort, number: int) -> dict[str, JsonValue]:
             run
             for value in values
             for run in (JSON.object(value, "workflow run"),)
-            if any(
+            if (head_sha is None or run.get("head_sha") == head_sha)
+            and any(
                 JSON.object(pull, "workflow pull request").get("number") == number
                 for pull in JSON.array(run.get("pull_requests", []), "workflow pull requests")
             )
@@ -250,10 +299,7 @@ def _latest_run(port: GitHubPort, number: int) -> dict[str, JsonValue]:
         if len(values) < GITHUB_PAGE_SIZE:
             break
         page += 1
-    if not runs:
-        message = f"no Quality Graph workflow run found for PR #{number}"
-        raise ValueError(message)
-    return max(runs, key=lambda run: JSON.integer(run.get("id"), "workflow run id"))
+    return max(runs, key=lambda run: JSON.integer(run.get("id"), "workflow run id"), default=None)
 
 
 # pragma: no mutate end

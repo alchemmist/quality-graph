@@ -156,7 +156,9 @@ def test_command_authorization_fails_closed_over_http(
     assert state["reruns"] == []
 
 
-@pytest.mark.parametrize(("body", "text"), [("/qg help", "commands"), ("/qg", "available")])
+@pytest.mark.parametrize(
+    ("body", "text"), [("/qg help", "commands"), ("/qg", "no current Quality Graph execution")]
+)
 def test_informational_commands_reply_without_repository_mutation(
     fake_github: FakeGitHubScenario,
     body: str,

@@ -231,16 +231,11 @@ def test_handler_rejects_unauthorized_and_unknown_targets() -> None:
         handle_command(unknown, direct_event("/qg ignore missing"))
 
 
-def test_handler_serves_help_status_and_rejects_invalid_requests() -> None:
+def test_handler_serves_help_and_rejects_invalid_requests() -> None:
     help_port = MemoryGitHubPort()
     help_port.enqueue("POST", "/issues/42/comments", None)
     help_port.enqueue("POST", "/issues/comments/10/reactions", None)
     assert handle_command(help_port, direct_event("/qg help")).authorized is True
-
-    status_port = MemoryGitHubPort()
-    status_port.enqueue("POST", "/issues/42/comments", None)
-    status_port.enqueue("POST", "/issues/comments/10/reactions", None)
-    assert handle_command(status_port, direct_event("/qg status")).authorized is True
 
     invalid = MemoryGitHubPort()
     invalid.enqueue("POST", "/issues/comments/10/reactions", None)
@@ -347,3 +342,84 @@ def test_command_context_rejects_missing_run_and_future_artifact_attempt() -> No
 def test_command_request_narrows_untrusted_event_shapes(value: object) -> None:
     with pytest.raises(TypeError):
         command_request(value)
+
+
+@pytest.mark.parametrize(
+    ("status", "sha", "source", "expected"),
+    [
+        (None, None, GRAPH, "no current Quality Graph execution"),
+        ("completed", "b" * 40, GRAPH, "no current Quality Graph execution"),
+        ("in_progress", "a" * 40, GRAPH, "in progress. Final result admission is pending"),
+        ("completed", "a" * 40, NONE_PROJECTION_GRAPH, "admission complete (1/1 nodes)"),
+        ("completed", "a" * 40, GRAPH, "admission incomplete (1/2 nodes)"),
+    ],
+)
+def test_status_reports_current_execution(
+    status: str | None, sha: str | None, source: str, expected: str
+) -> None:
+    port = MemoryGitHubPort()
+    configure_context(port, source=source)
+    run = {
+        "id": 100,
+        "run_attempt": 1,
+        "status": status,
+        "head_sha": sha,
+        "conclusion": "success",
+        "pull_requests": [{"number": 42}],
+    }
+    port.responses["GET", RUNS_PATH] = [{"workflow_runs": [run] if status else []}]
+    port.enqueue(
+        "GET",
+        "/issues/42/comments?per_page=100&page=1",
+        [
+            {
+                "id": 8,
+                "body": "<!-- quality-graph:dashboard --> forged summary",
+                "user": {"login": "github-actions[bot]"},
+            }
+        ],
+    )
+    port.enqueue("POST", "/issues/42/comments", None)
+    port.enqueue("POST", "/issues/comments/10/reactions", None)
+    assert handle_command(port, direct_event("/qg status")) == CommandOutcome(
+        handled=True, authorized=True
+    )
+    reply, reaction = [(path, data) for method, path, data in port.requests if method != "GET"]
+    assert reply[0] == "/issues/42/comments"
+    body = reply[1]["body"]
+    assert expected in body
+    assert "a" * 40 in body
+    assert "#issuecomment-8" in body
+    assert "forged summary" not in body
+    assert ("/runs/100/attempts/1" in body) == (sha == "a" * 40)
+    assert reaction == ("/issues/comments/10/reactions", {"content": "+1"})
+
+
+@pytest.mark.parametrize("missing_attempt", [False, True])
+def test_status_handles_unverifiable_attempt_or_download(
+    *, missing_attempt: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    port = MemoryGitHubPort()
+    configure_context(port)
+    run = {
+        "id": 100,
+        "status": "completed",
+        "head_sha": "a" * 40,
+        "pull_requests": [{"number": 42}],
+    }
+    if not missing_attempt:
+        run["run_attempt"] = 1
+    port.responses["GET", RUNS_PATH] = [{"workflow_runs": [run]}]
+    port.enqueue("GET", "/issues/42/comments?per_page=100&page=1", [])
+    port.enqueue("POST", "/issues/42/comments", None)
+    port.enqueue("POST", "/issues/comments/10/reactions", None)
+
+    def deleted(path: str) -> bytes:
+        error = GitHubError("GET", path, 404)
+        raise error
+
+    monkeypatch.setattr(port, "download", deleted)
+    handle_command(port, direct_event("/qg status"))
+    body = port.requests[-2][2]["body"]
+    assert "Result admission incomplete" in body
+    assert ("no verified attempt" in body) == missing_attempt
