@@ -44,3 +44,27 @@ append-only, bot-owned, unedited ledger records.
 
 Do not add secret-bearing PR jobs or replace the trusted publisher with `pull_request_target`.
 Credential-bearing execution requires a separate threat-model design.
+
+## Graph evolution
+
+A passing native job proves that a command ran, not that the PR preserved the required
+checks. The publisher can admit additional checks when the existing PR contracts and
+base governance are unchanged. Renaming, removing, or rewiring an existing required
+check is not additive. Neither editing generated YAML nor retrying the same run grants
+approval. A `graphDigest` mismatch compares the expected declaration digest with the
+one reported by the execution; it is not a checksum failure in the downloaded ZIP.
+
+Until single-PR topology promotion is supported, use two reviewed changes for a DAG
+replacement:
+
+1. Prepare a base migration whose **pull-request** projection contains the intended final
+   nodes, dependencies, commands and profiles. Keep the current **push** checks in a
+   separate push-only configuration if their replacements need code not yet on main.
+   Generate and validate the workflows (`qg generate`, then `qg validate`). Review this
+   change as a replacement of required checks, and merge it before relying on them.
+2. Update the application PR against that base. Its push graph can now use the new
+   implementation and drop the bootstrap checks. Verify that the effective PR contracts
+   match (`pr_contract(project_graph(graph, "pull-request"))` for each declaration),
+   regenerate and validate, and run the checks on the updated PR head. If governance or
+   a required PR contract still differs, update the reviewed base rather than bypassing
+   provenance validation.

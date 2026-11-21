@@ -222,7 +222,11 @@ def _validate_result(
         message = f"artifact provenance does not match workflow metadata: {descriptor.id}"
         raise ArtifactError(message)
     if provenance.graph_digest != expectation.graph_digest:
-        message = f"artifact provenance does not match workflow metadata: {descriptor.id}"
+        message = (
+            f"artifact {descriptor.id} graphDigest mismatch: expected {expectation.graph_digest}, "
+            f"execution reported {provenance.graph_digest}; "
+            "see https://quality-graph.xyz/security/#graph-evolution"
+        )
         raise DeclarationMismatchError(message)
     if observed[5:] != expected[5:]:
         message = f"artifact provenance does not match workflow metadata: {descriptor.id}"

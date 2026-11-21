@@ -41,7 +41,7 @@ def read_pr_results(
             or not _preserves_required_checks(graph, projected)
         ):
             message = (
-                "PR declaration changes existing required checks or governance; "
+                f"{mismatch}. PR declaration changes existing required checks or governance; "
                 "the trusted base declaration must be updated before these results can be accepted"
             )
             raise DeclarationMismatchError(message) from mismatch
