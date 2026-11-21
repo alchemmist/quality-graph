@@ -23,7 +23,7 @@ schema is [`schemas/graph-v0.schema.json`](https://github.com/alchemmist/quality
 Unknown fields fail closed.
 
 `runtime.action` executes inside pull-request jobs and remains part of graph provenance.
-`runtime.publisher-action` executes only in the trusted `workflow_run` publisher without checking
+`runtime.publisher-action` executes only in the trusted default-branch publisher without checking
 out pull-request code. It does not change execution provenance, which permits a reviewed publisher
 upgrade to land without invalidating artifacts produced by the existing execution runtime. Both
 actions must use the same `owner/repository`; only their immutable commit pins may differ.
@@ -42,6 +42,33 @@ provider:
 
 Changing `runtime.upload-artifact-action` changes the graph digest and regenerates both execution
 workflows. The publisher workflow does not execute the upload action.
+
+## Scheduled GitHub publication (opt-in)
+
+To replace `workflow_run`, set `provider.configuration.runtime.publication: scheduled`, and
+pin `runtime.publisher-action` to a revision that implements `reconcile`. Use the compiler
+from that revision to run `qg generate` and `qg validate`. Leave `runtime.action` and the
+required `Quality Graph` check in place. Review and merge the declaration and generated
+publisher together: the schedule is **not active until it is on the default branch**.
+The setting changes only the publisher, not read-only execution workflows or artifact digests.
+Omitting it (or selecting `workflow-run`) retains the existing publisher.
+
+GitHub schedules a tick every five minutes; ticks can be delayed, dropped or disabled by
+GitHub. There is no immediate requested/completed notification in this mode. A tick samples
+open PRs targeting the repository default branch, posts progress for active executions, and
+publishes completed results using the same artifact admission and base governance as the event
+publisher. It neither dispatches work from the PR nor accepts caller-supplied run IDs.
+
+The reconciler requires the latest run of `quality-graph.yml` for the exact PR head to have
+one unambiguous GitHub PR association, including matching head and base revisions. If the
+base moves, update the PR against it and run the checks on the new head. A missing association
+(including some fork runs), a different PR sharing that head, or an incomplete run listing
+will not produce a new aggregate. GitHub limits a filtered workflow-run search to 1,000 results;
+if more runs share the exact head SHA, the reconciler cannot prove the listing is complete.
+Use a fresh PR head rather than bypassing the check. Repeated ticks skip
+already completed attempts; rerunning creates a new attempt to verify. For protection against
+merging a **previously** checked head after the base moves, require branches to be up to date:
+GitHub checks attach to a head SHA, not a head/base pair.
 
 ## Default branch
 

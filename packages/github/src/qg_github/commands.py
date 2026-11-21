@@ -141,7 +141,9 @@ def command_request(
     return CommandRequest(comment_id, selected, actor, pull_request, previous)
 
 
-def handle_command(port: GitHubPort, event_value: JsonValue) -> CommandOutcome:
+def handle_command(
+    port: GitHubPort, event_value: JsonValue, *, admitted_pull: dict[str, JsonValue] | None = None
+) -> CommandOutcome:
     """Authenticate, record, and trigger one Quality Graph command."""
     request = command_request(event_value)
     if request is None:
@@ -160,12 +162,12 @@ def handle_command(port: GitHubPort, event_value: JsonValue) -> CommandOutcome:
         reply = (
             _help_body()
             if command.name is CommandName.HELP
-            else _status_body(port, request.pull_request)
+            else _status_body(port, request.pull_request, admitted_pull)
         )
         _reply(port, request.pull_request, reply)
         _react(port, request.comment_id, "+1")
         return CommandOutcome(handled=True, authorized=True)
-    context = _command_context(port, request.pull_request)
+    context = _command_context(port, request.pull_request, admitted_pull)
     if not _authorized(port, request.actor, context.graph.administrator_roles):
         _react(port, request.comment_id, "confused")
         return CommandOutcome(handled=True)
@@ -183,22 +185,28 @@ def handle_command(port: GitHubPort, event_value: JsonValue) -> CommandOutcome:
     return CommandOutcome(handled=True, authorized=True, changed=True)
 
 
-def dispatch_pr_command(port: GitHubPort, event_value: JsonValue) -> CommandOutcome:
+def dispatch_pr_command(
+    port: GitHubPort, event_value: JsonValue, *, default_branch: str | None = None
+) -> CommandOutcome:
     """Dispatch comment events only when the trusted declaration enables PR presentation."""
     request = command_request(event_value)
     if request is None or request.pull_request is None:
         return CommandOutcome(handled=False)
     pull = JSON.object(port.request("GET", f"/pulls/{request.pull_request}"), "pull request")
     base = JSON.object(pull.get("base"), "pull request base")
+    if default_branch is not None and (
+        base.get("ref") != default_branch or pull.get("state") != "open"
+    ):
+        return CommandOutcome(handled=False)
     base_sha = JSON.string(base.get("sha"), "pull request base SHA")
     graph = Graph.from_yaml(_repository_file(port, "qg.yaml", base_sha))
     if pr_presentation_graph(graph) is None:
         return CommandOutcome(handled=False)
-    return handle_command(port, event_value)
+    return handle_command(port, event_value, admitted_pull=pull)
 
 
-def _status_body(port: GitHubPort, number: int) -> str:
-    pull = JSON.object(port.request("GET", f"/pulls/{number}"), "pull request")
+def _status_body(port: GitHubPort, number: int, admitted_pull: dict[str, JsonValue] | None) -> str:
+    pull = admitted_pull or JSON.object(port.request("GET", f"/pulls/{number}"), "pull request")
     head_sha = JSON.string(JSON.object(pull.get("head"), "head").get("sha"), "head SHA")
     summary = f"Quality Graph status for `{head_sha}`: "
     dashboard = find_managed_comment(port, number, DASHBOARD_MARKER)
@@ -232,8 +240,10 @@ def _status_body(port: GitHubPort, number: int) -> str:
 
 
 # pragma: no mutate start
-def _command_context(port: GitHubPort, number: int) -> CommandContext:
-    pull = JSON.object(port.request("GET", f"/pulls/{number}"), "pull request")
+def _command_context(
+    port: GitHubPort, number: int, admitted_pull: dict[str, JsonValue] | None = None
+) -> CommandContext:
+    pull = admitted_pull or JSON.object(port.request("GET", f"/pulls/{number}"), "pull request")
     head = JSON.object(pull.get("head"), "pull request head")
     base = JSON.object(pull.get("base"), "pull request base")
     head_sha = JSON.string(head.get("sha"), "pull request head SHA")

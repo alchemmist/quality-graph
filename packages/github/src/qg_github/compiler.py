@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, replace
-from importlib.resources import files
+from importlib.resources import files as resource_files
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, cast, override
 
@@ -96,6 +96,7 @@ class EventProjection:
 class _GitHubConfiguration:
     runtime_action: str
     publisher_action: str
+    publication: str
     upload_artifact_action: str
     default_branch: str
     merge_required: bool
@@ -128,11 +129,15 @@ def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
     if not isinstance(runtime, dict):
         message = "GitHub provider requires a runtime object"
         raise TypeError(message)
-    if runtime.keys() - {"action", "publisher-action", "upload-artifact-action"}:
+    if runtime.keys() - {"action", "publisher-action", "upload-artifact-action", "publication"}:
         message = "GitHub runtime contains unknown fields"
         raise ValueError(message)
     action = _runtime_action(runtime.get("action"), "runtime")
     publisher_action = _runtime_action(runtime.get("publisher-action", action), "publisher")
+    publication = runtime.get("publication", "workflow-run")
+    if publication not in ("workflow-run", "scheduled"):
+        message = "GitHub runtime publication must be workflow-run or scheduled"
+        raise ValueError(message)
     upload_artifact_action = _upload_artifact_action(runtime)
     default_branch = _default_branch(graph.provider.values.get("default-branch"))
     merge_required = _merge_required(graph.provider.values.get("merge", {}))
@@ -148,6 +153,7 @@ def _validate_github_graph(graph: Graph) -> _GitHubConfiguration:
     return _GitHubConfiguration(
         action,
         publisher_action,
+        publication,
         upload_artifact_action,
         default_branch,
         merge_required,
@@ -411,7 +417,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
         ),
         GeneratedFile(
             PUBLICATION_WORKFLOW,
-            _publication_yaml(configuration.publisher_action),
+            _publication_yaml(configuration),
         ),
         GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)),
     )
@@ -485,7 +491,7 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
         files.append(
             GeneratedFile(
                 PUBLICATION_WORKFLOW,
-                _publication_yaml(configuration.publisher_action),
+                _publication_yaml(configuration),
             )
         )
     files.append(GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)))
@@ -820,9 +826,14 @@ def _workflow_step(step: Step) -> dict[str, JsonValue]:
     return _step_value(step)
 
 
-def _publication_yaml(runtime_action: str) -> str:
-    template = files("qg_github").joinpath("publisher.yaml.in").read_text(encoding="utf-8")
-    return GENERATED_HEADER + template.replace("@PUBLISHER_ACTION@", runtime_action)
+def _publication_yaml(configuration: _GitHubConfiguration) -> str:
+    filename = (
+        "scheduled-publisher.yaml.in"
+        if configuration.publication == "scheduled"
+        else "publisher.yaml.in"
+    )
+    template = resource_files("qg_github").joinpath(filename).read_text(encoding="utf-8")
+    return GENERATED_HEADER + template.replace("@PUBLISHER_ACTION@", configuration.publisher_action)
 
 
 def _yaml_file(value: Mapping[str, JsonValue], *, width: int = 1_000) -> str:

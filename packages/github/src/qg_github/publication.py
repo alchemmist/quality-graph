@@ -138,12 +138,20 @@ def _publish_completed_workflow_run(
         pull,
         run,
     )
+    return _write_publication(port, graph, number, model, effective_results)
+
+
+def _write_publication(
+    port: GitHubPort,
+    graph: Graph,
+    number: int,
+    model: DashboardModel,
+    effective_results: Mapping[str, Result] | None,
+) -> PublicationOutcome:
     existing = find_managed_comment(port, number, DASHBOARD_MARKER)
     previous_labels = parse_label_state(existing.body) if existing is not None else frozenset()
     if effective_results is None and previous_labels:
         model = replace(model, managed_labels=tuple(sorted(previous_labels)))
-    comment = upsert_managed_comment(port, number, DASHBOARD_MARKER, render_dashboard(model))
-    _publish_check(port, model)
     if effective_results is not None:
         reconcile_labels(
             port,
@@ -152,6 +160,8 @@ def _publish_completed_workflow_run(
             effective_results,
             previous_owned=previous_labels,
         )
+    comment = upsert_managed_comment(port, number, DASHBOARD_MARKER, render_dashboard(model))
+    _publish_check(port, model)
     return PublicationOutcome(published=True, status=model.status, comment_id=comment.id)
 
 
@@ -426,29 +436,75 @@ def _publish_check(port: GitHubPort, model: DashboardModel) -> None:
     }
     if completed:
         payload["conclusion"] = "success" if model.status is ResultStatus.PASSED else "failure"
-    name = urllib.parse.quote("Quality Graph", safe="")
-    response = JSON.object(
-        port.request(
-            "GET",
-            f"/commits/{model.head_sha}/check-runs"
-            f"?check_name={name}&filter=all&per_page={GITHUB_PAGE_SIZE}",
-        ),
-        "check runs",
-    )
-    check_id = next(
-        (
-            JSON.optional_integer(check.get("id"), "check run id")
-            for value in JSON.array(response.get("check_runs", []), "check runs")
-            for check in (JSON.object(value, "check run"),)
-            if check.get("external_id") == external_id
-        ),
-        None,
-    )
+    existing = _existing_check(port, model.head_sha, external_id)
+    check_id = JSON.optional_integer(existing.get("id"), "check run id") if existing else None
     if check_id is None:
         port.request("POST", "/check-runs", payload)
         return
+    if not completed and existing and existing.get("status") == "in_progress":
+        return
     update = {key: value for key, value in payload.items() if key != "head_sha"}
     port.request("PATCH", f"/check-runs/{check_id}", update)
+
+
+def _existing_check(port: GitHubPort, sha: str, external_id: str) -> dict[str, JsonValue] | None:
+    path = (
+        f"/commits/{sha}/check-runs?check_name=Quality%20Graph&filter=all"
+        f"&per_page={GITHUB_PAGE_SIZE}"
+    )
+    page = 1
+    page_ends: set[int] = set()
+    while True:
+        response = JSON.object(
+            port.request("GET", path if page == 1 else f"{path}&page={page}"), "check runs"
+        )
+        checks = JSON.array(response.get("check_runs"), "check runs")
+        for value in checks:
+            check = JSON.object(value, "check run")
+            app = check.get("app")
+            if (
+                isinstance(app, dict)
+                and app.get("slug") == "github-actions"
+                and check.get("external_id") == external_id
+            ):
+                return check
+        if len(checks) < GITHUB_PAGE_SIZE:
+            return None
+        last = JSON.integer(JSON.object(checks[-1], "last check").get("id"), "last check id")
+        if last in page_ends:
+            message = "check run listing repeated a full page"
+            raise ValueError(message)
+        page_ends.add(last)
+        page += 1
+
+
+def reconcile_publication(
+    port: GitHubPort,
+    event: WorkflowRunEvent,
+    pull: PullRequestState,
+    *,
+    is_current: Callable[[], bool],
+) -> None:
+    """Commit a single verified snapshot, once per completed attempt, without polling."""
+    run = DashboardRun(event.id, event.attempt, pull.head_sha, event.url)
+    existing = _existing_check(port, run.head_sha, f"quality-graph:{run.id}:{run.attempt}")
+    if existing and existing.get("status") == "completed":
+        return
+    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", pull.base_sha))
+    projected = pr_presentation_graph(graph)
+    if projected is None:
+        return
+    results = None
+    if event.action == "completed":
+        digest = compile_graph(graph).graph_digest
+        model, results = _completed_dashboard(port, projected, digest, pull, run)
+    else:
+        nodes = tuple(DashboardNode(node.id, node.title) for node in projected.nodes)
+        selected = _workflow_node_jobs(nodes, _workflow_jobs(port, run.id), run)
+        statuses = {node_id: _workflow_job_status(job) for node_id, job in selected.items()}
+        model = live_dashboard(nodes, statuses, run, job_urls=_workflow_job_urls(selected, run))
+    if is_current():
+        _write_publication(port, projected, pull.number, model, results)
 
 
 def read_event_json(value: str) -> dict[str, JsonValue]:

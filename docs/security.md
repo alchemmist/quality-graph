@@ -6,7 +6,7 @@ The `pull_request` workflow executes repository code with read-only permissions,
 and checkout credentials disabled. Forks and same-repository branches follow the same rule in
 this pre-release.
 
-The publisher runs trusted code from the default branch through `workflow_run`. It never
+By default the publisher runs trusted code from the default branch through `workflow_run`. It never
 checks out pull-request code. Downloaded artifacts are treated as untrusted data and checked
 for metadata digest, archive size, file count, ZIP traversal, symlinks, node identity, pull
 request, head SHA, run, attempt, and graph digest before JSON parsing.
@@ -32,7 +32,15 @@ Governance configuration always comes from the pull request base SHA. A pull req
 propose graph changes for review, but proposed roles, labels, and controls do not receive
 trusted authority before merge.
 
-Generated permissions are job-specific:
+In [scheduled mode](configuration.md#scheduled-github-publication-opt-in), only a default-branch
+schedule reconciles publication. Both jobs have `contents: read`, `issues: write` and
+`pull-requests: read`; the reconciler also needs `actions: read` and `checks: write`, while
+the separate issue-comment command job needs `actions: write` for authorized reruns.
+Neither job checks out a PR. The reconciler rechecks the current PR and workflow run attempt
+after reading evidence and before updating the dashboard, labels and aggregate. The completed
+check, written last, is the checkpoint for the next tick.
+
+Default event-publisher permissions are job-specific:
 
 - execution: `contents: read` or less;
 - publication: `actions: read`, `checks: write`, `issues: write`, `contents: read`, `pull-requests: read`;
