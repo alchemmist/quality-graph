@@ -234,20 +234,21 @@ def test_required_check_accepts_enabled_pr_presentation() -> None:
     )
 
 
-SHARDS = """version: 0
-runtime: {action: 'owner/runtime@1111111111111111111111111111111111111111'}
-profiles: {default: {}}
-operations:
-  chart:
-    items: [api, web, worker, cron]
-    run: ./ci/check-chart "$QG_ITEM"
-    results: {junit: 'reports/{item}.xml'}
-flows:
-  review:
-    trigger: pull-request
-    presentation: github-pr
-    nodes: {chart-api: {}, chart-web: {}, chart-worker: {}, chart-cron: {}}
-"""
+SHARDS = (
+    "version: 0\n"
+    "runtime: {action: 'owner/runtime@1111111111111111111111111111111111111111'}\n"
+    "profiles: {default: {}}\n"
+    "operations:\n"
+    "  chart:\n"
+    "    items: [api, web, worker, cron]\n"
+    '    run: ./ci/check-chart "$QG_ITEM"\n'
+    "    results: {junit: 'reports/{item}.xml'}\n"
+    "flows:\n"
+    "  review:\n"
+    "    trigger: pull-request\n"
+    "    presentation: github-pr\n"
+    "    nodes: {chart-api: {}, chart-web: {}, chart-worker: {}, chart-cron: {}}\n"
+)
 
 
 def test_shards_compile_as_four_explicit_jobs() -> None:
