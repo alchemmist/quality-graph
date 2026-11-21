@@ -12,7 +12,18 @@ from typing import TYPE_CHECKING
 lua54 = import_module("lupa.lua54")
 
 if TYPE_CHECKING:
+    from typing import Protocol
+
     from quality_graph_core.result import JsonValue
+
+    class LuaTable(Protocol):
+        """Represent an opaque native table populated by the JSON bridge."""
+
+        def __setitem__(self, key: str | int, value: LuaValue) -> None:
+            """Set one JSON member on the Lua table."""
+            ...
+
+    type LuaValue = LuaTable | str | int | float | bool
 
 
 def execute(code: str, report: str) -> str:
@@ -21,16 +32,20 @@ def execute(code: str, report: str) -> str:
     bootstrap = files("quality_graph_core").joinpath("sandbox.lua").read_text()
     run, object_table, array_table, null = runtime.execute(bootstrap)
 
-    def convert(value: JsonValue) -> object:
+    def convert(value: JsonValue) -> LuaValue:
         if isinstance(value, (list, dict)):
-            table = array_table() if isinstance(value, list) else object_table()
+            table: LuaTable = array_table() if isinstance(value, list) else object_table()
             for key, item in enumerate(value, 1) if isinstance(value, list) else value.items():
                 table[key] = convert(item)
             return table
         return null if value is None else value
 
-    def decode(text: str) -> object:
-        return convert(json.loads(text))
+    def reject_constant(token: str) -> None:
+        message = f"Invalid JSON constant: {token}"
+        raise ValueError(message)
+
+    def decode(text: str) -> LuaValue:
+        return convert(json.loads(text, parse_constant=reject_constant))
 
     return str(run(code, report, decode, json.dumps))
 
