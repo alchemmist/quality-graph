@@ -63,7 +63,9 @@ The reconciler requires the latest run of `quality-graph.yml` for the exact PR h
 one unambiguous GitHub PR association, including matching head and base revisions. If the
 base moves, update the PR against it and run the checks on the new head. A missing association
 (including some fork runs), a different PR sharing that head, or an incomplete run listing
-will not produce a new aggregate. Do not bypass the check in these cases. Repeated ticks skip
+will not produce a new aggregate. GitHub limits a filtered workflow-run search to 1,000 results;
+if more runs share the exact head SHA, the reconciler cannot prove the listing is complete.
+Use a fresh PR head rather than bypassing the check. Repeated ticks skip
 already completed attempts; rerunning creates a new attempt to verify. For protection against
 merging a **previously** checked head after the base moves, require branches to be up to date:
 GitHub checks attach to a head SHA, not a head/base pair.
