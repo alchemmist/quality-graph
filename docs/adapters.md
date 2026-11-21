@@ -76,6 +76,8 @@ The data-only contract requires v0.2.0 or later. For a custom check, use `result
 also available through `qg result schema --producer`. This is a data-only input to collection;
 the published artifact remains Result v0.
 
+<!-- docs-smoke: producer -->
+
 ```json
 {
   "reportVersion": 0,

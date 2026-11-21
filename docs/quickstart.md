@@ -6,6 +6,8 @@ repository. Quality Graph orchestrates and reports checks; it does not replace t
 
 ## 1. Install the released toolchain
 
+<!-- docs-smoke: install -->
+
 ```bash
 uv add --dev quality-graph-cli==QG_RELEASE_VERSION quality-graph-github==QG_RELEASE_VERSION
 ```
@@ -24,6 +26,8 @@ The 40-character ref binds runtime code to the reviewed `vQG_RELEASE_VERSION` re
 with `main`, `v0`, or another moving ref.
 
 Replace the starter node with repository commands:
+
+<!-- docs-smoke: declaration -->
 
 ```yaml
 version: 0

@@ -15,25 +15,32 @@ from pathlib import Path
 root = Path(sys.argv[1])
 release = tomllib.loads((root / 'docs-release.toml').read_text())
 
-def blocks(page, language):
+def block(page, label, language):
     page = (root / 'site' / page / 'index.html').read_text()
-    return [html.unescape(s) for s in re.findall(
-        rf'<pre><code class="language-{language}">(.*?)</code></pre>', page, re.S)]
+    marker = f'<!-- docs-smoke: {label} -->'
+    if page.count(marker) != 1:
+        raise ValueError(f'Expected one {label} marker')
+    match = re.match(rf'\s*<pre><code class="language-{language}">(.*?)</code></pre>',
+                     page.split(marker)[1], re.S)
+    if not match:
+        raise ValueError(f'Expected a {language} example immediately after {label}')
+    return html.unescape(match[1])
 
-install = blocks('quickstart', 'bash')[0].strip().removeprefix('uv add --dev ').split()
+install = block('quickstart', 'install', 'bash').strip().removeprefix('uv add --dev ').split()
 assert install == [f"quality-graph-{pkg}=={release['version']}" for pkg in ('cli', 'github')]
 Path('release-tag').write_text('v' + release['version'])
 Path('release-commit').write_text(release['action_sha'])
 Path('packages.txt').write_text('\n'.join(install))
 for page in ('quickstart', 'flows'):
-    declaration = blocks(page, 'yaml')[0]
+    declaration = block(page, 'declaration', 'yaml')
     assert f"action: alchemmist/quality-graph@{release['action_sha']}\n" in declaration
     Path(f'{page}.yaml').write_text(declaration)
-Path('producer.json').write_text(blocks('adapters', 'json')[0])
+Path('producer.json').write_text(block('adapters', 'producer', 'json'))
 PY
 tag=$(cat release-tag)
 refs=$(git ls-remote --tags https://github.com/alchemmist/quality-graph.git "refs/tags/$tag" "refs/tags/$tag^{}")
-if [[ $(awk 'END {print $1}' <<<"$refs") != "$(cat release-commit)" ]]; then
+commit=$(awk -v tag="refs/tags/$tag" '$2 == tag {direct=$1} $2 == tag "^{}" {peeled=$1} END {print peeled ? peeled : direct}' <<<"$refs")
+if [[ -z $commit || $commit != "$(cat release-commit)" ]]; then
 	echo "Documented runtime does not match release tag $tag" >&2
 	exit 1
 fi

@@ -6,6 +6,8 @@ An operation owns an executable contract: command or action, execution profile, 
 variables, timeout, result adapter and local blocking/approval policy. A flow owns when that
 contract runs, its node membership, dependencies and presentation. An unused operation is valid.
 
+<!-- docs-smoke: declaration -->
+
 ```yaml
 version: 0
 provider:
