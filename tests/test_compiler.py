@@ -451,3 +451,11 @@ def test_github_provider_rejects_platform_specific_invalid_configuration(
 ) -> None:
     with pytest.raises((TypeError, ValueError), match=message):
         compile_graph(Graph.from_yaml(source))
+
+
+def test_repository_flows_match_checked_in_workflows() -> None:
+    root = Path(__file__).parents[1]
+    project = compile_graph(Graph.from_yaml((root / "qg.yaml").read_text()))
+    for item in project.files:
+        if item.path.suffix == ".yml":
+            assert item.content == (root / item.path).read_text(), str(item.path)
