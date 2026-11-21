@@ -887,8 +887,6 @@ def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
 
 
 def _publication_yaml(runtime_action: str) -> str:
-    # PyYAML does not preserve comments. Annotate exact serialized permission entries
-    # in this fixed, compiler-owned workflow, never arbitrary adopter-provided steps.
     reasons = {
         "actions: read": "Inspect run attempts, jobs and result artifacts.",
         "actions: write": "Rerun failed jobs after command authorization.",
