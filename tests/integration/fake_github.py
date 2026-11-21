@@ -483,7 +483,8 @@ class FakeGitHubHandler(BaseHTTPRequestHandler):
                 for check in self.state.checks.values()
                 if name is None or check.get("name") == name
             ]
-            return HTTPStatus.OK, {"total_count": len(values), "check_runs": values}
+            status, page = _page(values, query)
+            return status, {"total_count": len(values), "check_runs": page}
         if method == "POST" and path == "/check-runs":
             check = _object(payload) | {
                 "id": self.state.next_check_id,

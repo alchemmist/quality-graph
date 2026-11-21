@@ -7,7 +7,8 @@ import pytest
 
 from qg_github.commands import handle_command
 from qg_github.compiler import compile_graph
-from qg_github.github import HttpGitHubPort
+from qg_github.github import GitHubError, HttpGitHubPort
+from qg_github.labels import label_state_marker
 from qg_github.publication import publish_workflow_run, watch_workflow_run
 from quality_graph_core.graph import Graph
 from quality_graph_core.result import (
@@ -315,3 +316,44 @@ def test_completed_workflow_finalizes_when_pull_request_renames_graph_nodes() ->
     checks = cast("list[dict[str, object]]", observed["checks"])
     assert "Lint | ❌ failed" in cast("str", comments[0]["body"])
     assert checks[0]["status"] == "completed"
+
+
+def test_partial_publication_retries_label_cleanup_before_final_checkpoint() -> None:
+    selected = state()
+    old = "old-quality-label"
+    marker = f"<!-- quality-graph:dashboard -->\n{label_state_marker([old])}"
+    selected.comments[10] = {
+        "id": 10,
+        "issue_number": 42,
+        "body": marker,
+        "user": {"login": selected.bot_login},
+    }
+    selected.issue_labels[42] = {old}
+    selected.failures["DELETE", f"/repos/{selected.repository}/issues/42/labels/{old}"] = 503
+    server = FakeGitHubServer(selected)
+    port = HttpGitHubPort(selected.repository, "token", base_url=server.base_url)
+    with server:
+        with pytest.raises(GitHubError, match="HTTP 503"):
+            publish_workflow_run(port, workflow_event())
+        assert not selected.checks
+        assert selected.comments[10]["body"] == marker
+        selected.failures.clear()
+        assert publish_workflow_run(port, workflow_event()).published
+        assert old not in selected.issue_labels[42]
+        assert selected.comments[10]["body"] != marker
+        assert len(selected.checks) == 1
+
+
+def test_new_aggregate_after_full_page_of_unrelated_checks() -> None:
+    selected = state()
+    selected.checks = {
+        i: {"id": i, "name": "Quality Graph", "external_id": f"other:{i}"} for i in range(1, 101)
+    }
+    selected.next_check_id = 101
+    server = FakeGitHubServer(selected)
+    port = HttpGitHubPort(selected.repository, "token", base_url=server.base_url)
+    with server:
+        assert publish_workflow_run(port, workflow_event()).published
+        assert publish_workflow_run(port, workflow_event()).published
+    assert len(selected.checks) == 101
+    assert selected.checks[101]["external_id"] == "quality-graph:10:1"

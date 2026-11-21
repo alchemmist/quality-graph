@@ -152,7 +152,6 @@ def _write_publication(
     previous_labels = parse_label_state(existing.body) if existing is not None else frozenset()
     if effective_results is None and previous_labels:
         model = replace(model, managed_labels=tuple(sorted(previous_labels)))
-    comment = upsert_managed_comment(port, number, DASHBOARD_MARKER, render_dashboard(model))
     if effective_results is not None:
         reconcile_labels(
             port,
@@ -161,6 +160,7 @@ def _write_publication(
             effective_results,
             previous_owned=previous_labels,
         )
+    comment = upsert_managed_comment(port, number, DASHBOARD_MARKER, render_dashboard(model))
     _publish_check(port, model)
     return PublicationOutcome(published=True, status=model.status, comment_id=comment.id)
 
