@@ -17,6 +17,7 @@ from qg_github.publication import (
     read_event_json,
     watch_workflow_run,
 )
+from qg_github.reconciliation import default_branch_for_event, reconcile_open_pulls
 from qg_github.reporting import append_job_summary
 from quality_graph_core.adapters import AdapterContext
 from quality_graph_core.collection import collect_report
@@ -131,6 +132,16 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if operation == ["watch"]:
         event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
         watch_workflow_run(HttpGitHubPort.from_environment(), event)
+        return 0
+    if operation == ["reconcile"]:
+        event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+        branch = default_branch_for_event(os.environ, event, "schedule")
+        reconcile_open_pulls(HttpGitHubPort.from_environment(), branch)
+        return 0
+    if operation == ["scheduled-command"]:
+        event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+        branch = default_branch_for_event(os.environ, event, "issue_comment")
+        handle_command(HttpGitHubPort.from_environment(), event, default_branch=branch)
         return 0
     if operation == ["command"]:
         event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())

@@ -495,7 +495,10 @@ def test_repeated_completed_publication_updates_its_existing_check_run() -> None
     configure_publication(port)
     port.enqueue("GET", JOBS_PATH, {"jobs": []})
     external_id = "quality-graph:10:1"
-    configure_publication(port, check_runs=[{"id": 100, "external_id": external_id}])
+    configure_publication(
+        port,
+        check_runs=[{"id": 100, "external_id": external_id, "app": {"slug": "github-actions"}}],
+    )
     format_archive = result_archive("format", "Formatting")
     lint_archive = result_archive("lint", "Lint")
     artifacts_path = "/actions/runs/10/artifacts?per_page=100&page=1"

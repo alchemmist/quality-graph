@@ -440,3 +440,37 @@ def test_github_provider_rejects_platform_specific_invalid_configuration(
 ) -> None:
     with pytest.raises((TypeError, ValueError), match=message):
         compile_graph(Graph.from_yaml(source))
+
+
+@pytest.mark.parametrize("source", [GRAPH, Path("qg.yaml").read_text()])
+def test_scheduled_publication_only_replaces_base_publisher(source: str) -> None:
+    before = compile_graph(Graph.from_yaml(source))
+    after = compile_graph(
+        Graph.from_yaml(
+            source.replace("    runtime:\n", "    runtime:\n      publication: scheduled\n")
+        )
+    )
+    assert before.graph_digest == after.graph_digest
+    assert [f for f in before.files if f.path != PUBLICATION_WORKFLOW] == [
+        f for f in after.files if f.path != PUBLICATION_WORKFLOW
+    ]
+    content = next(f.content for f in after.files if f.path == PUBLICATION_WORKFLOW)
+    generated = yaml.safe_load(content)
+    assert set(generated["on"]) == {"schedule", "issue_comment"}
+    assert generated["permissions"] == {}
+    for job in generated["jobs"].values():
+        assert len(job["steps"]) == 1
+        assert job["permissions"]["pull-requests"] == "read"
+    if source == GRAPH:
+        assert content == Path("tests/snapshots/scheduled-publisher.yml").read_text()
+
+
+def test_invalid_publication_mode_rejected() -> None:
+    with pytest.raises(
+        ValueError, match="GitHub runtime publication must be workflow-run or scheduled"
+    ):
+        compile_graph(
+            Graph.from_yaml(
+                GRAPH.replace("    runtime:\n", "    runtime:\n      publication: other\n")
+            )
+        )
