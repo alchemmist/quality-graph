@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import re
@@ -18,6 +19,7 @@ from quality_graph_core.graph import (
     FlowNode,
     Graph,
     LabelSpec,
+    LuaAdapter,
     Node,
     Profile,
     Step,
@@ -585,6 +587,9 @@ def _profile_value(profile: Profile) -> dict[str, JsonValue]:
 def _node_value(node: Node, profile: Profile) -> dict[str, JsonValue]:
     result_value: dict[str, JsonValue] = {"adapter": node.result.kind.value}
     _put_optional(result_value, "path", node.result.path)
+    if isinstance(node.result, LuaAdapter):
+        result_value["code"] = node.result.code
+        _put_optional(result_value, "file", node.result.file)
     value: dict[str, JsonValue] = {
         "id": node.id,
         "title": node.title,
@@ -805,6 +810,9 @@ def _collection_inputs(node: Node, graph_digest: str, flow: Flow | None) -> dict
         "approval-files": str(node.policy.approvals.files).lower(),
         "approval-node": str(node.policy.approvals.node).lower(),
     }
+    if isinstance(node.result, LuaAdapter):
+        inputs["lua-source"] = base64.b64encode(node.result.code.encode()).decode()
+        inputs["lua-file"] = node.result.file or ""
     if node.steps:
         inputs["command-outcome"] = "${{ job.status }}"
     if flow is not None:

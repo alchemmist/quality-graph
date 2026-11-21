@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sys
@@ -21,7 +22,7 @@ from qg_github.reconciliation import default_branch_for_event, reconcile_open_pu
 from qg_github.reporting import append_job_summary
 from quality_graph_core.adapters import AdapterContext
 from quality_graph_core.collection import collect_report
-from quality_graph_core.graph import AdapterKind, ApprovalPolicy
+from quality_graph_core.graph import AdapterKind, ApprovalPolicy, LuaAdapter
 from quality_graph_core.policy import policy_controls
 from quality_graph_core.result import FailureKind, JsonValue, Provenance, Result, ResultStatus
 
@@ -42,6 +43,7 @@ class CollectionRequest:
     output_path: Path
     approval_policy: ApprovalPolicy
     presentation: str = "github-pr"
+    lua: LuaAdapter | None = None
 
     @classmethod
     def from_environment(
@@ -83,13 +85,25 @@ class CollectionRequest:
                 _boolean(environment, "QG_APPROVAL_NODE"),
             ),
             presentation,
+            LuaAdapter(
+                adapter,
+                report,
+                base64.b64decode(environment.get("QG_LUA_SOURCE", ""), validate=True).decode(),
+                environment.get("QG_LUA_FILE") or None,
+            )
+            if adapter is AdapterKind.LUA
+            else None,
         )
 
 
 def collect(request: CollectionRequest) -> Result:
     """Collect one command outcome through its selected adapter."""
     result = collect_report(
-        request.context, request.adapter, request.workspace, request.report_path
+        request.context,
+        request.adapter,
+        request.workspace,
+        request.report_path,
+        lua=request.lua,
     )
     return _with_policy_controls(request, result)
 

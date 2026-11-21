@@ -460,6 +460,46 @@
               "minLength": 1,
               "type": "string"
             },
+            "lua": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "input": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "input",
+                    "code"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "file": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "input": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "input",
+                    "file"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
             "native": {
               "minLength": 1,
               "type": "string"
@@ -724,6 +764,46 @@
             "junit": {
               "minLength": 1,
               "type": "string"
+            },
+            "lua": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "input": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "input",
+                    "code"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "file": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "input": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "input",
+                    "file"
+                  ],
+                  "type": "object"
+                }
+              ]
             },
             "native": {
               "minLength": 1,
