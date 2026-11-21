@@ -35,14 +35,13 @@ def read_pr_results(
             projected = pr_presentation_graph(head)
         except (GitHubError, ValueError, TypeError) as error:
             raise mismatch from error
-        if (
-            projected is None
-            or compiled.graph_digest == expectation.graph_digest
-            or not _preserves_required_checks(graph, projected)
-        ):
+        if projected is None or compiled.graph_digest == expectation.graph_digest:
+            raise
+        if not _preserves_required_checks(graph, projected):
             message = (
                 "PR declaration changes existing required checks or governance; "
-                "the trusted base declaration must be updated before these results can be accepted"
+                "update the trusted base declaration before accepting these results. "
+                f"Artifact diagnostic: {mismatch}"
             )
             raise DeclarationMismatchError(message) from mismatch
         current = replace(
