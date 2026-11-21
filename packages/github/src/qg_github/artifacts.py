@@ -223,7 +223,8 @@ def _validate_result(
         raise ArtifactError(message)
     if provenance.graph_digest != expectation.graph_digest:
         message = (
-            f"artifact {descriptor.id} graphDigest mismatch: expected {expectation.graph_digest}, "
+            f"artifact {descriptor.id} provenance: graphDigest mismatch: "
+            f"expected {expectation.graph_digest}, "
             f"execution reported {provenance.graph_digest}; "
             "see https://quality-graph.xyz/security/#graph-evolution"
         )
