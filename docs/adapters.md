@@ -141,6 +141,11 @@ change the count. Complete reports preserve their existing wire representation.
 
 ### Migrating Python source gates
 
+The gate option is not in PyPI releases through 0.2.2. Use the source pin in the
+[Python package installation instructions](https://github.com/alchemmist/quality-graph/tree/main/packages/python),
+or install a later release that explicitly includes `--output`. Upgrade both collector and trusted
+publisher to at least v0.2.1 for `omittedFindings` support.
+
 When replacing an annotated repository-local gate, use `native` rather than exit-code collection:
 
 ```yaml
@@ -150,6 +155,7 @@ results:
 ```
 
 The same `--output` option works with `no-comments`, `object-annotations`, `time-bombs`, and
-`triple-quotes`. Run from the repository root with the base revision available locally. The gate
+`triple-quotes`. Run from the repository root with enough Git history to find the merge base
+with `HEAD` (for example, set `fetch-depth: "0"` on `actions/checkout`). The gate
 writes a producer-v0 report; the collector binds node identity and workflow provenance and
 publishes source annotations. Without `--output`, the gate still prints local diagnostics.
