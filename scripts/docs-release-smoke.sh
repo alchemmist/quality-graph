@@ -5,7 +5,8 @@ root=$(pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 cd "$tmp"
-python3 - "$root" <<'PY'
+uv venv --python '>=3.12' .venv
+.venv/bin/python - "$root" <<'PY'
 import html
 import re
 import sys
@@ -48,7 +49,6 @@ if [[ $commit != "$(cat release-commit)" ]]; then
 	echo "Documented runtime does not match release tag $tag" >&2
 	exit 1
 fi
-uv venv --python '>=3.12' .venv
 uv pip install --python .venv/bin/python -r packages.txt
 for example in quickstart flows; do
 	cp "$example.yaml" qg.yaml
