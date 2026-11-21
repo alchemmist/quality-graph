@@ -61,7 +61,14 @@ replacement:
    nodes, dependencies, commands and profiles. Keep the current **push** checks in a
    separate push-only configuration if their replacements need code not yet on main.
    Generate and validate the workflows (`qg generate`, then `qg validate`). Review this
-   change as a replacement of required checks, and merge it before relying on them.
+   change as a replacement of required checks. If branch protection requires Quality
+   Graph, the old contract will block a non-additive migration. Isolate the migration
+   from application changes and have the responsible maintainers review the exact
+   commit, including generated workflow and permission changes. Only an actor already
+   authorized by repository policy to make this exception should merge that reviewed
+   revision; record the approval, commit SHA and expected rejection in the migration PR.
+   If policy provides no such procedure, stop: this migration cannot proceed under
+   the current rules. Do not disable branch protection or relax artifact admission.
 1. Update the application PR against that base. Its push graph can now use the new
    implementation and drop the bootstrap checks. Verify that the effective PR contracts
    match (`pr_contract(project_graph(graph, "pull-request"))` for each declaration),

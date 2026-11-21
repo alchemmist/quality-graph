@@ -11,6 +11,7 @@ from qg_github.artifacts import (
     MAX_ARTIFACT_FILES,
     ArtifactError,
     ArtifactExpectation,
+    DeclarationMismatchError,
     download_results,
 )
 from qg_github.github import MemoryGitHubPort
@@ -278,7 +279,7 @@ def test_graph_digest_mismatch_identifies_expected_and_reported_digest() -> None
     port.downloads["/actions/artifacts/1/zip"] = payload
     expected = "c" * 64
     with pytest.raises(
-        ArtifactError,
+        DeclarationMismatchError,
         match=f"graphDigest mismatch: expected {expected}, execution reported {'b' * 64}",
     ):
         download_results(port, replace(expectation(), graph_digest=expected))
