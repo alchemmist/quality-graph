@@ -7,7 +7,7 @@ import re
 import tokenize
 from pathlib import Path
 
-from qg_python.report import Finding, report
+from qg_python.report import Finding, run_gate
 
 ALLOWED_COMMENT = re.compile(
     r"^#\s*(?:noqa|nosec|type:\s*(?:ignore|noqa)|pragma:\s*no mutate)\b",
@@ -47,14 +47,16 @@ def scan_file(path: Path) -> tuple[Finding, ...]:
                     )
                 )
     except (IndentationError, SyntaxError, tokenize.TokenError) as error:
-        location = (
-            error.args[1] if len(error.args) > 1 and isinstance(error.args[1], tuple) else (1, 1)
-        )
+        line, column = 1, 1
+        if isinstance(error, SyntaxError):
+            line, column = error.lineno or 1, max(1, error.offset or 1)
+        elif isinstance(error.args[1], tuple):
+            line, column = error.args[1][0], error.args[1][1] + 1
         findings.append(
             Finding(
                 path.as_posix(),
-                int(location[0]),
-                int(location[1]),
+                line,
+                column,
                 f"cannot tokenize Python: {error}",
             )
         )
@@ -65,8 +67,6 @@ def main(arguments: list[str] | None = None) -> int:
     """Scan configured roots and return a process exit code."""
     parser = argparse.ArgumentParser()
     parser.add_argument("roots", type=Path, nargs="+")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args(arguments)
-    findings = tuple(
-        finding for path in python_files(tuple(args.roots)) for finding in scan_file(path)
-    )
-    return report(findings)
+    return run_gate("no-comments", args.output, lambda: python_files(tuple(args.roots)), scan_file)

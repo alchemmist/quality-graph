@@ -138,3 +138,18 @@ the full count when truncating; combining reports adds prior omissions and newly
 findings. A positive count prevents raw success and partial approvals from clearing the check.
 Whole-node approval remains an explicit policy decision. Diagnostic and display limits do not
 change the count. Complete reports preserve their existing wire representation.
+
+### Migrating Python source gates
+
+When replacing an annotated repository-local gate, use `native` rather than exit-code collection:
+
+```yaml
+run: qg-python-suppressions --base origin/main --output reports/suppressions.json
+results:
+  native: reports/suppressions.json
+```
+
+The same `--output` option works with `no-comments`, `object-annotations`, `time-bombs`, and
+`triple-quotes`. Run from the repository root with the base revision available locally. The gate
+writes a producer-v0 report; the collector binds node identity and workflow provenance and
+publishes source annotations. Without `--output`, the gate still prints local diagnostics.

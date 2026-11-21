@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import argparse
 import re
+from pathlib import Path
 
 from qg_python.diff import changed_files
-from qg_python.report import Finding, report
+from qg_python.report import Finding, run_gate
 
 NUMBER_RE = re.compile(r"(?<![\w.])\d(?:_?\d){8,18}(?![\w.])")
 TIMESTAMP_SCALES = (
@@ -52,10 +53,11 @@ def main(arguments: list[str] | None = None) -> int:
     """Check changed Python and shell source for timestamp literals."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="origin/main")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args(arguments)
-    findings = tuple(
-        finding
-        for changed in changed_files(args.base, (".py", ".sh"))
-        for finding in scan_source(changed.path, changed.source, changed.added_lines)
+    return run_gate(
+        "time-bombs",
+        args.output,
+        lambda: changed_files(args.base, (".py", ".sh")),
+        lambda changed: scan_source(changed.path, changed.source, changed.added_lines),
     )
-    return report(findings)

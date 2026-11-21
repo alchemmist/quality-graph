@@ -1,4 +1,5 @@
 import ast
+import json
 from collections.abc import Callable
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -424,3 +425,50 @@ def test_flaky_gate_selects_the_directory_containing_a_nested_helper(
     )
 
     assert flaky.changed_test_files("main") == ("tests/unit",)
+
+
+@pytest.mark.parametrize("source", ["pass\n", "value = 1  # ordinary\n", "value = (\n"])
+def test_native_source_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("app.py").write_text(source)
+    output = Path("reports/result.json")
+    args = [".", "--output", str(output)]
+    expected = int(source != "pass\n")
+    assert no_comments.main(args) == expected
+    snapshot = output.read_bytes()
+    payload = json.loads(snapshot)
+    assert payload["status"] == ("failed" if expected else "passed")
+    assert len(payload["findings"]) == expected
+    diagnostics = capsys.readouterr().out
+    for finding, annotation in zip(payload["findings"], payload["annotations"], strict=True):
+        location = finding["location"]
+        assert annotation["location"] == location
+        assert diagnostics == (
+            f"app.py:{location['startLine']}:{location['startColumn']}: error: "
+            f"{annotation['message']}\n"
+        )
+    assert no_comments.main(args) == expected
+    assert output.read_bytes() == snapshot
+
+
+def test_native_invalid_base(tmp_path: Path) -> None:
+    output = tmp_path / "result.json"
+    assert suppressions.main(["--base", "--bad", "--output", str(output)]) == 2
+    payload = json.loads(output.read_bytes())
+    assert payload["failureKind"] == "infrastructure"
+    assert payload["summary"] == "Cannot scan sources: invalid base ref: --bad"
+
+
+def test_native_unsupported_location(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    Path("bad\\name.py").write_text("# ordinary\n")
+    assert no_comments.main([".", "--output", "result.json"]) == 2
+    assert "Unsupported source path" in Path("result.json").read_text()
+
+
+def test_comment_indentation_error(tmp_path: Path) -> None:
+    source = tmp_path / "app.py"
+    source.write_text("if True:\n    pass\n  pass\n")
+    assert no_comments.scan_file(source)[0].line == 3
