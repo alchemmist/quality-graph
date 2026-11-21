@@ -16,7 +16,7 @@ from qg_github.compiler import (
     event_projection,
     project_graph,
 )
-from quality_graph_core.graph import Graph
+from quality_graph_core.graph import DependencyPolicy, Graph
 from tests.test_graph import GRAPH, MAXIMAL_GRAPH, RUNTIME
 
 
@@ -304,6 +304,12 @@ def test_event_projection_validation_rejects_invalid_provider_contracts(
         compile_graph(Graph.from_yaml(source))
 
 
+def test_event_projection_reports_all_unsupported_execution_events() -> None:
+    source = GRAPH.replace("title: Lint", "title: Lint\n    events: [schedule, issue-comment]")
+    with pytest.raises(ValueError, match=r"unsupported execution events: issue-comment, schedule$"):
+        event_projection(Graph.from_yaml(source), "push")
+
+
 def test_event_projection_rejects_unknown_requested_event() -> None:
     with pytest.raises(ValueError, match="does not support execution event"):
         event_projection(Graph.from_yaml(GRAPH), "schedule")
@@ -319,6 +325,8 @@ def test_none_dependency_policy_allows_excluded_scheduling_dependencies() -> Non
     )
 
     graph = Graph.from_yaml(source)
+    assert event_projection(graph, "pull-request").dependencies is DependencyPolicy.GRAPH
+    assert event_projection(graph, "push").dependencies is DependencyPolicy.NONE
     projected = project_graph(graph, "push")
     project = compile_graph(graph)
     push = yaml.safe_load(
@@ -371,7 +379,10 @@ def test_compiler_preserves_optional_step_job_and_label_fields() -> None:
             ),
             "unknown GitHub permission",
         ),
-        (GRAPH.replace(RUNTIME, "alchemmist/quality-graph@main"), "40-character-commit"),
+        (
+            GRAPH.replace(RUNTIME, "alchemmist/quality-graph@main"),
+            "GitHub runtime action must use owner/repository@40-character-commit",
+        ),
         (
             GRAPH.replace(
                 f"      action: {RUNTIME}",
