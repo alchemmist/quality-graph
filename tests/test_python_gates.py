@@ -455,7 +455,7 @@ def test_native_source_verdict(
 
 def test_native_invalid_base(tmp_path: Path) -> None:
     output = tmp_path / "result.json"
-    assert suppressions.main(["--base", "--bad", "--output", str(output)]) == 2
+    assert suppressions.main(["--base=--bad", "--output", str(output)]) == 2
     payload = json.loads(output.read_bytes())
     assert payload["failureKind"] == "infrastructure"
     assert payload["summary"] == "Cannot scan sources: invalid base ref: --bad"
