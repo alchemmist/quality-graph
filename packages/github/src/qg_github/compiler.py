@@ -410,7 +410,7 @@ def compile_graph(graph: Graph) -> GeneratedProject:
         ),
         GeneratedFile(
             PUBLICATION_WORKFLOW,
-            _yaml_file(_publication_workflow(configuration.publisher_action)),
+            _publication_yaml(configuration.publisher_action),
         ),
         GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)),
     )
@@ -484,7 +484,7 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
         files.append(
             GeneratedFile(
                 PUBLICATION_WORKFLOW,
-                _yaml_file(_publication_workflow(configuration.publisher_action)),
+                _publication_yaml(configuration.publisher_action),
             )
         )
     files.append(GeneratedFile(GRAPH_MANIFEST, _canonical_json(manifest)))
@@ -825,7 +825,7 @@ def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
         "checks": "write",
         "contents": "read",
         "issues": "write",
-        "pull-requests": "write",
+        "pull-requests": "read",
     }
     publish_job: dict[str, JsonValue] = {
         "name": "Publish Quality Graph",
@@ -855,7 +855,7 @@ def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
             "actions": "write",
             "contents": "read",
             "issues": "write",
-            "pull-requests": "write",
+            "pull-requests": "read",
         },
         "steps": [
             {
@@ -884,6 +884,24 @@ def _publication_workflow(runtime_action: str) -> dict[str, JsonValue]:
         },
         "jobs": {"publish": publish_job, "command": command_job},
     }
+
+
+def _publication_yaml(runtime_action: str) -> str:
+    # PyYAML does not preserve comments. Annotate exact serialized permission entries
+    # in this fixed, compiler-owned workflow, never arbitrary adopter-provided steps.
+    reasons = {
+        "actions: read": "Inspect run attempts, jobs and result artifacts.",
+        "actions: write": "Rerun failed jobs after command authorization.",
+        "checks: write": "Create and update the aggregate check run.",
+        "contents: read": "Read trusted declarations at immutable revisions.",
+        "issues: write": "Manage the PR dashboard, labels and command ledger via the issues API.",
+        "pull-requests: read": "Resolve the pull request and verify its head and base.",
+    }
+    lines = _yaml_file(_publication_workflow(runtime_action)).splitlines(keepends=True)
+    return "".join(
+        f"{line.rstrip()}  # {reasons[line.strip()]}\n" if line.strip() in reasons else line
+        for line in lines
+    )
 
 
 def _yaml_file(value: Mapping[str, JsonValue], *, width: int = 1_000) -> str:

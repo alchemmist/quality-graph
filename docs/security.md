@@ -35,8 +35,8 @@ trusted authority before merge.
 Generated permissions are job-specific:
 
 - execution: `contents: read` or less;
-- publication: `actions: read`, `checks: write`, `issues: write`, `pull-requests: write`;
-- commands: the same read access plus `actions: write` for rerunning failed jobs.
+- publication: `actions: read`, `checks: write`, `issues: write`, `contents: read`, `pull-requests: read`;
+- commands: `contents: read`, `pull-requests: read`, `issues: write` for command feedback and the ledger, and `actions: write` for authorized reruns.
 
 Dashboard Markdown is not an authorization source. Checkbox edits are converted to canonical
 commands, rolled back, authorized through current collaborator permission, and persisted as
