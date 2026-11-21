@@ -397,7 +397,7 @@ def test_status_reports_current_execution(
 
 @pytest.mark.parametrize("missing_attempt", [False, True])
 def test_status_handles_unverifiable_attempt_or_download(
-    missing_attempt: bool, monkeypatch: pytest.MonkeyPatch
+    *, missing_attempt: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     port = MemoryGitHubPort()
     configure_context(port)
@@ -415,7 +415,8 @@ def test_status_handles_unverifiable_attempt_or_download(
     port.enqueue("POST", "/issues/comments/10/reactions", None)
 
     def deleted(path: str) -> bytes:
-        raise GitHubError("GET", path, 404)
+        error = GitHubError("GET", path, 404)
+        raise error
 
     monkeypatch.setattr(port, "download", deleted)
     handle_command(port, direct_event("/qg status"))
