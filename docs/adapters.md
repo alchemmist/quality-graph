@@ -71,10 +71,12 @@ underlying command outcome.
 
 ## Producer data contract
 
-For a custom check, use `results.native` with **producer report v0**. The input schema is
-[`producer-v0.schema.json`](https://github.com/alchemmist/quality-graph/blob/main/schemas/producer-v0.schema.json),
+The data-only contract requires v0.2.0 or later. For a custom check, use `results.native` with **producer report v0**. The input schema is
+[`producer-v0.schema.json`](https://github.com/alchemmist/quality-graph/blob/vQG_RELEASE_VERSION/schemas/producer-v0.schema.json),
 also available through `qg result schema --producer`. This is a data-only input to collection;
 the published artifact remains Result v0.
+
+<!-- docs-smoke: producer -->
 
 ```json
 {

@@ -77,3 +77,9 @@ Run `make t-gitlab-e2e` before accepting a GitLab runtime release. Keep the cand
 validation evidence separate from post-release PyPI installation evidence. Release
 scripts retain a single version across all five distributions and update the
 GitLab provider's exact core dependency together with the existing providers.
+
+After the packages and GitHub release are published, update `docs-release.toml` in a follow-up
+PR with the package version and the **commit** from `git rev-parse 'vX.Y.Z^{commit}'` (not the
+annotated tag object). This record drives the site's install commands, runtime pins and footer.
+Review capability labels before promoting unreleased examples. `make site-build` tests the
+rendered quickstart, explicit flow and producer report with an isolated PyPI installation.

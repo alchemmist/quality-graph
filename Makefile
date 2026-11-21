@@ -31,6 +31,7 @@ install:
 
 site-build:
 	uv run --locked --all-packages mkdocs build --strict
+	bash scripts/docs-release-smoke.sh
 
 release-setup:
 	bash scripts/setup-release-publishing.sh
