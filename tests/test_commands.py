@@ -393,3 +393,32 @@ def test_status_reports_current_execution(
     assert "forged summary" not in body
     assert ("/runs/100/attempts/1" in body) == (sha == "a" * 40)
     assert reaction == ("/issues/comments/10/reactions", {"content": "+1"})
+
+
+@pytest.mark.parametrize("missing_attempt", [False, True])
+def test_status_handles_unverifiable_attempt_or_download(
+    missing_attempt: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    port = MemoryGitHubPort()
+    configure_context(port)
+    run = {
+        "id": 100,
+        "status": "completed",
+        "head_sha": "a" * 40,
+        "pull_requests": [{"number": 42}],
+    }
+    if not missing_attempt:
+        run["run_attempt"] = 1
+    port.responses["GET", RUNS_PATH] = [{"workflow_runs": [run]}]
+    port.enqueue("GET", "/issues/42/comments?per_page=100&page=1", [])
+    port.enqueue("POST", "/issues/42/comments", None)
+    port.enqueue("POST", "/issues/comments/10/reactions", None)
+
+    def deleted(path: str) -> bytes:
+        raise GitHubError("GET", path, 404)
+
+    monkeypatch.setattr(port, "download", deleted)
+    handle_command(port, direct_event("/qg status"))
+    body = port.requests[-2][2]["body"]
+    assert "Result admission incomplete" in body
+    assert ("no verified attempt" in body) == missing_attempt

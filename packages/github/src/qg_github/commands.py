@@ -15,7 +15,7 @@ from qg_github.compiler import compile_graph
 from qg_github.controls import control_states, decode_control_marker
 from qg_github.dashboard import DASHBOARD_MARKER
 from qg_github.declarations import read_pr_results
-from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
+from qg_github.github import GITHUB_PAGE_SIZE, GitHubError, GitHubPort
 from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
 from quality_graph_core.json_values import JSON
@@ -207,6 +207,10 @@ def _status_body(port: GitHubPort, number: int) -> str:
     if run is None:
         return summary + "no current Quality Graph execution found." + link
     run_id = JSON.integer(run.get("id"), "workflow run id")
+    if run.get("run_attempt") is None:
+        return (
+            summary + f"run #{run_id} has no verified attempt. Result admission incomplete." + link
+        )
     attempt = JSON.integer(run.get("run_attempt"), "workflow run attempt")
     status = JSON.string(run.get("status"), "workflow run status")
     url = f"https://github.com/{port.repository}/actions/runs/{run_id}/attempts/{attempt}"
@@ -216,7 +220,7 @@ def _status_body(port: GitHubPort, number: int) -> str:
     base_sha = JSON.string(JSON.object(pull.get("base"), "base").get("sha"), "base SHA")
     try:
         graph, results = _run_results(port, number, head_sha, base_sha, run)
-    except ArtifactError:
+    except (ArtifactError, GitHubError):
         return (
             summary + "Result admission incomplete: artifact evidence could not be verified." + link
         )
