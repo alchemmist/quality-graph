@@ -3,9 +3,13 @@
 import json
 import tomllib
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import TYPE_CHECKING, TypedDict, cast
 
 from mkdocs.config.defaults import MkDocsConfig
+
+if TYPE_CHECKING:
+    from mkdocs.structure.files import Files
+    from mkdocs.structure.pages import Page
 
 
 class Adopter(TypedDict):
@@ -41,8 +45,15 @@ def load_adopters(path: Path) -> list[Adopter]:
 def on_config(config: MkDocsConfig) -> MkDocsConfig:
     """Expose project metadata to the site theme."""
     root = Path(__file__).parents[1]
-    project_file = root / "apps/qg/pyproject.toml"
-    project = tomllib.loads(project_file.read_text())
-    config.extra["version"] = project["project"]["version"]
+    release = tomllib.loads((root / "docs-release.toml").read_text())
+    config.extra["version"] = release["version"]
+    config.extra["action_sha"] = release["action_sha"]
     config.extra["adopters"] = load_adopters(root / "docs/adopters.json")
     return config
+
+
+def on_page_markdown(markdown: str, *, config: MkDocsConfig, **_kwargs: "Page | Files") -> str:
+    """Render copyable pins from the same released toolchain as the footer."""
+    return markdown.replace("QG_RELEASE_VERSION", config.extra["version"]).replace(
+        "QG_RELEASE_SHA", config.extra["action_sha"]
+    )

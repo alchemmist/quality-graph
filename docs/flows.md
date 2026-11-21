@@ -1,8 +1,12 @@
 # Operations and explicit flows
 
+The explicit operations and flows contract requires v0.2.0 or later.
+
 An operation owns an executable contract: command or action, execution profile, environment
 variables, timeout, result adapter and local blocking/approval policy. A flow owns when that
 contract runs, its node membership, dependencies and presentation. An unused operation is valid.
+
+<!-- docs-smoke: declaration -->
 
 ```yaml
 version: 0
@@ -11,7 +15,7 @@ provider:
   configuration:
     default-branch: main
     runtime:
-      action: owner/runtime@1111111111111111111111111111111111111111
+      action: alchemmist/quality-graph@QG_RELEASE_SHA
 profiles:
   default:
     setup:
@@ -58,8 +62,7 @@ flows:
           observation-seconds: 3600
 ```
 
-Replace the placeholder runtime with the exact commit of a compatible CLI/provider/runtime
-release. Explicit flow inputs are unavailable in older pinned Actions. This sample describes a
+Use the matching [released toolchain](installation.md) with this runtime. Explicit flow inputs are unavailable in older pinned Actions. This sample describes a
 release contract; it does not deploy anything. See [Release flow contracts](release-flows.md).
 
 ## Validation and scheduling
@@ -170,7 +173,10 @@ publisher on the default branch before migrating a repository that runs an older
 Updating only `publisher-action` and its generated workflow is compatible with existing result
 digests, so this activation can be reviewed and merged before the configuration migration.
 
-## Fixed shards
+## Fixed shards (unreleased)
+
+The `items` shorthand is available on `main`, not in vQG_RELEASE_VERSION. With the
+documented release, use explicit operations and placements as shown above.
 
 Declare a literal `items` list on an operation to share its contract. Choose placements
 explicitly so each flow can select and depend on individual shards:

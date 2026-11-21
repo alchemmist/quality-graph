@@ -78,8 +78,8 @@
     {% endif %}
     <a
       class="release-version"
-      href="{{ config.repo_url }}/releases/latest"
-      aria-label="Latest Quality Graph release: version {{ config.extra.version }}"
+      href="{{ config.repo_url }}/releases/tag/v{{ config.extra.version }}"
+      aria-label="Documented Quality Graph release: version {{ config.extra.version }}"
     >v{{ config.extra.version }}</a>
   </body>
 </html>

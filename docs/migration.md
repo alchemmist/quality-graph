@@ -39,11 +39,11 @@ steps into the graph.
 
 ```bash
 uv add --dev \
-  quality-graph-cli==0.1.8 \
-  quality-graph-github==0.1.8
+  quality-graph-cli==QG_RELEASE_VERSION \
+  quality-graph-github==QG_RELEASE_VERSION
 ```
 
-Add `quality-graph-python==0.1.8` when reusing its optional Python gates. Keep the old workflows
+Add `quality-graph-python==QG_RELEASE_VERSION` when reusing its optional Python gates. Keep the old workflows
 enabled during migration.
 
 ## 3. Map jobs to graph nodes
@@ -82,7 +82,7 @@ profile and leave deployment, release, and credential-bearing workflows outside 
 ```bash
 uv run qg init \
   --default-branch trunk \
-  --runtime-action alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+  --runtime-action alchemmist/quality-graph@QG_RELEASE_SHA
 uv run qg generate
 uv run qg validate
 ```

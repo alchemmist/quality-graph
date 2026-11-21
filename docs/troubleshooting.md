@@ -5,14 +5,14 @@
 Provider-backed commands require the CLI and provider in the same environment:
 
 ```bash
-uv add --dev quality-graph-cli==0.1.8 quality-graph-github==0.1.8
+uv add --dev quality-graph-cli==QG_RELEASE_VERSION quality-graph-github==QG_RELEASE_VERSION
 uv run qg validate
 ```
 
 With a user-level tool, install both distributions into that tool environment:
 
 ```bash
-uv tool install quality-graph-cli==0.1.8 --with quality-graph-github==0.1.8
+uv tool install quality-graph-cli==QG_RELEASE_VERSION --with quality-graph-github==QG_RELEASE_VERSION
 ```
 
 Do not install mismatched versions.
@@ -47,10 +47,10 @@ lines and contents must not be edited.
 ## Runtime Action ref is rejected
 
 `provider.configuration.runtime.action` requires an exact 40-character commit SHA. For release
-`v0.1.8`, use:
+`vQG_RELEASE_VERSION`, use:
 
 ```yaml
-action: alchemmist/quality-graph@b947f26e97ccf1c755050dfe38d98cbb688edb69
+action: alchemmist/quality-graph@QG_RELEASE_SHA
 ```
 
 Update the CLI, provider, and runtime SHA as one reviewed change.
