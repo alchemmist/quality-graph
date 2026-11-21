@@ -165,7 +165,7 @@ also_copy = [
   "packages/core/README.md",
   "packages/github/pyproject.toml",
   "packages/github/README.md",
-  "packages/github/src/qg_github/scheduled-publisher.yml.in",
+  "packages/github/src/qg_github/scheduled-publisher.yaml.in",
   "packages/gitlab/pyproject.toml",
   "packages/gitlab/README.md",
   "packages/python/pyproject.toml",

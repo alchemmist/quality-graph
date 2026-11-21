@@ -6,8 +6,8 @@ from dataclasses import replace
 import pytest
 import yaml
 
-from qg_github.compiler import compile_graph, event_projection, project_graph
-from quality_graph_core.graph import Graph
+from qg_github.compiler import RELEASE_WORKFLOW, compile_graph, event_projection, project_graph
+from quality_graph_core.graph import DependencyPolicy, Graph
 
 SOURCE = (
     "version: 0\n"
@@ -71,8 +71,43 @@ def test_explicit_flow_selection_and_named_concurrency() -> None:
     assert workflow["concurrency"] == {"group": "quality-graph-checks", "cancel-in-progress": False}
 
 
+def test_tag_release_and_branch_checks_share_push_without_sharing_jobs() -> None:
+    graph = Graph.from_yaml(SOURCE)
+    review, main, release = graph.flows
+    tag_plan = replace(release, trigger="push", tags=("v*",))
+    graph = replace(graph, flows=(tag_plan, review, main))
+
+    assert project_graph(graph, "push") == graph.for_flow("main")
+    push = event_projection(graph, "push")
+    assert push.dependencies is DependencyPolicy.NONE
+    assert push.nodes == graph.for_flow("main").nodes
+    pr = event_projection(graph, "pull-request")
+    assert pr.dependencies is DependencyPolicy.GRAPH
+    assert pr.nodes == graph.for_flow("review").nodes
+    compiled = compile_graph(graph)
+    assert {str(item.path) for item in compiled.files} == {
+        ".github/workflows/quality-graph.yml",
+        ".github/workflows/quality-graph-push.yml",
+        ".github/workflows/quality-graph-publish.yml",
+        ".quality-graph/manifest.json",
+    }
+    assert compiled.retired_if_generated == (RELEASE_WORKFLOW,)
+
+
+def test_flow_command_and_unicode_title_are_bound_to_manifest_digest() -> None:
+    source = SOURCE.replace("lint: {run: make lint}", "lint: {run: make lint, title: Révision}")
+    original = compile_graph(Graph.from_yaml(source))
+    updated = compile_graph(Graph.from_yaml(source.replace("make lint", "make lint-strict")))
+    assert original.graph_digest != updated.graph_digest
+    manifest = next(item.content for item in updated.files if item.path.suffix == ".json")
+    assert '"title": "Révision"' in manifest
+    assert json.loads(manifest)["graphDigest"] == updated.graph_digest
+
+
 def test_github_rejects_unsupported_flow_combinations() -> None:
     graph = Graph.from_yaml(SOURCE)
+    with pytest.raises(ValueError, match="default branch is invalid"):
+        compile_graph(Graph.from_yaml(SOURCE.replace("branches: [main]", "branches: [bad..ref]")))
     with pytest.raises(ValueError, match="one pull-request"):
         compile_graph(replace(graph, flows=(*graph.flows, replace(graph.flows[0], id="other"))))
     with pytest.raises(ValueError, match="unique placement titles"):

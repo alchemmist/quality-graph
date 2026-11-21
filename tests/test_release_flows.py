@@ -45,6 +45,7 @@ def test_release_generates_tag_bound_jobs_with_artifact_handoff_and_oidc() -> No
     compiled = compile_graph(Graph.from_yaml(RELEASE_SOURCE))
     files = {str(item.path): item.content for item in compiled.files}
     assert set(files) == {".github/workflows/release.yml", ".quality-graph/manifest.json"}
+    assert compiled.retired_if_generated == ()
     workflow = yaml.safe_load(files[".github/workflows/release.yml"])
     assert workflow["name"] == "Release"
     assert workflow["on"] == {"push": {"tags": ["v[0-9]+.[0-9]+.[0-9]+"]}}
@@ -109,6 +110,12 @@ def test_release_generates_tag_bound_jobs_with_artifact_handoff_and_oidc() -> No
         (("flows", "release", "trigger"), {"push": {"tags": []}}, "nonempty"),
         (("flows", "release", "trigger"), {"push": {"tags": ["!v*"]}}, "literal nonnegative"),
         (("flows", "release", "trigger"), {"push": {"tags": ["v *"]}}, "literal nonnegative"),
+        (
+            ("flows", "release", "trigger"),
+            {"push": {"tags": ["v${{inputs.version}}"]}},
+            "literal nonnegative",
+        ),
+        (("flows", "release", "trigger"), {"push": {"tags": ["v" * 256]}}, "literal nonnegative"),
         (("operations", "publish", "environment"), "${{ inputs.environment }}", "literal nonempty"),
         (("operations", "publish", "environment"), " ", "literal nonempty"),
         (
@@ -118,6 +125,16 @@ def test_release_generates_tag_bound_jobs_with_artifact_handoff_and_oidc() -> No
         ),
         (("operations", "publish", "permissions"), {"contents": "admin"}, "permission must"),
         (("operations", "build", "steps"), [{"uses": "actions/checkout@v7"}], "pinned"),
+        (
+            ("operations", "build", "steps"),
+            [{"run": "make package"}, {"uses": "actions/checkout@v7"}],
+            "pinned",
+        ),
+        (
+            ("operations", "build", "steps"),
+            [{"run": "make package"}, {"uses": "actions/checkout"}],
+            "explicit ref",
+        ),
         (
             ("flows", "release", "nodes", "build", "checkpoint"),
             {"environment": "pypi", "observation-seconds": 60},
@@ -195,11 +212,12 @@ def test_primary_step_cannot_disagree_with_the_sequence() -> None:
 def test_release_permissions_can_be_inherited_from_an_isolated_profile() -> None:
     graph = Graph.from_yaml(RELEASE_SOURCE)
     graph = replace(
-        graph, profiles=(replace(graph.profiles[0], permissions={"id-token": "write"}),)
+        graph,
+        profiles=(replace(graph.profiles[0], permissions={"id-token": "write", "issues": "none"}),),
     )
     files = {str(item.path): item.content for item in compile_graph(graph).files}
     workflow = yaml.safe_load(files[".github/workflows/release.yml"])
-    assert workflow["jobs"]["build"]["permissions"] == {"id-token": "write"}
+    assert workflow["jobs"]["build"]["permissions"] == {"id-token": "write", "issues": "none"}
 
 
 def test_long_release_commands_are_wrapped_without_changing_shell_contents() -> None:
