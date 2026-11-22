@@ -346,3 +346,27 @@ def test_rate_limit_during_optional_job_lookup_stops_before_any_write(
     with pytest.raises(GitHubError, match="secondary rate limit"):
         reconcile_open_pulls(port, "main")
     assert all(method == "GET" and path != "/pulls/7" for method, path, _ in port.requests)
+
+
+def test_throttle_reading_pr_graph_is_not_a_declaration_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    port = setup()
+    archive = result_archive("format", "Formatting", graph_digest="c" * 64)
+    port.enqueue(
+        "GET",
+        "/actions/runs/10/artifacts?per_page=100&page=1",
+        {"artifacts": [artifact(1, "format", archive)]},
+    )
+    port.downloads["/actions/artifacts/1/zip"] = archive
+    original = port.request
+
+    def request(method: str, path: str, payload: JsonValue = None) -> JsonValue:
+        if path == f"/contents/qg.yaml?ref={HEAD}":
+            raise GitHubError(method, path, 429, "rate limited")
+        return original(method, path, payload)
+
+    monkeypatch.setattr(port, "request", request)
+    with pytest.raises(GitHubError, match="rate limited"):
+        reconcile_open_pulls(port, "main")
+    assert all(method == "GET" for method, _, _ in port.requests)
