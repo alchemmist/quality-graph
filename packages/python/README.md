@@ -6,8 +6,10 @@ CI system.
 
 ## Installation
 
+For native `--output` support, use the following source pin until a release includes the option:
+
 ```bash
-uv add --dev quality-graph-python==0.1.8
+uv add --dev "quality-graph-python @ git+https://github.com/alchemmist/quality-graph.git@bcaf9dda9c070d84df5410a7b1cdbab0cf5cdfd4#subdirectory=packages/python"
 ```
 
 Diff-based commands compare committed repository content with `origin/main` by default. CI must
