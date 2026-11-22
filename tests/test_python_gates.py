@@ -480,3 +480,20 @@ def test_native_missing_revision(tmp_path: Path) -> None:
     payload = json.loads(output.read_bytes())
     assert payload["failureKind"] == "infrastructure"
     assert "git diff against nonexistent-base-for-qg-test failed" in payload["summary"]
+
+
+def test_native_unwritable_destination(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert no_comments.main([str(tmp_path), "--output", str(tmp_path)]) == 2
+    assert f"Cannot write native report to {tmp_path}" in capsys.readouterr().err
+
+
+def test_token_error_without_location(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    source = tmp_path / "app.py"
+    source.write_text("pass\n")
+
+    def broken() -> None:
+        raise no_comments.tokenize.TokenError("missing location")
+
+    monkeypatch.setattr(no_comments.tokenize, "generate_tokens", lambda _: broken())
+    (finding,) = no_comments.scan_file(source)
+    assert (finding.line, finding.column) == (1, 1)

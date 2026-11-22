@@ -50,9 +50,9 @@ def run_gate[T](
     try:
         files = select()
         findings = tuple(sorted({item for file in files for item in scan(file)}))
+        code = report(findings)
         if output is not None:
             payload = native_report(rule, findings, len(files))
-        code = report(findings)
     except (OSError, ValueError, SyntaxError, RuntimeError) as error:
         message = f"Cannot scan sources: {error}"[:1000]
         sys.stderr.write(message + "\n")
@@ -65,8 +65,12 @@ def run_gate[T](
         }
         code = 2
     if output is not None:
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        except OSError as error:
+            sys.stderr.write(f"Cannot write native report to {output}: {error}\n")
+            return 2
     return code
 
 
