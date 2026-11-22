@@ -34,7 +34,7 @@ trusted authority before merge.
 
 In [scheduled mode](configuration.md#scheduled-github-publication-opt-in), only a default-branch
 schedule reconciles publication. Both jobs have `contents: read`, `issues: write` and
-`pull-requests: read`; the reconciler also needs `actions: read` and `checks: write`, while
+`pull-requests: write`; the reconciler also needs `actions: read` and `checks: write`, while
 the separate issue-comment command job needs `actions: write` for authorized reruns.
 Neither job checks out a PR. The reconciler rechecks the current PR and workflow run attempt
 after reading evidence and before updating the dashboard, labels and aggregate. The completed
@@ -43,8 +43,17 @@ check, written last, is the checkpoint for the next tick.
 Default event-publisher permissions are job-specific:
 
 - execution: `contents: read` or less;
-- publication: `actions: read`, `checks: write`, `issues: write`, `contents: read`, `pull-requests: read`;
-- commands: `contents: read`, `pull-requests: read`, `issues: write` for command feedback and the ledger, and `actions: write` for authorized reruns.
+- publication: `actions: read`, `checks: write`, `issues: write`, `contents: read`, `pull-requests: write`;
+- commands: `contents: read`, `pull-requests: write`, `issues: write` for command feedback and the ledger, and `actions: write` for authorized reruns.
+
+The dashboard is a conversation comment on a PR, not a review comment. GitHub's
+[issue-comment endpoints](https://docs.github.com/en/rest/issues/comments#create-an-issue-comment)
+and [label endpoints](https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue)
+are shared between issues and PRs; their permission tables list alternative write permissions.
+The `/issues/` URL does not mean that Issues write reliably authorizes a PR write. Grant
+Pull requests write on the trusted jobs for PR comments and PR label assignments. Retain
+Issues write for repository label management and the command handler's issue-comment reactions.
+Neither permission belongs on execution jobs.
 
 Dashboard Markdown is not an authorization source. Checkbox edits are converted to canonical
 commands, rolled back, authorized through current collaborator permission, and persisted as
