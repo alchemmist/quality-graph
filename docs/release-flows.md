@@ -20,7 +20,7 @@ flows:
 ```
 
 The compiler supports one executable release flow per declaration. The workflow path is kept
-stable for PyPI Trusted Publisher bindings. Every release job requires a tag ref; manual dispatch
+stable for PyPI Trusted Publisher bindings. Tag and manual release jobs require a tag ref; manual dispatch
 is supported when dispatched against a tag. Branch dispatch does not execute release jobs.
 Actions used by executable release operations and their setup profiles must be pinned to commit
 SHAs. PR and main flows cannot inherit release write permissions or deployment environments.
@@ -167,3 +167,5 @@ duplicate/out-of-order timer delivery, invalid resume provenance, approval denia
 cancel during observation, lost leases, concurrent promotions, uncertain deployment outcomes,
 idempotent publication and terminal/rollback failures. Tests must verify that no runner is held
 through an observation window. Production deployment adapters remain outside this refactor.
+
+For continuous deployment, use `presentation: release`, `execution: github-actions` and `trigger: {push: {branches: [main]}}` (the configured default branch only). A separate ordinary push CI flow may coexist. Branch deletions do not run release jobs.

@@ -334,3 +334,25 @@ def test_titled_shard_steps() -> None:
         assert op.steps[0].environment == {"MODE": "strict"}
     with pytest.raises(ValueError, match="steps cannot override QG_ITEM"):
         Graph.from_yaml(source.replace("MODE: strict", "QG_ITEM: api"))
+
+
+def test_default_branch_release_coexists_with_push_ci() -> None:
+    source = SOURCE.replace(
+        "trigger: workflow-dispatch",
+        "trigger: {push: {branches: [main]}}\n    execution: github-actions",
+    ).split("        checkpoint:")[0]
+    files = {str(f.path): f.content for f in compile_graph(Graph.from_yaml(source)).files}
+    release = yaml.safe_load(files[str(RELEASE_WORKFLOW)])
+    assert release["on"] == {"push": {"branches": ["main"]}}
+    assert release["jobs"]["test"]["needs"] == ["lint"]
+    assert "repository.default_branch" in release["jobs"]["test"]["if"]
+    assert ".github/workflows/quality-graph-push.yml" in files
+    with pytest.raises(ValueError, match="default branch only"):
+        compile_graph(Graph.from_yaml(source.replace("branches: [main]", "branches: [other]")))
+
+    special = source.replace("branches: [main]", "branches: [main+]").replace(
+        "runtime: {action:",
+        "provider:\n  name: github\n  configuration:\n    default-branch: main+\n    runtime: {action:",
+    )
+    files = {str(f.path): f.content for f in compile_graph(Graph.from_yaml(special)).files}
+    assert yaml.safe_load(files[str(RELEASE_WORKFLOW)])["on"]["push"]["branches"] == [r"main\+"]

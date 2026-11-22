@@ -309,7 +309,11 @@ class Flow:
     @property
     def is_release(self) -> bool:
         """Identify manual and tag-triggered release flows."""
-        return self.trigger == "workflow-dispatch" or bool(self.tags)
+        return (
+            self.trigger == "workflow-dispatch"
+            or bool(self.tags)
+            or (self.trigger == "push" and self.presentation == "release")
+        )
 
 
 @dataclass(frozen=True)
@@ -581,7 +585,8 @@ def _parse_flow(name: str, data: dict[str, JsonValue]) -> Flow:
         f"flow {name}",
     )
     trigger, branches, inputs, tags = _parse_trigger(data.get("trigger"))
-    if "execution" in data and not (tags or trigger == "workflow-dispatch"):
+    branch_release = trigger == "push" and bool(branches) and data.get("presentation") == "release"
+    if "execution" in data and not (tags or trigger == "workflow-dispatch" or branch_release):
         message = "execution mode is only configurable for release flows"
         raise ValueError(message)
     nodes: list[FlowNode] = []
@@ -605,7 +610,10 @@ def _parse_flow(name: str, data: dict[str, JsonValue]) -> Flow:
         tuple(nodes),
         DependencyPolicy(
             JSON.string(
-                data.get("dependencies", "none" if trigger == "push" and not tags else "graph"),
+                data.get(
+                    "dependencies",
+                    "none" if trigger == "push" and not tags and not branch_release else "graph",
+                ),
                 "dependencies",
             )
         ),
