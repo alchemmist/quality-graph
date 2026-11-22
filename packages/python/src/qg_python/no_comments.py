@@ -50,7 +50,7 @@ def scan_file(path: Path) -> tuple[Finding, ...]:
         line, column = 1, 1
         if isinstance(error, SyntaxError):
             line, column = error.lineno or 1, max(1, error.offset or 1)
-        elif len(error.args) > 1 and isinstance(error.args[1], tuple) and len(error.args[1]) == 2:
+        elif len(error.args) > 1 and isinstance(error.args[1], tuple):
             line, column = error.args[1][0], error.args[1][1] + 1
         findings.append(
             Finding(

@@ -492,7 +492,8 @@ def test_token_error_without_location(tmp_path: Path, monkeypatch: pytest.Monkey
     source.write_text("pass\n")
 
     def broken() -> None:
-        raise no_comments.tokenize.TokenError("missing location")
+        message = "missing location"
+        raise no_comments.tokenize.TokenError(message)
 
     monkeypatch.setattr(no_comments.tokenize, "generate_tokens", lambda _: broken())
     (finding,) = no_comments.scan_file(source)
