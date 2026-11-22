@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 from typing import TYPE_CHECKING
 
@@ -286,14 +287,29 @@ def test_repeated_check_page_never_posts_a_duplicate() -> None:
     assert all(method == "GET" for method, _, _ in port.requests)
 
 
-@pytest.mark.parametrize("throttled", [False, True])
+@pytest.mark.parametrize(
+    ("failure", "expected_error"),
+    [
+        ("denied", "Reconciliation failed for #7: POST HTTP 403 integration permission denied"),
+        ("throttled", "GitHub POST /issues/7/comments failed: HTTP 403 (rate limited)"),
+        ("yaml", "Reconciliation failed for #7: ParserError"),
+    ],
+)
 def test_one_pr_failure_never_completes_its_check_or_masks_tick_failure(
-    monkeypatch: pytest.MonkeyPatch, *, throttled: bool
+    monkeypatch: pytest.MonkeyPatch, failure: str, expected_error: str
 ) -> None:
     port = setup()
     set_response(port, OPEN, [{"number": 7}, {"number": 42}])
     first_sha = "c" * 40
     first_pull = PULL | {"number": 7, "head": {"sha": first_sha}}
+    if failure == "yaml":
+        first_base = "e" * 40
+        first_pull["base"] = {"ref": "main", "sha": first_base}
+        port.enqueue(
+            "GET",
+            f"/contents/qg.yaml?ref={first_base}",
+            {"content": base64.b64encode(b"hidden: [").decode()},
+        )
     first_run = RUN | {"id": 9, "head_sha": first_sha, "pull_requests": [first_pull]}
     port.enqueue("GET", "/pulls/7", first_pull)
     port.enqueue(
@@ -316,16 +332,17 @@ def test_one_pr_failure_never_completes_its_check_or_masks_tick_failure(
 
     def request(method: str, path: str, payload: JsonValue = None) -> JsonValue:
         if (method, path) == ("POST", "/issues/7/comments"):
-            reason = "rate limited" if throttled else "integration permission denied"
+            reason = "rate limited" if failure == "throttled" else "integration permission denied"
             raise GitHubError(method, path, 403, reason)
         return original(method, path, payload)
 
     monkeypatch.setattr(port, "request", request)
-    with pytest.raises(RuntimeError, match="rate limited" if throttled else "#7: POST HTTP 403"):
+    with pytest.raises(RuntimeError) as raised:
         reconcile_open_pulls(port, "main")
+    assert str(raised.value) == expected_error
     writes = [payload for _, path, payload in port.requests if path == "/check-runs"]
     assert [(check["head_sha"], check["conclusion"]) for check in writes] == (
-        [] if throttled else [(HEAD, "success")]
+        [] if failure == "throttled" else [(HEAD, "success")]
     )
 
 

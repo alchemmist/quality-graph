@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
+import yaml
+
 from qg_github.github import GITHUB_PAGE_SIZE, GitHubError, GitHubPort, paged
 from qg_github.publication import PullRequestState, WorkflowRunEvent, reconcile_publication
 from quality_graph_core.json_values import JSON
@@ -57,7 +59,7 @@ def reconcile_open_pulls(port: GitHubPort, branch: str) -> None:
             failures.append(
                 f"#{number}: {error.method} HTTP {error.status_code} {error.reason}".rstrip()
             )
-        except (TypeError, ValueError, RuntimeError) as error:
+        except (TypeError, ValueError, RuntimeError, yaml.YAMLError) as error:
             failures.append(f"#{number}: {type(error).__name__}")
     if failures:
         message = "Reconciliation failed for " + ", ".join(failures)
