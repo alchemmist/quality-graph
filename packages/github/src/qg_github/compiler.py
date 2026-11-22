@@ -314,13 +314,15 @@ def _validate_release_contract(graph: Graph, flow: Flow) -> None:
         ):
             message = "release tag patterns must be literal nonnegative filters without whitespace"
             raise ValueError(message)
-    if not flow.is_release or _execution_mode(flow) != "github-actions":
+    if not flow.is_release:
         return
     if flow.branches and flow.branches != (
         _default_branch(graph.provider.values.get("default-branch")),
     ):
         message = "branch releases require the configured default branch only"
         raise ValueError(message)
+    if _execution_mode(flow) != "github-actions":
+        return
     if any(node.checkpoint for node in flow.nodes):
         message = (
             "executable release checkpoints require a resumable provider; use design-only mode"
@@ -478,7 +480,7 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
             workflow["on"] = (
                 {"push": {"tags": list(flow.tags)}}
                 if flow.tags
-                else {"push": {"branches": list(flow.branches)}}
+                else {"push": {"branches": [b.replace("+", r"\+") for b in flow.branches]}}
                 if flow.branches
                 else {"workflow_dispatch": {"inputs": dict(flow.inputs)}}
             )

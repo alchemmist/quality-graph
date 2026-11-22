@@ -585,7 +585,7 @@ def _parse_flow(name: str, data: dict[str, JsonValue]) -> Flow:
         f"flow {name}",
     )
     trigger, branches, inputs, tags = _parse_trigger(data.get("trigger"))
-    branch_release = bool(branches) and data.get("presentation") == "release"
+    branch_release = trigger == "push" and bool(branches) and data.get("presentation") == "release"
     if "execution" in data and not (tags or trigger == "workflow-dispatch" or branch_release):
         message = "execution mode is only configurable for release flows"
         raise ValueError(message)
