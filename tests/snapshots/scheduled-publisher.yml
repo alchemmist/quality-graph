@@ -23,7 +23,7 @@ jobs:
       checks: write  # Publish the verified aggregate on the exact PR head.
       contents: read  # Read the declaration at the verified base revision.
       issues: write  # Maintain the dashboard comment and managed labels.
-      pull-requests: read  # Verify current open PR identity; never modify the PR.
+      pull-requests: write  # Create and update the dashboard and apply labels on PRs.
     steps:
       - name: Reconcile trusted Quality Graph state
         uses: alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -40,7 +40,7 @@ jobs:
       actions: write  # Read run evidence and rerun failed jobs for authorized commands.
       contents: read  # Read the base declaration for command admission.
       issues: write  # Manage command replies, reactions and the approval ledger.
-      pull-requests: read  # Read PR metadata; never modify the PR.
+      pull-requests: write  # Write command feedback and the approval ledger on PRs.
     steps:
       - name: Handle trusted Quality Graph command
         uses: alchemmist/quality-graph@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

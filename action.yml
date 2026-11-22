@@ -26,6 +26,12 @@ inputs:
     description: Result adapter name
     required: false
     default: exit-code
+  lua-source:
+    description: Base64-encoded Lua adapter source
+    default: ""
+  lua-file:
+    description: Optional repository-relative Lua script path
+    default: ""
   report-path:
     description: Repository-relative structured report path
     required: false
@@ -79,6 +85,8 @@ runs:
         QG_PRESENTATION: ${{ inputs.presentation }}
         QG_TITLE: ${{ inputs.title }}
         QG_ADAPTER: ${{ inputs.adapter }}
+        QG_LUA_SOURCE: ${{ inputs.lua-source }}
+        QG_LUA_FILE: ${{ inputs.lua-file }}
         QG_REPORT_PATH: ${{ inputs.report-path }}
         QG_COMMAND_OUTCOME: ${{ inputs.command-outcome }}
         QG_GRAPH_DIGEST: ${{ inputs.graph-digest }}

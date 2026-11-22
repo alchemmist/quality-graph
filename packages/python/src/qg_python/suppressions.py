@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import argparse
 import re
+from pathlib import Path
 
 from qg_python.diff import changed_files
-from qg_python.report import Finding, report
+from qg_python.report import Finding, run_gate
 
 SOURCE_RE = re.compile(
     r"#\s*(?:noqa|nosec|type:\s*ignore|pyright:\s*ignore|pylint:\s*(?:disable|skip-file)"
@@ -45,10 +46,11 @@ def main(arguments: list[str] | None = None) -> int:
     """Check changed files for newly introduced suppressions."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="origin/main")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args(arguments)
-    findings = tuple(
-        finding
-        for changed in changed_files(args.base, SUFFIXES)
-        for finding in scan_source(changed.path, changed.source, changed.added_lines)
+    return run_gate(
+        "suppressions",
+        args.output,
+        lambda: changed_files(args.base, SUFFIXES),
+        lambda changed: scan_source(changed.path, changed.source, changed.added_lines),
     )
-    return report(findings)
