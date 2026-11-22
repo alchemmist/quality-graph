@@ -26,7 +26,7 @@ jobs:
       checks: write  # Create and update the aggregate check run.
       contents: read  # Read trusted declarations at immutable revisions.
       issues: write  # Manage the PR dashboard, labels and command ledger via the issues API.
-      pull-requests: read  # Resolve the pull request and verify its head and base.
+      pull-requests: write  # Create and update the dashboard and apply labels on PRs.
     steps:
       - name: Publish trusted Quality Graph state
         uses: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
@@ -40,7 +40,7 @@ jobs:
       actions: write  # Rerun failed jobs after command authorization.
       contents: read  # Read trusted declarations at immutable revisions.
       issues: write  # Manage the PR dashboard, labels and command ledger via the issues API.
-      pull-requests: read  # Resolve the pull request and verify its head and base.
+      pull-requests: write  # Write command feedback and the approval ledger on PRs.
     steps:
       - name: Handle trusted Quality Graph command
         uses: alchemmist/quality-graph@4e24fc581b2e7b9357b62f5e76d60543f3266277
