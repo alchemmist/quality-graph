@@ -316,6 +316,11 @@ def _validate_release_contract(graph: Graph, flow: Flow) -> None:
             raise ValueError(message)
     if not flow.is_release or _execution_mode(flow) != "github-actions":
         return
+    if flow.branches and flow.branches != (
+        _default_branch(graph.provider.values.get("default-branch")),
+    ):
+        message = "branch releases require the configured default branch only"
+        raise ValueError(message)
     if any(node.checkpoint for node in flow.nodes):
         message = (
             "executable release checkpoints require a resumable provider; use design-only mode"
@@ -473,6 +478,8 @@ def _compile_flows(graph: Graph, configuration: _GitHubConfiguration) -> Generat
             workflow["on"] = (
                 {"push": {"tags": list(flow.tags)}}
                 if flow.tags
+                else {"push": {"branches": list(flow.branches)}}
+                if flow.branches
                 else {"workflow_dispatch": {"inputs": dict(flow.inputs)}}
             )
         elif flow.trigger == "push":
@@ -774,7 +781,13 @@ def _execution_job(
     if node.deployment_environment:
         value["environment"] = dict(node.deployment_environment)
     if flow is not None and flow.is_release:
-        value["if"] = "startsWith(github.ref, 'refs/tags/')"
+        value["if"] = (
+            "github.event_name == 'push' && !github.event.deleted "
+            "&& github.ref_name == github.event.repository.default_branch "
+            "&& github.ref_type == 'branch'"
+            if flow.branches
+            else "startsWith(github.ref, 'refs/tags/')"
+        )
     environment = _json_string_mapping(profile.environment)
     environment.update(_json_string_mapping(node.environment))
     if flow is not None:
