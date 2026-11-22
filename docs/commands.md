@@ -21,6 +21,13 @@ Approvals suppress matching quality findings without deleting them. They remain 
 support exact inverse commands, survive reruns and line movement, and disappear from effective
 state when their finding, file, or node target no longer exists.
 
+With `policy.approvals.node: true`, `/qg ignore <node>` marks the node **skipped** for this PR,
+including when its command exits unsuccessfully and reports no findings. A skipped node does not
+block the aggregate `Quality Graph` check. `/qg remove-ignore <node>` restores normal evaluation.
+This changes the published result, not the native job: require the [aggregate check](required-checks.md),
+not individual jobs, for merge protection. Missing evidence, cancellation and framework errors still block
+blocking nodes.
+
 Editing a hidden marker, a pull-request body, or ordinary Markdown cannot create approval.
 
 The dashboard and each Job Summary render controls from the same semantic control model and

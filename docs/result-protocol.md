@@ -12,7 +12,7 @@ Required result data includes:
 - repository, pull request, head SHA, run, attempt, and graph-digest provenance.
 
 `failureKind` distinguishes quality, command, adapter, protocol, cancellation, and
-infrastructure failures. Approvals affect only quality failures. Adapter and command failures
+infrastructure failures. Finding and file approvals affect only quality failures; whole-node ignore also covers command failures. Adapter and command failures
 cannot be hidden through finding approval.
 
 Finding IDs must represent semantic identity rather than line position. SARIF uses partial

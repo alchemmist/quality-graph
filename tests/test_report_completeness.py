@@ -32,7 +32,7 @@ def test_partial_file_approval_cannot_hide_omitted_junit_failures() -> None:
     whole = {ApprovalTarget(ControlKind.NODE, "lint")}
     assert (
         effective_graph(graph, {"lint": result}, whole).results["lint"].status
-        is ResultStatus.PASSED
+        is ResultStatus.SKIPPED
     )
 
 

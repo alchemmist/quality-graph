@@ -23,8 +23,7 @@ policy:
 
 The captured output becomes bounded diagnostic detail rendered as text. Enabling node approval adds
 the corresponding `/qg ignore <node>` and `/qg remove-ignore <node>` controls to the Job Summary
-and managed dashboard. These controls cannot approve command or adapter failures; approvals
-only suppress quality findings.
+and managed dashboard. Whole-node ignore skips admitted quality and command failures, not adapter failures.
 
 ## Native JSON
 

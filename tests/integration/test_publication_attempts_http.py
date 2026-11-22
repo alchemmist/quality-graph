@@ -30,7 +30,9 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-def node_result(attempt: int, status: ResultStatus = ResultStatus.PASSED) -> Result:
+def node_result(
+    attempt: int, status: ResultStatus = ResultStatus.PASSED, *, source: str = GRAPH
+) -> Result:
     return Result(
         "lint",
         "Lint",
@@ -40,7 +42,7 @@ def node_result(attempt: int, status: ResultStatus = ResultStatus.PASSED) -> Res
             "a" * 40,
             10,
             attempt,
-            compile_graph(Graph.from_yaml(GRAPH)).graph_digest,
+            compile_graph(Graph.from_yaml(source)).graph_digest,
             42,
         ),
         FailureKind.COMMAND if status is ResultStatus.FAILED else None,
@@ -53,8 +55,9 @@ def scenario(
     conclusion: str = "success",
     lint_attempt: int = 3,
     paginate: bool = False,
+    source: str = GRAPH,
 ) -> dict[str, JsonValue]:
-    formatting = replace(node_result(2), node_id="format", title="Formatting")
+    formatting = replace(node_result(2, source=source), node_id="format", title="Formatting")
     artifacts: list[JsonValue] = []
     downloads: dict[str, JsonValue] = {}
     for identifier, result in enumerate([formatting, *results], start=1):
@@ -114,7 +117,7 @@ def scenario(
         else []
     )
     return {
-        "contents": {f"{'d' * 40}:qg.yaml": GRAPH},
+        "contents": {f"{'d' * 40}:qg.yaml": source},
         "workflow_runs": [run],
         "workflow_attempt_jobs": {"10": {"2": old_jobs, "3": current_jobs}},
         "run_artifacts": {"10": artifacts},
@@ -348,3 +351,18 @@ def test_command_failure_without_approvable_findings(fake_github: FakeGitHubScen
         "Whole-node approval is disabled for `lint`. "
         "This result has no individually approvable findings."
     )
+
+
+def test_node_ignore_reversibly_unblocks_aggregate(fake_github: FakeGitHubScenario) -> None:
+    source = GRAPH.replace("files: true", "files: false\n        node: true")
+    failed = node_result(3, ResultStatus.FAILED, source=source)
+    payload = scenario([failed], conclusion="failure", source=source)
+    payload["permissions"] = {"admin": "admin"}
+    fake_github.reset(payload)
+    port = HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url)
+    run = cast("list[JsonValue]", payload["workflow_runs"])[0]
+    for command, conclusion in [("ignore", "success"), ("remove-ignore", "failure")]:
+        assert handle_command(port, command_event(f"/qg {command} lint")).changed
+        publish_workflow_run(port, {"action": "completed", "workflow_run": run})
+        [check] = cast("list[dict[str, JsonValue]]", fake_github.snapshot()["checks"])
+        assert check["conclusion"] == conclusion
