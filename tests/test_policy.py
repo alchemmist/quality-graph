@@ -100,21 +100,25 @@ def test_non_quality_failure_cannot_be_approved(failure: FailureKind) -> None:
     assert checked[ControlKind.FINDING, "error"] is False
 
 
-def test_node_approval_handles_quality_failure_without_findings() -> None:
+@pytest.mark.parametrize("failure", [FailureKind.QUALITY, FailureKind.COMMAND])
+def test_node_approval_skips_failure_without_findings(failure: FailureKind) -> None:
     graph = Graph.from_yaml(GRAPH.replace("files: true", "files: true\n        node: true"))
     failed = Result(
         "lint",
         "Lint",
         ResultStatus.FAILED,
         Provenance("owner/repository", "a" * 40, 1, 1, "b" * 64, 42),
-        FailureKind.QUALITY,
+        failure,
     )
     approval = ApprovalTarget(ControlKind.NODE, "lint")
 
     effective = effective_graph(graph, {"lint": failed}, {approval})
 
-    assert effective.results["lint"].status is ResultStatus.PASSED
-    assert effective.results["lint"].notes[-1].startswith("The effective result passes")
+    assert effective.results["lint"].status is ResultStatus.SKIPPED
+    assert (
+        effective_graph(graph, {"lint": failed}, set()).results["lint"].status
+        is ResultStatus.FAILED
+    )
 
 
 def test_missing_results_produce_no_targets_or_effective_results() -> None:
@@ -184,7 +188,7 @@ def test_approval_at_note_limit_keeps_existing_notes() -> None:
         graph, {"lint": failed}, {ApprovalTarget(ControlKind.FILE, "src/app.py")}
     ).results["lint"]
 
-    assert approved_pass.status is ResultStatus.PASSED
+    assert approved_pass.status is ResultStatus.SKIPPED
     assert approved_pass.notes == notes
     assert approved_failure.status is ResultStatus.PASSED
     assert approved_failure.notes == notes

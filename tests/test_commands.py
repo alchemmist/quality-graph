@@ -220,7 +220,7 @@ def test_handler_records_file_and_removal_targets() -> None:
         assert phrase in approval[2]["body"]
 
 
-def test_handler_rejects_unauthorized_and_unknown_targets() -> None:
+def test_handler_rejects_unauthorized_commands() -> None:
     unauthorized = MemoryGitHubPort()
     configure_context(unauthorized, permission="read")
     unauthorized.enqueue("POST", "/issues/comments/10/reactions", None)
@@ -228,10 +228,28 @@ def test_handler_rejects_unauthorized_and_unknown_targets() -> None:
     assert handle_command(unauthorized, direct_event()).authorized is False
     assert unauthorized.requests[-1][2] == {"content": "confused"}
 
-    unknown = MemoryGitHubPort()
-    configure_context(unknown)
-    with pytest.raises(ValueError, match="unknown or non-approvable"):
-        handle_command(unknown, direct_event("/qg ignore missing"))
+
+@pytest.mark.parametrize(
+    ("target", "reason"),
+    [
+        ("finding,missing", "Unknown Quality Graph target"),
+        ("format", "No admitted result is available for `format`."),
+        ("lint", "Whole-node approval is disabled for `lint`. Use an individual finding"),
+    ],
+)
+def test_rejected_target_only_posts_feedback(target: str, reason: str) -> None:
+    port = MemoryGitHubPort()
+    configure_context(port)
+    port.enqueue("POST", "/issues/42/comments", None)
+    port.enqueue("POST", "/issues/comments/10/reactions", None)
+    assert handle_command(port, direct_event(f"/qg ignore {target}")) == CommandOutcome(
+        handled=True, authorized=True
+    )
+    reply, reaction = [request for request in port.requests if request[0] != "GET"]
+    assert reply[1] == "/issues/42/comments"
+    assert reason in reply[2]["body"]
+    assert "quality-graph:approval" not in reply[2]["body"]
+    assert reaction == ("POST", "/issues/comments/10/reactions", {"content": "x"})
 
 
 def test_handler_serves_help_and_rejects_invalid_requests() -> None:

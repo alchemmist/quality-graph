@@ -112,14 +112,17 @@ def _effective_result(
     approvals: AbstractSet[ApprovalTarget],
 ) -> Result:
     controls = policy_controls(node.id, result.findings, node.policy.approvals, approvals)
+    if (
+        ApprovalTarget(ControlKind.NODE, node.id) in approvals
+        and result.status in {ResultStatus.PASSED, ResultStatus.FAILED}
+        and result.failure_kind in {None, FailureKind.QUALITY, FailureKind.COMMAND}
+    ):
+        return replace(result, status=ResultStatus.SKIPPED, failure_kind=None, controls=controls)
     if result.failure_kind not in {None, FailureKind.QUALITY} or result.status not in {
         ResultStatus.PASSED,
         ResultStatus.FAILED,
     }:
         return replace(result, controls=controls)
-    node_target = ApprovalTarget(ControlKind.NODE, node.id)
-    if node_target in approvals:
-        return _passed(result, controls)
     blocking = tuple(
         finding
         for finding in result.findings

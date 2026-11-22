@@ -19,7 +19,7 @@ from qg_github.github import GITHUB_PAGE_SIZE, GitHubError, GitHubPort
 from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
 from quality_graph_core.json_values import JSON
-from quality_graph_core.policy import ApprovalTarget, effective_graph
+from quality_graph_core.policy import ApprovalTarget, EffectiveGraph, effective_graph
 from quality_graph_core.result import ControlKind, JsonValue, Result
 
 COMMAND_RE = re.compile(
@@ -80,7 +80,7 @@ class CommandContext:
 
     graph: Graph
     run_id: int
-    targets: frozenset[ApprovalTarget]
+    state: EffectiveGraph
 
 
 def parse_command(value: str) -> Command | None:
@@ -171,7 +171,11 @@ def handle_command(
     if not _authorized(port, request.actor, context.graph.administrator_roles):
         _react(port, request.comment_id, "confused")
         return CommandOutcome(handled=True)
-    targets = _command_targets(command, context.targets)
+    targets = _command_targets(command, context)
+    if isinstance(targets, str):
+        _reply(port, request.pull_request, targets)
+        _react(port, request.comment_id, "x")
+        return CommandOutcome(handled=True, authorized=True)
     _react(port, request.comment_id, "eyes")
     record = ApprovalRecord(
         command.name in {CommandName.IGNORE, CommandName.IGNORE_FILE},
@@ -258,7 +262,7 @@ def _command_context(
     run_id = JSON.integer(run.get("id"), "workflow run id")
     graph, results = _run_results(port, number, head_sha, base_sha, run)
     state = effective_graph(graph, results, set())
-    return CommandContext(graph, run_id, state.targets)
+    return CommandContext(graph, run_id, state)
 
 
 def _run_results(
@@ -332,8 +336,8 @@ def _authorized(port: GitHubPort, actor: str, roles: tuple[str, ...]) -> bool:
 
 def _command_targets(
     command: Command,
-    active: frozenset[ApprovalTarget],
-) -> tuple[ApprovalTarget, ...]:
+    context: CommandContext,
+) -> tuple[ApprovalTarget, ...] | str:
     targets: list[ApprovalTarget] = []
     for argument in command.arguments:
         if command.name in {CommandName.IGNORE_FILE, CommandName.REMOVE_IGNORE_FILE}:
@@ -343,12 +347,27 @@ def _command_targets(
                 ApprovalTarget(ControlKind.FINDING, argument),
                 ApprovalTarget(ControlKind.NODE, argument),
             )
-        selected = next((candidate for candidate in candidates if candidate in active), None)
+        selected = next(
+            (candidate for candidate in candidates if candidate in context.state.targets), None
+        )
         if selected is None:
-            message = f"unknown or non-approvable Quality Graph target: {argument}"
-            raise ValueError(message)
+            return _rejection_message(context, candidates)
         targets.append(selected)
     return tuple(dict.fromkeys(targets))
+
+
+def _rejection_message(context: CommandContext, candidates: tuple[ApprovalTarget, ...]) -> str:
+    for node in context.graph.nodes:
+        if ApprovalTarget(ControlKind.NODE, node.id) not in candidates:
+            continue
+        result = context.state.results.get(node.id)
+        if result is None:
+            return f"No admitted result is available for `{node.id}`."
+        reason = f"Whole-node approval is disabled for `{node.id}`."
+        if any(control.kind is ControlKind.FINDING for control in result.controls):
+            return reason + " Use an individual finding instead."
+        return reason + " This result has no individually approvable findings."
+    return "Unknown Quality Graph target. Check the current dashboard for available targets."
 
 
 # pragma: no mutate start

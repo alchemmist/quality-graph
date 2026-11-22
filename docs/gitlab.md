@@ -136,8 +136,8 @@ graph digest, flow and operation. GitHub run attempts are not used.
 
 Missing, malformed, mismatched or conflicting evidence cannot establish success.
 A current job cannot reuse an older retried job's artifact. Findings are approvable
-only after admission; approvals do not suppress command, protocol or infrastructure
-failures. Native cancellation is published as `canceled`.
+only after admission; finding approvals do not suppress command failures. Explicit whole-node ignore can skip a command
+failure, but not protocol or infrastructure failures. Native cancellation is published as `canceled`.
 
 Use new MR comments for commands:
 
