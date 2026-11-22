@@ -318,8 +318,7 @@ def test_commands_only_approve_findings_from_admitted_attempt(
     fake_github.reset(payload)
     port = HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url)
     if attempt == 2:
-        with pytest.raises(ValueError, match="unknown or non-approvable"):
-            handle_command(port, command_event("/qg ignore finding"))
+        assert not handle_command(port, command_event("/qg ignore finding")).changed
     else:
         assert handle_command(port, command_event("/qg ignore finding")).changed
     observed = fake_github.snapshot()
@@ -334,3 +333,18 @@ def test_commands_only_approve_findings_from_admitted_attempt(
         run = cast("list[JsonValue]", payload["workflow_runs"])[0]
         publication = publish_workflow_run(port, {"action": "completed", "workflow_run": run})
         assert publication.status is ResultStatus.PASSED
+
+
+def test_command_failure_without_approvable_findings(fake_github: FakeGitHubScenario) -> None:
+    payload = scenario([node_result(3, ResultStatus.FAILED)], conclusion="failure")
+    payload["permissions"] = {"admin": "admin"}
+    fake_github.reset(payload)
+    port = HttpGitHubPort("owner/repository", "token", base_url=fake_github.base_url)
+    assert not handle_command(port, command_event("/qg ignore lint")).changed
+    observed = fake_github.snapshot()
+    assert observed["reruns"] == []
+    [reply] = cast("list[dict[str, JsonValue]]", observed["comments"])
+    assert reply["body"] == (
+        "Whole-node approval is disabled for `lint`. "
+        "This result has no individually approvable findings."
+    )
