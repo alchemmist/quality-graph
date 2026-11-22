@@ -233,6 +233,7 @@ def test_handler_rejects_unauthorized_commands() -> None:
     ("target", "reason"),
     [
         ("finding,missing", "Unknown Quality Graph target"),
+        ("format", "No admitted result is available for `format`."),
         ("lint", "Whole-node approval is disabled for `lint`. Use an individual finding"),
     ],
 )
