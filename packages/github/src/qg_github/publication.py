@@ -114,7 +114,10 @@ def publish_workflow_run(
         return PublicationOutcome(published=False)
     if not _is_latest_run(port, event, number):
         return PublicationOutcome(published=False)
-    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", pull.base_sha))
+    graph = Graph.from_yaml(
+        _repository_file(port, "qg.yaml", pull.base_sha),
+        lambda path: _repository_file(port, path, pull.base_sha),
+    )
     return _publish_completed_workflow_run(port, event, number, pull, graph)
 
 
@@ -184,7 +187,10 @@ def watch_workflow_run(
         return PublicationOutcome(published=False)
     if not _is_latest_run(port, event, number):
         return PublicationOutcome(published=False)
-    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", pull.base_sha))
+    graph = Graph.from_yaml(
+        _repository_file(port, "qg.yaml", pull.base_sha),
+        lambda path: _repository_file(port, path, pull.base_sha),
+    )
     projected = pr_presentation_graph(graph)
     if projected is None:
         return PublicationOutcome(published=False)
@@ -490,7 +496,10 @@ def reconcile_publication(
     existing = _existing_check(port, run.head_sha, f"quality-graph:{run.id}:{run.attempt}")
     if existing and existing.get("status") == "completed":
         return
-    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", pull.base_sha))
+    graph = Graph.from_yaml(
+        _repository_file(port, "qg.yaml", pull.base_sha),
+        lambda path: _repository_file(port, path, pull.base_sha),
+    )
     projected = pr_presentation_graph(graph)
     if projected is None:
         return

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from typing import TYPE_CHECKING
 
 import pytest
@@ -96,3 +97,16 @@ def test_cli_emits_explicit_flow_provenance_for_native_producers(tmp_path: Path)
     assert value.node_id == "verify"
     assert value.provenance.flow_id == "review"
     assert value.provenance.operation_id == "lint"
+
+
+def test_github_publishes_lua_conversion(tmp_path: Path) -> None:
+    code = 'return {reportVersion=0,status="passed",summary=json.decode(input).message}'
+    values = environment(tmp_path) | {
+        "QG_ADAPTER": "lua",
+        "QG_REPORT_PATH": "report.json",
+        "QG_LUA_SOURCE": base64.b64encode(code.encode()).decode(),
+    }
+    (tmp_path / "report.json").write_text('{"message":"Tool ran once"}')
+    request = CollectionRequest.from_environment(values, {})
+    assert publish_collection(request, collect(request)) == 0
+    assert "Tool ran once" in (tmp_path / "summary.md").read_text()

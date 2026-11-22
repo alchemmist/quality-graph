@@ -67,7 +67,13 @@ def _preserves_required_checks(base: Graph, head: Graph) -> bool:
 
 
 def _head_declaration(port: GitHubPort, sha: str) -> Graph:
-    value = port.request("GET", f"/contents/qg.yaml?ref={quote(sha, safe='')}")
+    return Graph.from_yaml(
+        _head_file(port, sha, "qg.yaml"), lambda path: _head_file(port, sha, path)
+    )
+
+
+def _head_file(port: GitHubPort, sha: str, path: str) -> str:
+    value = port.request("GET", f"/contents/{quote(path, safe='')}?ref={quote(sha, safe='')}")
     if not isinstance(value, dict):
         message = "head declaration response must be an object"
         raise TypeError(message)
@@ -79,7 +85,7 @@ def _head_declaration(port: GitHubPort, sha: str) -> Graph:
     if len(decoded) > MAX_DECLARATION_BYTES:
         message = "head declaration exceeds the size limit"
         raise ValueError(message)
-    return Graph.from_yaml(decoded.decode())
+    return decoded.decode()
 
 
 def _execution_expectation(

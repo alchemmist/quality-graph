@@ -199,7 +199,10 @@ def dispatch_pr_command(
     ):
         return CommandOutcome(handled=False)
     base_sha = JSON.string(base.get("sha"), "pull request base SHA")
-    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", base_sha))
+    graph = Graph.from_yaml(
+        _repository_file(port, "qg.yaml", base_sha),
+        lambda path: _repository_file(port, path, base_sha),
+    )
     if pr_presentation_graph(graph) is None:
         return CommandOutcome(handled=False)
     return handle_command(port, event_value, admitted_pull=pull)
@@ -261,7 +264,10 @@ def _command_context(
 def _run_results(
     port: GitHubPort, number: int, head_sha: str, base_sha: str, run: dict[str, JsonValue]
 ) -> tuple[Graph, dict[str, Result]]:
-    graph = Graph.from_yaml(_repository_file(port, "qg.yaml", base_sha))
+    graph = Graph.from_yaml(
+        _repository_file(port, "qg.yaml", base_sha),
+        lambda path: _repository_file(port, path, base_sha),
+    )
     compiled = compile_graph(graph)
     projected = pr_presentation_graph(graph)
     if projected is None:

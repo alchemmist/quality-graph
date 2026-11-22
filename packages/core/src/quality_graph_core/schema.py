@@ -297,6 +297,15 @@ def graph_schema_value() -> dict[str, JsonValue]:
             },
             "native": _string_schema(minimum=1),
             "sarif": _string_schema(minimum=1),
+            "lua": {
+                "oneOf": [
+                    _object_schema(
+                        {"input": _string_schema(minimum=1), key: _string_schema(minimum=1)},
+                        ("input", key),
+                    )
+                    for key in ("code", "file")
+                ]
+            },
             "junit": _string_schema(minimum=1),
         },
         "additionalProperties": False,

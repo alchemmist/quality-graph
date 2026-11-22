@@ -159,3 +159,59 @@ The same `--output` option works with `no-comments`, `object-annotations`, `time
 with `HEAD` (for example, set `fetch-depth: "0"` on `actions/checkout`). The gate
 writes a producer-v0 report; the collector binds node identity and workflow provenance and
 publishes source annotations. Without `--output`, the gate still prints local diagnostics.
+
+## Lua 5.4
+
+To migrate a tool that writes `{"ok": false, "count": 3}`, remove the separate converter
+command and point `input` at the original report. The existing command runs once. Its
+collection step evaluates the chunk below with the UTF-8 report text in `input`:
+
+```yaml
+run: make check
+results:
+  lua:
+    input: reports/tool.json
+    code: |
+      local tool = json.decode(input)
+      local report = {reportVersion=0, status="passed",
+                      metrics={{label="Checks", value=tostring(tool.count)}}}
+      if not tool.ok then
+          report.status = "failed"
+          report.failureKind = "quality"
+          report.findings = {{id="tool-check", severity="error", message="Check failed"}}
+      end
+      return report
+```
+
+Alternatively, save the exact chunk above as `adapters/tool.lua` and declare:
+
+```yaml
+run: make check
+results:
+  lua:
+    input: reports/tool.json
+    file: adapters/tool.lua
+```
+
+Exactly one of `code` and `file` is required. Regenerate after changing either source:
+its contents participate in the execution digest. The publisher reads declarations as
+inert data; only collection runs Lua. Both providers use the native `reportVersion: 0`
+producer contract, including finding locations, annotations, metrics, diagnostics and notes.
+Do not return node identity, title, provenance, schema version or approval controls. A passing
+report cannot mask a failed command (command failure); a valid quality failure remains a
+quality failure. Invalid conversions are adapter failures, not approvable findings.
+
+JSON strings, booleans and numbers map to Lua primitives. Arrays use contiguous 1-based
+integer keys; objects use string keys. Decoded empty collections retain their type. For new
+collections `{}` is an object; `json.array()` creates an empty array. Use `json.null` for
+JSON null (`nil` removes a field). Mixed/sparse keys, cycles and nonfinite numbers are invalid.
+
+Use a POSIX runner with Python 3.12+ and a Lupa wheel (Linux and macOS). The core package
+installs the embedded Lua runtime; no `lua` binary is needed. The fresh worker has no runner
+environment or provider API. It exposes `pairs`, `ipairs`, `type`, `tonumber`, `tostring`,
+`assert`, `error`, `table.insert`, string methods `match`, `sub`, `upper`, `lower`, and the
+JSON helpers. It does not expose Python, process, file, network, module loading or debug APIs.
+Paths are workspace-relative regular files: symlinks and parent traversal are rejected.
+Source is limited to 64 KiB, input and serialized output to 1 MiB each, output nesting to
+64 levels, Lua memory to 16 MiB, execution to 2 million instructions and the worker to
+3 CPU seconds / 4 wall-clock seconds. Linux additionally caps worker address space at 256 MiB.
