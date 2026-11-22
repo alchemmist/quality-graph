@@ -25,8 +25,9 @@ from qg_gitlab.markers import execution_marker, gate_marker
 from qg_gitlab.publication import publish_from_environment
 from quality_graph_core.adapters import AdapterContext
 from quality_graph_core.collection import collect_report
-from quality_graph_core.graph import Graph
+from quality_graph_core.graph import Graph, LuaAdapter
 from quality_graph_core.result import FailureKind, GitLabProvenance, Result
+from quality_graph_core.workspace import read_lua_file
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -39,7 +40,7 @@ GATE_INTERVAL_SECONDS = 3
 
 def execution(root: Path, flow_id: str, node_id: str) -> tuple[Graph, Graph, Node, Profile]:
     """Resolve the exact declared execution without importing the CLI."""
-    graph = Graph.from_yaml((root / "qg.yaml").read_text())
+    graph = Graph.from_yaml((root / "qg.yaml").read_text(), lambda path: read_lua_file(root, path))
     configuration(graph)
     for selected_id, _event, projected in execution_graphs(graph):
         if selected_id == flow_id:
@@ -102,7 +103,10 @@ def run_step(step: Step, root: Path, environment: Mapping[str, str]) -> bool:
 
 def collect(context: AdapterContext, node: Node, root: Path) -> Result:
     """Adapt the existing command execution without rerunning any checks."""
-    return collect_report(context, node.result.kind, root, node.result.path)
+    adapter = node.result
+    if isinstance(adapter, LuaAdapter):
+        return collect_report(context, adapter.kind, root, adapter.path, lua=adapter)
+    return collect_report(context, adapter.kind, root, adapter.path)
 
 
 def execute(root: Path, flow_id: str, node_id: str) -> int:
@@ -142,7 +146,7 @@ def execute(root: Path, flow_id: str, node_id: str) -> int:
 
 def gate(root: Path, flow_id: str) -> int:
     """Hold the native pipeline until its trusted external status is installed."""
-    graph = Graph.from_yaml((root / "qg.yaml").read_text())
+    graph = Graph.from_yaml((root / "qg.yaml").read_text(), lambda path: read_lua_file(root, path))
     pipeline = int(os.environ["CI_PIPELINE_ID"])
     digest = graph_digest(graph)
     marker = gate_marker(int(os.environ["CI_PROJECT_ID"]), pipeline, flow_id, digest)

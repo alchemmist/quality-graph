@@ -9,7 +9,12 @@ description = "Platform-independent Quality Graph contracts and decision logic"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
-dependencies = ["defusedxml>=0.7.1", "pyyaml>=6.0.2"]
+dependencies = [
+    "anyio>=4.9",
+    "defusedxml>=0.7.1",
+    "lupa>=2.6,<3",
+    "pyyaml>=6.0.2",
+]
 
 [project.urls]
 Homepage = "https://quality-graph.xyz/"

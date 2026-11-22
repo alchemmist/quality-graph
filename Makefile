@@ -220,6 +220,11 @@ package:
 	uv run --isolated --no-project --with dist/quality_graph_core-*-py3-none-any.whl \
 		--with dist/quality_graph_gitlab-*-py3-none-any.whl \
 		--with dist/quality_graph_cli-*-py3-none-any.whl python scripts/gitlab_package_smoke.py
+	uv run --isolated --no-project --with pytest --with dist/quality_graph_core-*-py3-none-any.whl \
+		--with dist/quality_graph_cli-*-py3-none-any.whl --with dist/quality_graph_gitlab-*-py3-none-any.whl \
+		--with dist/quality_graph_github-*-py3-none-any.whl python -m pytest -q --confcutdir=tests/integration \
+		tests/integration/test_flow_runtime.py::test_github_publishes_lua_conversion \
+		tests/integration/test_gitlab_runtime.py::test_lua_collects_after_single_command
 	uv run --isolated --no-project --with dist/quality_graph_python-*-py3-none-any.whl \
 		qg-python-time-bombs --help >/dev/null
 	@error=$$(mktemp); \

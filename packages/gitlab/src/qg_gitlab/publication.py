@@ -500,8 +500,14 @@ def expectation(api: HttpGitLab, project: int, mr_id: int) -> Expectation | None
         message = "GitLab publication requires a protected MR target branch"
         raise ValueError(message)
     target_sha = string(object_value(target.get("commit"), "target commit").get("id"), "target SHA")
-    source = api.download(f"/projects/{project}/repository/files/qg.yaml/raw?ref={target_sha}")
-    graph = Graph.from_yaml(source.decode())
+    prefix = f"/projects/{project}/repository/files"
+    source = api.download(f"{prefix}/qg.yaml/raw?ref={target_sha}")
+    graph = Graph.from_yaml(
+        source.decode(),
+        lambda path: api.download(
+            f"{prefix}/{urllib.parse.quote(path, safe='')}/raw?ref={target_sha}"
+        ).decode(),
+    )
     if configuration(graph)["server-url"] != api.server_url:
         message = "GitLab declaration targets another server instance"
         raise ValueError(message)

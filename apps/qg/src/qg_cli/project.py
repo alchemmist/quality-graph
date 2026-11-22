@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Literal, Self
 from qg_cli.providers import load_provider
 from quality_graph_core.graph import Graph
 from quality_graph_core.provider import GeneratedFile, ProviderInitializer
+from quality_graph_core.workspace import read_lua_file
 
 if TYPE_CHECKING:
     from quality_graph_core.provider import GeneratedProject, Provider
@@ -48,7 +49,7 @@ class Project:
         if not configuration.is_file():
             message = f"Quality Graph declaration does not exist: {configuration}"
             raise FileNotFoundError(message)
-        graph = Graph.from_yaml(configuration.read_text())
+        graph = Graph.from_yaml(configuration.read_text(), lambda path: read_lua_file(root, path))
         return cls(root, graph, load_provider(graph.provider.name))
 
     def render(self) -> GeneratedProject:
@@ -217,7 +218,7 @@ class Project:
         if configuration.exists() and not force:
             message = f"Refusing to replace existing declaration: {configuration}"
             raise FileExistsError(message)
-        graph = Graph.from_yaml(source)
+        graph = Graph.from_yaml(source, lambda path: read_lua_file(root, path))
         if validate_provider:
             provider.generate(graph)
         root.mkdir(parents=True, exist_ok=True)

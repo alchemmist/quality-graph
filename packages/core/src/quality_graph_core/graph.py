@@ -14,7 +14,7 @@ from quality_graph_core.provider import ProfileDefaults
 from quality_graph_core.result import JsonValue, Severity
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Callable, Iterable, Mapping
 
 NODE_ID_RE = re.compile(r"^[a-z][a-z0-9-]{0,62}$")
 ADMIN_ROLES = {"admin", "maintain", "write"}
@@ -22,6 +22,7 @@ MAX_TIMEOUT_MINUTES = 360
 MAX_LABEL_NAME_LENGTH = 50
 MAX_LABEL_DESCRIPTION_LENGTH = 100
 MAX_NODE_TITLE_LENGTH = 255
+MAX_LUA_SOURCE_BYTES = 65_536
 MAX_OPERATION_ITEMS = 64
 
 
@@ -31,6 +32,7 @@ class AdapterKind(StrEnum):
     EXIT_CODE = "exit-code"
     NATIVE = "native"
     SARIF = "sarif"
+    LUA = "lua"
     JUNIT = "junit"
 
 
@@ -104,6 +106,30 @@ class ResultAdapter:
             raise ValueError(message)
         if self.path is not None:
             _relative_path(self.path, "result report")
+
+
+@dataclass(frozen=True)
+class LuaAdapter(ResultAdapter):
+    """Bind the declared conversion to the exact source in this revision."""
+
+    code: str = ""
+    file: str | None = None
+
+    def bind(self, read_source: Callable[[str], str] | None) -> LuaAdapter:
+        """Read source as data only, including on trusted publication paths."""
+        if self.file is None:
+            return self
+        if read_source is None:
+            message = "Lua file declaration requires a repository source reader"
+            raise ValueError(message)
+        return replace(self, code=_lua_source(read_source(self.file)))
+
+
+def _lua_source(code: str) -> str:
+    if not code.strip() or len(code.encode()) > MAX_LUA_SOURCE_BYTES:
+        message = "Lua source must be nonempty and at most 65536 bytes"
+        raise ValueError(message)
+    return code
 
 
 @dataclass(frozen=True)
@@ -398,7 +424,7 @@ class Graph:
         return tuple(order)
 
     @classmethod
-    def from_yaml(cls, source: str) -> Graph:
+    def from_yaml(cls, source: str, read_source: Callable[[str], str] | None = None) -> Graph:
         """Load and validate a graph declaration from YAML."""
         node = yaml.compose(source, Loader=yaml.SafeLoader)
         if node is None:
@@ -406,7 +432,18 @@ class Graph:
             raise ValueError(message)
         _reject_duplicate_yaml_keys(node)
         value = _narrow_yaml(cast("object", yaml.safe_load(source)), "qg.yaml")
-        return _parse_graph(JSON.object(value, "qg.yaml"))
+        graph = _parse_graph(JSON.object(value, "qg.yaml"))
+
+        def bind[T: (Node, Operation)](node: T) -> T:
+            if isinstance(node.result, LuaAdapter):
+                return replace(node, result=node.result.bind(read_source))
+            return node
+
+        return replace(
+            graph,
+            nodes=tuple(map(bind, graph.nodes)),
+            operations=tuple(map(bind, graph.operations)),
+        )
 
 
 # pragma: no mutate start
@@ -889,8 +926,23 @@ def _parse_results(data: dict[str, JsonValue]) -> ResultAdapter:
         raise ValueError(message)
     name, value = next(iter(data.items()))
     kind = AdapterKind(name)
-    path = None if value is None else JSON.string(value, f"{name} report path")
-    return ResultAdapter(kind, path)
+    if kind is AdapterKind.LUA:
+        config = JSON.object(value, "lua adapter")
+        _reject_unknown(config, {"input", "code", "file"}, "lua adapter")
+        if ("code" in config) == ("file" in config):
+            message = "Lua adapter requires exactly one of code or file"
+            raise ValueError(message)
+        path = JSON.string(config.get("input"), "Lua input")
+        if "file" in config:
+            file = JSON.string(config["file"], "Lua file")
+            _relative_path(file, "Lua file")
+            if not file.endswith(".lua"):
+                message = "Lua file must have .lua extension"
+                raise ValueError(message)
+            return LuaAdapter(kind, path, file=file)
+        return LuaAdapter(kind, path, code=_lua_source(JSON.string(config["code"], "Lua code")))
+    report_path = None if value is None else JSON.string(value, f"{name} report path")
+    return ResultAdapter(kind, report_path)
 
 
 def _parse_policy(data: dict[str, JsonValue]) -> NodePolicy:

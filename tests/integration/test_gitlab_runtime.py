@@ -236,3 +236,22 @@ def test_new_job_waits_for_mr_pipeline_registration(
     monkeypatch.setattr(runtime, "sleep", waits.append)
     assert runtime.gate(tmp_path, "mr") == 0
     assert waits == [runtime.GATE_INTERVAL_SECONDS]
+
+
+def test_lua_collects_after_single_command(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    prepare(tmp_path, monkeypatch, "echo run >> count; echo broken > report")
+    config = tmp_path / "qg.yaml"
+    source = yaml.safe_load(config.read_text())
+    source["nodes"]["quality"]["results"] = {"lua": {"input": "report", "file": "tool.lua"}}
+    config.write_text(yaml.safe_dump(source))
+    (tmp_path / "tool.lua").write_text(
+        'return {reportVersion=0,status="failed",failureKind="quality",'
+        'findings={{id="tool",severity="error",message=input}},'
+        'metrics={{label="Checks",value="1"}},diagnostics={{kind="command",message="Ran tool"}}}'
+    )
+    assert runtime.execute(tmp_path, "push", "quality") == 10
+    assert (tmp_path / "count").read_text() == "run\n"
+    report = Result.from_json((tmp_path / ".qg/results/push/quality.json").read_bytes())
+    assert report.findings[0].message == "broken\n"
+    assert report.metrics[0].value == "1"
+    assert report.diagnostics[0].message == "Ran tool"
