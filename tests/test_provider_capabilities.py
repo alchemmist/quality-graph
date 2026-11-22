@@ -73,11 +73,13 @@ def test_generated_file_metadata_protects_custom_provider_files(tmp_path: Path) 
     assert path.read_text() == "owned\nnew\n"
 
 
-def test_release_presentation_cannot_turn_a_branch_flow_into_a_release() -> None:
-    graph = Graph.from_yaml(
+def test_branch_release_presentation_requires_explicit_concurrency_lane() -> None:
+    source = (
         "version: 0\nprofiles: {default: {}}\noperations: {check: {run: check}}\n"
         "flows:\n  main:\n    trigger: {push: {branches: [main]}}\n"
         "    presentation: release\n    nodes: {check: {}}\n"
     )
-    with pytest.raises(ValueError, match="incompatible"):
-        GITHUB_CAPABILITIES.validate(graph)
+    with pytest.raises(ValueError, match="exclusive concurrency lane"):
+        Graph.from_yaml(source)
+    scoped = source.replace("    presentation:", "    concurrency: production\n    presentation:")
+    GITHUB_CAPABILITIES.validate(Graph.from_yaml(scoped))

@@ -352,7 +352,8 @@ def test_default_branch_release_coexists_with_push_ci() -> None:
 
     special = source.replace("branches: [main]", "branches: [main+]").replace(
         "runtime: {action:",
-        "provider:\n  name: github\n  configuration:\n    default-branch: main+\n    runtime: {action:",
+        "provider:\n  name: github\n  configuration:\n"
+        "    default-branch: main+\n    runtime: {action:",
     )
     files = {str(f.path): f.content for f in compile_graph(Graph.from_yaml(special)).files}
     assert yaml.safe_load(files[str(RELEASE_WORKFLOW)])["on"]["push"]["branches"] == [r"main\+"]
