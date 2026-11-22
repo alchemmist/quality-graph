@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from qg_github.commands import CommandOutcome, dispatch_pr_command
-from qg_github.github import MemoryGitHubPort
+from qg_github.github import GitHubError, MemoryGitHubPort
 from qg_github.reconciliation import reconcile_open_pulls
 from qg_github.runtime import main
 from tests.test_commands import direct_event
@@ -162,9 +162,16 @@ def test_reconcile_attempt_uses_verified_job_history() -> None:
     assert port.requests[-1][2]["external_id"] == "quality-graph:10:2"
 
 
-@pytest.mark.parametrize("operation", ["reconcile", "scheduled-command"])
+@pytest.mark.parametrize(
+    ("operation", "expected_event"),
+    [
+        ("reconcile", "schedule"),
+        ("reconcile", "workflow_dispatch"),
+        ("scheduled-command", "issue_comment"),
+    ],
+)
 def test_runtime_requires_expected_default_branch_event(
-    operation: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    operation: str, expected_event: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     port = setup()
     event = {"repository": {"full_name": port.repository, "default_branch": "main"}}
@@ -181,7 +188,6 @@ def test_runtime_requires_expected_default_branch_event(
     monkeypatch.setenv("GITHUB_EVENT_PATH", str(path))
     monkeypatch.setenv("GITHUB_REPOSITORY", port.repository)
     monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
-    expected_event = "schedule" if operation == "reconcile" else "issue_comment"
     monkeypatch.setenv("GITHUB_EVENT_NAME", expected_event)
     assert main([operation]) == 0
     for name, value in (
@@ -275,6 +281,68 @@ def test_repeated_check_page_never_posts_a_duplicate() -> None:
     full = {"check_runs": [COMPLETED | {"id": i, "external_id": "other"} for i in range(100)]}
     set_response(port, CHECKS, full)
     port.enqueue("GET", CHECKS + "&page=2", full)
-    with pytest.raises(ValueError, match="check run listing repeated a full page"):
+    with pytest.raises(RuntimeError, match="#42: ValueError"):
         reconcile_open_pulls(port, "main")
     assert all(method == "GET" for method, _, _ in port.requests)
+
+
+@pytest.mark.parametrize("throttled", [False, True])
+def test_one_pr_failure_never_completes_its_check_or_masks_tick_failure(
+    monkeypatch: pytest.MonkeyPatch, *, throttled: bool
+) -> None:
+    port = setup()
+    set_response(port, OPEN, [{"number": 7}, {"number": 42}])
+    first_sha = "c" * 40
+    first_pull = PULL | {"number": 7, "head": {"sha": first_sha}}
+    first_run = RUN | {"id": 9, "head_sha": first_sha, "pull_requests": [first_pull]}
+    port.enqueue("GET", "/pulls/7", first_pull)
+    port.enqueue(
+        "GET", RUNS.replace(HEAD, first_sha), {"total_count": 1, "workflow_runs": [first_run]}
+    )
+    port.enqueue("GET", "/actions/runs/9", first_run)
+    port.enqueue("GET", CHECKS.replace(HEAD, first_sha), {"check_runs": []})
+    port.enqueue("GET", "/actions/runs/9/artifacts?per_page=100&page=1", {"artifacts": []})
+    port.enqueue("GET", JOBS_PATH.replace("/10/", "/9/"), {"jobs": []})
+    port.enqueue("GET", "/issues/7/comments?per_page=100&page=1", [])
+    descriptors = []
+    for identifier, node in enumerate(("format", "lint"), start=1):
+        archive = result_archive(node, node.title())
+        descriptors.append(artifact(identifier, node, archive))
+        port.downloads[f"/actions/artifacts/{identifier}/zip"] = archive
+    port.enqueue(
+        "GET", "/actions/runs/10/artifacts?per_page=100&page=1", {"artifacts": descriptors}
+    )
+    original = port.request
+
+    def request(method: str, path: str, payload: JsonValue = None) -> JsonValue:
+        if (method, path) == ("POST", "/issues/7/comments"):
+            reason = "rate limited" if throttled else "integration permission denied"
+            raise GitHubError(method, path, 403, reason)
+        return original(method, path, payload)
+
+    monkeypatch.setattr(port, "request", request)
+    with pytest.raises(RuntimeError, match="rate limited" if throttled else "#7: POST HTTP 403"):
+        reconcile_open_pulls(port, "main")
+    writes = [payload for _, path, payload in port.requests if path == "/check-runs"]
+    assert [(check["head_sha"], check["conclusion"]) for check in writes] == (
+        [] if throttled else [(HEAD, "success")]
+    )
+
+
+def test_rate_limit_during_optional_job_lookup_stops_before_any_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    port = setup()
+    set_response(port, OPEN, [{"number": 42}, {"number": 7}])
+    port.enqueue("GET", "/actions/runs/10/artifacts?per_page=100&page=1", {"artifacts": []})
+    original = port.request
+
+    def request(method: str, path: str, payload: JsonValue = None) -> JsonValue:
+        if path == JOBS_PATH:
+            raise GitHubError(method, path, 403, "secondary rate limit")
+        return original(method, path, payload)
+
+    monkeypatch.setattr(port, "request", request)
+    with pytest.raises(GitHubError, match="secondary rate limit"):
+        reconcile_open_pulls(port, "main")
+    assert all(method == "GET" and path != "/pulls/7" for method, path, _ in port.requests)

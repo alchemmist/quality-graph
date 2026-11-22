@@ -135,7 +135,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         return 0
     if operation == ["reconcile"]:
         event = read_event_json(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
-        branch = default_branch_for_event(os.environ, event, "schedule")
+        branch = default_branch_for_event(os.environ, event, "schedule", "workflow_dispatch")
         reconcile_open_pulls(HttpGitHubPort.from_environment(), branch)
         return 0
     if operation == ["scheduled-command"]:

@@ -59,6 +59,23 @@ open PRs targeting the repository default branch, posts progress for active exec
 publishes completed results using the same artifact admission and base governance as the event
 publisher. It neither dispatches work from the PR nor accepts caller-supplied run IDs.
 
+If a scheduled tick is delayed, an operator with Actions access can select **Run workflow**
+for **Quality Graph Publisher** on the default branch:
+
+```sh
+gh workflow run quality-graph-publish.yml --ref main
+```
+
+There are no PR, run, ref override, or artifact inputs. The job and runtime reject other branch refs and use the same reconciliation
+and concurrency group as a tick. Dispatch requires the updated workflow and runtime on the
+default branch (replace `main` with its name). It is an operator recovery path, not evidence
+the schedule itself ran. Do not dispatch a workflow revision from a feature branch.
+
+A PR-specific API or validation error leaves the tick failed but does not prevent later PRs
+from being sampled. A recognized rate limit stops the sweep rather than issuing more requests.
+An unclassified 403 is not proof of a missing grant: check the failing target and the job's
+effective token permissions; do not paste response bodies, authorization headers, or artifact URLs.
+
 The reconciler requires the latest run of `quality-graph.yml` for the exact PR head to have
 one unambiguous GitHub PR association, including matching head and base revisions. If the
 base moves, update the PR against it and run the checks on the new head. A missing association

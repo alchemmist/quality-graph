@@ -32,8 +32,8 @@ Governance configuration always comes from the pull request base SHA. A pull req
 propose graph changes for review, but proposed roles, labels, and controls do not receive
 trusted authority before merge.
 
-In [scheduled mode](configuration.md#scheduled-github-publication-opt-in), only a default-branch
-schedule reconciles publication. Both jobs have `contents: read`, `issues: write` and
+In [scheduled mode](configuration.md#scheduled-github-publication-opt-in), a default-branch schedule or input-free operator
+dispatch reconciles publication. Both jobs have `contents: read`, `issues: write` and
 `pull-requests: read`; the reconciler also needs `actions: read` and `checks: write`, while
 the separate issue-comment command job needs `actions: write` for authorized reruns.
 Neither job checks out a PR. The reconciler rechecks the current PR and workflow run attempt

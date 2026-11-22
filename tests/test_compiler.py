@@ -478,7 +478,9 @@ def test_scheduled_publication_only_replaces_base_publisher(source: str) -> None
     ]
     content = next(f.content for f in after.files if f.path == PUBLICATION_WORKFLOW)
     generated = yaml.safe_load(content)
-    assert set(generated["on"]) == {"schedule", "issue_comment"}
+    assert set(generated["on"]) == {"schedule", "issue_comment", "workflow_dispatch"}
+    assert generated["on"]["workflow_dispatch"] == {}
+    assert "github.event.repository.default_branch" in generated["jobs"]["publish"]["if"]
     assert generated["permissions"] == {}
     for job in generated["jobs"].values():
         assert len(job["steps"]) == 1

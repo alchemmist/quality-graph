@@ -2,6 +2,7 @@
 ---
 name: Quality Graph Publisher
 'on':
+  workflow_dispatch: {}
   schedule:
     - cron: '3-58/5 * * * *'
   issue_comment:
@@ -10,7 +11,9 @@ permissions: {}
 jobs:
   publish:
     name: Reconcile Quality Graph
-    if: github.event_name == 'schedule'
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     concurrency:
       group: quality-graph-reconcile
       cancel-in-progress: false
