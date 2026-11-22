@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort, paged
+import yaml
+
+from qg_github.github import GITHUB_PAGE_SIZE, GitHubError, GitHubPort, paged
 from qg_github.publication import PullRequestState, WorkflowRunEvent, reconcile_publication
 from quality_graph_core.json_values import JSON
 
@@ -23,13 +25,13 @@ SEARCH_RUN_LIMIT = 1_000
 
 
 def default_branch_for_event(
-    environment: Mapping[str, str], event: Mapping[str, JsonValue], expected_event: str
+    environment: Mapping[str, str], event: Mapping[str, JsonValue], *expected_events: str
 ) -> str:
     """Require the expected default-branch event in the runner's own repository."""
     repo = JSON.object(event.get("repository"), "event repository")
     branch = JSON.string(repo.get("default_branch"), "default branch")
     if (
-        environment.get("GITHUB_EVENT_NAME") != expected_event
+        environment.get("GITHUB_EVENT_NAME") not in expected_events
         or repo.get("full_name") != environment["GITHUB_REPOSITORY"]
         or environment.get("GITHUB_REF") != f"refs/heads/{branch}"
     ):
@@ -46,9 +48,22 @@ class _Candidate:
 
 def reconcile_open_pulls(port: GitHubPort, branch: str) -> None:
     """Sample each open default-branch PR once and revalidate immediately before writing."""
+    failures: list[str] = []
     for item in paged(port, f"/pulls?state=open&base={quote(branch, safe='')}"):
         number = JSON.integer(item.get("number"), "pull request number")
-        _reconcile_pull(port, branch, number)
+        try:
+            _reconcile_pull(port, branch, number)
+        except GitHubError as error:
+            if error.throttled:
+                raise
+            failures.append(
+                f"#{number}: {error.method} HTTP {error.status_code} {error.reason}".rstrip()
+            )
+        except (TypeError, ValueError, RuntimeError, yaml.YAMLError) as error:
+            failures.append(f"#{number}: {type(error).__name__}")
+    if failures:
+        message = "Reconciliation failed for " + ", ".join(failures)
+        raise RuntimeError(message)
 
 
 def _reconcile_pull(port: GitHubPort, branch: str, number: int) -> None:

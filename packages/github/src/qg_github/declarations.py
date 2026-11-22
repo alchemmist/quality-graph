@@ -34,6 +34,8 @@ def read_pr_results(
             compiled = compile_graph(head)
             projected = pr_presentation_graph(head)
         except (GitHubError, ValueError, TypeError) as error:
+            if isinstance(error, GitHubError) and error.throttled:
+                raise
             raise mismatch from error
         if projected is None or compiled.graph_digest == expectation.graph_digest:
             raise

@@ -41,10 +41,43 @@ class GitHubPort(Protocol):
 class GitHubError(RuntimeError):
     """Represent a failed GitHub transport request."""
 
-    def __init__(self, method: str, path: str, status_code: int) -> None:
+    def __init__(self, method: str, path: str, status_code: int, reason: str = "") -> None:
         """Create an error without exposing response or credential content."""
-        super().__init__(f"GitHub {method} {path} failed: HTTP {status_code}")
+        detail = f" ({reason})" if reason else ""
+        super().__init__(f"GitHub {method} {path} failed: HTTP {status_code}{detail}")
+        self.method = method
+        self.reason = reason
         self.status_code = status_code
+
+    @property
+    def throttled(self) -> bool:
+        """Return whether this denial signals that further API requests should stop."""
+        return self.reason in {"primary rate limit", "secondary rate limit", "rate limited"}
+
+    @classmethod
+    def from_response(cls, method: str, path: str, response: httpx.Response) -> GitHubError:
+        """Classify common denials without logging response bodies or header values."""
+        reason = ""
+        if response.status_code in {HTTPStatus.FORBIDDEN, HTTPStatus.TOO_MANY_REQUESTS}:
+            reason = _denial_reason(response)
+        return cls(method, path, response.status_code, reason)
+
+
+def _denial_reason(response: httpx.Response) -> str:
+    if response.headers.get("x-ratelimit-remaining") == "0":
+        return "primary rate limit"
+    if response.status_code == HTTPStatus.TOO_MANY_REQUESTS or "retry-after" in response.headers:
+        return "rate limited"
+    try:
+        body = response.json()
+    except (ValueError, UnicodeDecodeError):
+        return "unclassified denial"
+    message = body.get("message") if isinstance(body, dict) else None
+    if isinstance(message, str) and "secondary rate limit" in message.lower():
+        return "secondary rate limit"
+    if message == "Resource not accessible by integration":
+        return "integration permission denied"
+    return "unclassified denial"
 
 
 class HttpGitHubPort:
@@ -97,7 +130,7 @@ class HttpGitHubPort:
         if response.status_code == HTTPStatus.NOT_FOUND and method in {"GET", "DELETE"}:
             return None
         if response.is_error:
-            raise GitHubError(method, path, response.status_code)
+            raise GitHubError.from_response(method, path, response)
         try:
             return cast("JsonValue", response.json())
         except (json.JSONDecodeError, UnicodeDecodeError) as error:
@@ -122,7 +155,7 @@ class HttpGitHubPort:
             raise RuntimeError(message) from error
         if response.is_error:
             method = "GET"
-            raise GitHubError(method, path, response.status_code)
+            raise GitHubError.from_response(method, path, response)
         return response.content
 
 

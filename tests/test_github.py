@@ -162,3 +162,30 @@ def test_pagination_narrows_responses(response: object) -> None:
     port.enqueue("GET", "/items?per_page=100&page=1", response)
     with pytest.raises(TypeError):
         paged(port, "/items")
+
+
+@pytest.mark.parametrize(
+    ("code", "headers", "message", "reason"),
+    [
+        (403, {"X-RateLimit-Remaining": "0"}, "hidden", "primary rate limit"),
+        (403, {"Retry-After": "hidden"}, "hidden", "rate limited"),
+        (429, {}, "hidden", "rate limited"),
+        (403, {}, "secondary rate limit: hidden", "secondary rate limit"),
+        (403, {}, "Resource not accessible by integration", "integration permission denied"),
+        (403, {}, "hidden", "unclassified denial"),
+    ],
+)
+def test_denial_diagnostics_never_echo_server_data(
+    code: int, headers: dict[str, str], message: str, reason: str
+) -> None:
+    response = httpx.Response(code, headers=headers, json={"message": message, "url": "hidden"})
+    error = GitHubError.from_response("POST", "/issues/42/comments", response)
+    assert error.reason == reason
+    assert "hidden" not in str(error)
+
+
+def test_html_and_nonobject_denials_are_classified_without_echoing_content() -> None:
+    for response in (httpx.Response(403, text="hidden"), httpx.Response(403, json=["hidden"])):
+        error = GitHubError.from_response("GET", "/actions/artifacts/1/zip", response)
+        assert error.reason == "unclassified denial"
+        assert "hidden" not in str(error)

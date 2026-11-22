@@ -25,7 +25,7 @@ from qg_github.dashboard import (
     render_dashboard,
 )
 from qg_github.declarations import read_pr_results
-from qg_github.github import GITHUB_PAGE_SIZE, GitHubPort
+from qg_github.github import GITHUB_PAGE_SIZE, GitHubError, GitHubPort
 from qg_github.labels import parse_label_state, reconcile_labels
 from qg_github.presentation import pr_presentation_graph
 from quality_graph_core.graph import Graph
@@ -278,7 +278,9 @@ def _workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:
 def _optional_workflow_jobs(port: GitHubPort, run_id: int) -> tuple[JsonValue, ...]:
     try:
         return _workflow_jobs(port, run_id)
-    except (RuntimeError, TypeError):
+    except (RuntimeError, TypeError) as error:
+        if isinstance(error, GitHubError) and error.throttled:
+            raise
         return ()
 
 
